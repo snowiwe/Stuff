@@ -1,3 +1,7 @@
+
+loadstring(game:HttpGet("",true))()
+
+--
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 
 --
@@ -188,7 +192,7 @@ if value then
     end
 end)
 
-MainTab:CreateToggle("Auto Detect", function(value)
+MainTab:CreateToggle("Boosted", function(value)
 if value then
         loadstring(game:HttpGet("https://pastebin.com/raw/t2391h1A"))()
     else
@@ -211,7 +215,7 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Ping.Name = "Ping"
 Ping.Parent = ScreenGui
 Ping.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Ping.BackgroundTransparency = 0.085
+Ping.BackgroundTransparency = 1.000
 Ping.BorderColor3 = Color3.fromRGB(40, 38, 35)
 Ping.Position = UDim2.new(0.700000048, 0, 0, 0)
 Ping.Size = UDim2.new(0, 125, 0, 25)
