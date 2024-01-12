@@ -22,16 +22,16 @@ end
 localPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 local TruValue = Instance.new("StringValue")
-if workspace:FindFirstChild("12User12") then
-    workspace:FindFirstChild("12User12"):Remove()
+if workspace:FindFirstChild("snowwie") then
+    workspace:FindFirstChild("snowwie"):Remove()
     task.wait(0.1)
     TruValue.Parent = game:GetService("Workspace")
-        TruValue.Name = "12User12"
-        TruValue.Value = "Dash" 
+        TruValue.Name = "snowwie"
+        TruValue.Value = "Pull" 
     else
         TruValue.Parent = game:GetService("Workspace")
-        TruValue.Name = "12User12"
-        TruValue.Value = "Dash" 
+        TruValue.Name = "snowwie"
+        TruValue.Value = "Pull" 
 end
 --
 local function startAutoParry()
@@ -195,14 +195,6 @@ if value then
         stopAutoDetect()
     end
 end)
-
-MainTab:CreateToggle("Auto Clash", function(value)
-if value then
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/DonGabrielle/AutoDetectV4/main/MainBalls"))()
-    else
-        stopAutoClash()
-    end
-end)      
 -- 
 
 -- Settings Tab
@@ -219,14 +211,14 @@ ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Ping.Name = "Ping"
 Ping.Parent = ScreenGui
 Ping.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Ping.BackgroundTransparency = 1.000
-Ping.BorderColor3 = Color3.fromRGB(255, 255, 255)
+Ping.BackgroundTransparency = 0.085
+Ping.BorderColor3 = Color3.fromRGB(40, 38, 35)
 Ping.Position = UDim2.new(0.700000048, 0, 0, 0)
 Ping.Size = UDim2.new(0, 125, 0, 25)
-Ping.Font = Enum.Font.LuckiestGuy
+Ping.Font = Enum.Font.FredokaOne
 Ping.TextColor3 = Color3.fromRGB(253, 253, 253)
 Ping.TextScaled = true
-Ping.TextSize = 14.000
+Ping.TextSize = 15.000
 Ping.TextWrapped = true
 
 -- 
@@ -234,7 +226,7 @@ Ping.TextWrapped = true
 local script = Instance.new('LocalScript', Ping)
 local RunService = game:GetService("RunService")
 RunService.RenderStepped:Connect(function(ping) 
-script.Parent.Text = ("Ping: " ..game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString(math.round(2/ping))) -- your ping
+script.Parent.Text = ("Ping: " ..game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString(math.round(2/ping))) -- Ping Stuff 
 end)
 end)
 
