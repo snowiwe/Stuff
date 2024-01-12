@@ -239,7 +239,15 @@ end)
 end)
 
 SettingsTab:CreateButton("FPS Booster", function()
-loadstring(game:HttpGet("https://pastebin.com/raw/9LqP25kZ"))()
+for _,v in pairs(workspace:GetDescendants()) do
+if v.ClassName == "Part"
+or v.ClassName == "SpawnLocation"
+or v.ClassName == "WedgePart"
+or v.ClassName == "Terrain"
+or v.ClassName == "MeshPart" then
+v.Material = "Plastic"
+end
+end
 end)
 
 SettingsTab:CreateButton("Toggle To Spam", function(value)
