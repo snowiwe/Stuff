@@ -1,6 +1,3 @@
-
-loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/Stuff/main/BladeBall?token=GHSAT0AAAAAACMZAEEKDO73L2RPZ3KP4YQSZNBTU4A",true))()
-
 --
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 
