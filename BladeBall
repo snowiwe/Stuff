@@ -1,4 +1,3 @@
-
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 
 --
@@ -23,16 +22,16 @@ end
 localPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 local TruValue = Instance.new("StringValue")
-if workspace:FindFirstChild("snowwie") then
-    workspace:FindFirstChild("snowwie"):Remove()
+if workspace:FindFirstChild("12User12") then
+    workspace:FindFirstChild("12User12"):Remove()
     task.wait(0.1)
     TruValue.Parent = game:GetService("Workspace")
-        TruValue.Name = "snowwie"
-        TruValue.Value = "Pull" 
+        TruValue.Name = "12User12"
+        TruValue.Value = "Dash" 
     else
         TruValue.Parent = game:GetService("Workspace")
-        TruValue.Name = "snowwie"
-        TruValue.Value = "Pull" 
+        TruValue.Name = "12User12"
+        TruValue.Value = "Dash" 
 end
 --
 local function startAutoParry()
@@ -82,7 +81,7 @@ end
 
     chooseNewFocusedBall()
 
-    local BASE_THRESHOLD = 0.12
+    local BASE_THRESHOLD = 0.15
     local VELOCITY_SCALING_FACTOR_FAST = 0.050
     local VELOCITY_SCALING_FACTOR_SLOW = 0.1
 
@@ -169,7 +168,7 @@ local function stopAutoParry()
 end
 --
 
-local BladeBallWindow = Library:NewWindow("🍂 snowwie 🍂")
+local BladeBallWindow = Library:NewWindow("🍂 snowwie beta 🍂")
 -- Tabs
 local MainTab = BladeBallWindow:NewSection("Main")
 local SettingsTab = BladeBallWindow:NewSection("Settings")
@@ -219,7 +218,7 @@ Ping.Size = UDim2.new(0, 125, 0, 25)
 Ping.Font = Enum.Font.FredokaOne
 Ping.TextColor3 = Color3.fromRGB(253, 253, 253)
 Ping.TextScaled = true
-Ping.TextSize = 15.000
+Ping.TextSize = 15,000
 Ping.TextWrapped = true
 
 -- 
@@ -227,7 +226,7 @@ Ping.TextWrapped = true
 local script = Instance.new('LocalScript', Ping)
 local RunService = game:GetService("RunService")
 RunService.RenderStepped:Connect(function(ping) 
-script.Parent.Text = ("Ping: " ..game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString(math.round(2/ping))) -- Ping Stuff 
+script.Parent.Text = ("Ping: " ..game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString(math.round(2/ping))) -- your ping
 end)
 end)
 
@@ -284,7 +283,7 @@ end
 
 local Server, Next; repeat
    local Servers = ListServers(Next)
-   Server = Servers.data[1]
+   Server = Servers.data[3]
    Next = Servers.nextPageCursor
 until Server
 
