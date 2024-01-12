@@ -1,6 +1,5 @@
 --
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
-
 --
 local runService = game:GetService("RunService")
 local workspace = game:GetService("Workspace")
