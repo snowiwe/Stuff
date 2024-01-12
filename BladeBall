@@ -216,9 +216,9 @@ Ping.BorderColor3 = Color3.fromRGB(40, 38, 35)
 Ping.Position = UDim2.new(0.700000048, 0, 0, 0)
 Ping.Size = UDim2.new(0, 125, 0, 25)
 Ping.Font = Enum.Font.FredokaOne
-Ping.TextColor3 = Color3.fromRGB(40, 38, 35)
+Ping.TextColor3 = Color3.fromRGB(42, 38, 35)
 Ping.TextScaled = true
-Ping.TextSize = 15,000
+Ping.TextSize = 18,000
 Ping.TextWrapped = true
 
 -- 
@@ -235,7 +235,7 @@ loadstring(game:HttpGet("https://pastebin.com/raw/9LqP25kZ"))()
 end)
 
 SettingsTab:CreateButton("Toggle To Spam", function(value)
-getgenv().SpamSpeed = 25 -- 1-25
+getgenv().SpamSpeed = 25 
 
 if not getgenv().exeSpam then
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Hosvile/Refinement/main/Toggle%20Block%20Spam",true))()
@@ -283,7 +283,7 @@ end
 
 local Server, Next; repeat
    local Servers = ListServers(Next)
-   Server = Servers.data[3]
+   Server = Servers.data[2]
    Next = Servers.nextPageCursor
 until Server
 
