@@ -168,15 +168,15 @@ local function stopAutoParry()
 end
 --
 
-local BladeBallWindow = Library:NewWindow("🍂 snowwie beta 🍂")
+local BladeBallWindow = Library:NewWindow("🍂")
 -- Tabs
-local MainTab = BladeBallWindow:NewSection("Main")
-local SettingsTab = BladeBallWindow:NewSection("Settings")
-local ServerTab = BladeBallWindow:NewSection("Server")
+local MainTab = BladeBallWindow:NewSection("~ Main ~")
+local SettingsTab = BladeBallWindow:NewSection("~ Settings ~")
+local ServerTab = BladeBallWindow:NewSection("~ Server ~")
 --
 
 -- Main Tab
-MainTab:CreateDropdown("DropDown", {"version 1.0"}, 1, function(text)
+MainTab:CreateDropdown("DropDown", {"ε૨૨σ૨"}, 1, function(text)
 print(text)
 end)
 
@@ -216,7 +216,7 @@ Ping.BorderColor3 = Color3.fromRGB(40, 38, 35)
 Ping.Position = UDim2.new(0.700000048, 0, 0, 0)
 Ping.Size = UDim2.new(0, 125, 0, 25)
 Ping.Font = Enum.Font.FredokaOne
-Ping.TextColor3 = Color3.fromRGB(253, 253, 253)
+Ping.TextColor3 = Color3.fromRGB(40, 38, 35)
 Ping.TextScaled = true
 Ping.TextSize = 15,000
 Ping.TextWrapped = true
