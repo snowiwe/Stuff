@@ -195,6 +195,14 @@ if value then
         stopAutoDetect()
     end
 end)
+
+MainTab:CreateToggle("Raging Deflection", function(value)
+if value then
+        UseRage = true
+    else
+        UseRage = false
+    end
+end)
 -- 
 
 -- Settings Tab
@@ -241,14 +249,6 @@ if not getgenv().exeSpam then
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Hosvile/Refinement/main/Toggle%20Block%20Spam",true))()
 end
 getgenv().exeSpam = true
-end)
-
-SettingsTab:CreateToggle("Raging Deflection", function(value)
-if value then
-        UseRage = true
-    else
-        UseRage = false
-    end
 end)
 
 SettingsTab:CreateToggle("Aim Ball", function(value)
