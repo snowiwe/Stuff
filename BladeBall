@@ -170,13 +170,13 @@ end
 
 local BladeBallWindow = Library:NewWindow("🍂")
 -- Tabs
-local MainTab = BladeBallWindow:NewSection("~ Main ~")
-local SettingsTab = BladeBallWindow:NewSection("~ Settings ~")
-local ServerTab = BladeBallWindow:NewSection("~ Server ~")
+local MainTab = BladeBallWindow:NewSection("Main")
+local SettingsTab = BladeBallWindow:NewSection("Sertings")
+local ServerTab = BladeBallWindow:NewSection("Server")
 --
 
 -- Main Tab
-MainTab:CreateDropdown("DropDown", {"ε૨૨σ૨"}, 1, function(text)
+MainTab:CreateDropdown("DropDown", {"🦋"}, 1, function(text)
 print(text)
 end)
 
