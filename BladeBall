@@ -1,299 +1,387 @@
---
+
+-- version 1.5 --
+
 local Library = loadstring(Game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
---
-local runService = game:GetService("RunService")
-local workspace = game:GetService("Workspace")
+
+local PhantomForcesWindow = Library:NewWindow("🤍 snowwie 🤍")
+
+local KillingCheats = PhantomForcesWindow:NewSection("Combat")
+
+KillingCheats:CreateToggle("Auto Parry", function(value) game:GetService("Workspace")
 local players = game:GetService("Players")
-local localPlayer = players.LocalPlayer
-local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-local abilitiesFolder = character:WaitForChild("Abilities")
-local UserInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+
+local ballFolder = workspace.Balls
+local indicatorPart = Instance.new("Part")
+indicatorPart.Size = Vector3.new(5, 5, 5)
+indicatorPart.Anchored = true
+indicatorPart.CanCollide = false
+indicatorPart.Transparency = 1
+indicatorPart.BrickColor = BrickColor.new("Bright red")
+indicatorPart.Parent = workspace
+
+local lastBallPressed = nil
+local isKeyPressed = false
+
+local function calculatePredictionTime(ball, player)
+    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = player.Character.HumanoidRootPart
+        local relativePosition = ball.Position - rootPart.Position
+        local velocity = ball.Velocity + rootPart.Velocity 
+        local a = (ball.Size.magnitude / 2) 
+        local b = relativePosition.magnitude
+        local c = math.sqrt(a * a + b * b)
+        local timeToCollision = (c - a) / velocity.magnitude
+        return timeToCollision
+    end
+    return math.huge
+end
+
+local function updateIndicatorPosition(ball)
+    indicatorPart.Position = ball.Position
+end
+
+local function checkProximityToPlayer(ball, player)
+    local predictionTime = calculatePredictionTime(ball, player)
+    local realBallAttribute = ball:GetAttribute("realBall")
+    local target = ball:GetAttribute("target")
+    
+    local ballSpeedThreshold = math.max(0.5, 0.6 - ball.Velocity.magnitude * 0.01)
+
+    if predictionTime <= ballSpeedThreshold and realBallAttribute == true and target == player.Name and not isKeyPressed then
+        game:GetService("ReplicatedStorage").Remotes.ParryButtonPress:Fire()
+        wait(0.005)
+        game:GetService("ReplicatedStorage").Remotes.ParryButtonPress:Fire()
+        lastBallPressed = ball
+        isKeyPressed = true
+    elseif lastBallPressed == ball and (predictionTime > ballSpeedThreshold or realBallAttribute ~= true or target ~= player.Name) then
+        isKeyPressed = false
+    end
+end
+
+local function checkBallsProximity()
+    local player = players.LocalPlayer
+    if player then
+        for _, ball in pairs(ballFolder:GetChildren()) do
+            checkProximityToPlayer(ball, player)
+            updateIndicatorPosition(ball)
+        end
+    end
+end
+
+runService.Heartbeat:Connect(checkBallsProximity)
+
+local msg = Instance.new("Message",workspace)
+msg.Text = ""
+wait(6.0)
+msg:Destroy()
+
+ -- Open Source Blade Ball Auto Parry By PawsThePaw --
+--// My Discord: pawsthepaw
+--// Notes: I'm not giving Away my Freeze & Invisibility Detection, lmao, this is sort of decent, time based, Enjoy, Skid, or Learn, Its Your Choice.
+getgenv().Paws = {
+        ["AutoParry"] = true,
+        ["PingBased"] = true,
+        ["PingBasedOffset"] = 0,
+        ["DistanceToParry"] = 0.5,
+        ["BallSpeedCheck"] = true,
+}
+
+local Players = game:GetService("Players")
+local Player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local ReplicatedPaw = game:GetService("ReplicatedStorage")
+
+local Paws = ReplicatedPaw:WaitForChild("Remotes", 9e9)
+local PawsBalls = workspace:WaitForChild("Balls", 9e9)
+local PawsTable = getgenv().Paws
+
+local function IsTheTarget()
+        return Player.Character:FindFirstChild("Highlight")
+end
+
+local function FindBall()
+    local RealBall
+    for i, v in pairs(PawsBalls:GetChildren()) do
+        if v:GetAttribute("realBall") == true then
+            RealBall = v
+        end
+    end
+    return RealBall
+end
+
+game:GetService("RunService").PreRender:connect(function()
+        if not FindBall() then 
+                return
+        end
+        local Ball = FindBall()
+        
+        local BallPosition = Ball.Position
+        
+        local BallVelocity = Ball.AssemblyLinearVelocity.Magnitude
+        
+        local Distance = Player:DistanceFromCharacter(BallPosition)
+        
+        local Ping = BallVelocity * (game.Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000)
+        
+        if PawsTable.PingBased then
+        Distance -= Ping + PawsTable.PingBasedOffset
+        end
+        
+        if PawsTable.BallSpeedCheck and BallVelocity == 1 then return
+        end
+        
+        if (Distance / BallVelocity) <= PawsTable.DistanceToParry and IsTheTarget() and PawsTable.AutoParry then
+               Paws:WaitForChild("ParryButtonPress"):Fire()
+           end
+end)
+
+loadstring(game:HttpGet("https://pastebin.com/raw/t2391h1A"))()
+local function get_plrRP()
+  local plrRP = get_plrChar():FindFirstChild("HumanoidRootPart")
+  if plrRP then
+    return plrRP
+  end
+end
+
+local function playerJump()
+  pcall(function()
+    game.Players.LocalPlayer.Character.Humanoid.Jump = true
+  end)
+end
+
+local function get_PlayersNumber()
+  local Alive = workspace:WaitForChild("Alive", 20):GetChildren()
+  local PlayersNumber = 0
+  for _,v in pairs(Alive) do
+    if v and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 50 then
+      PlayersNumber = PlayersNumber + 1
+    end
+  end
+  return PlayersNumber
+end
+
+local function get_ProxyPlayer()
+  local Players = workspace:WaitForChild("Alive"):GetChildren()
+  local Distance = math.huge
+  local plr = game.Players.LocalPlayer
+  local plrRP = plr.Character:FindFirstChild("HumanoidRootPart")
+  local Player = nil
+  
+  for _,plr1 in pairs(Players) do
+    if plr1.Name ~= plr.Name and plrRP and plr1:FindFirstChild("HumanoidRootPart") and plr1:FindFirstChild("Humanoid") and plr1.Humanoid.Health > 50 then
+      local magnitude = (plr1.HumanoidRootPart.Position - plrRP.Position).Magnitude
+      if magnitude <= Distance then
+        Distance = magnitude
+        Player = plr1
+      end
+    end
+  end
+  return Player
+end
+
+local function Click_Button()
+  task.spawn(function()
+    local plr = game.Players.LocalPlayer
+    local plrFind = workspace.Alive:FindFirstChild(plr.Name)
+    if plrFind then
+      local plrs = 0
+      for _,v in pairs(workspace:WaitForChild("Alive", 10):GetChildren()) do
+        plrs = plrs + 1
+      end
+      if plrs > 1 then
+        local args = {[1] = 1.5,[2] = CFrame.new(-254, 112, -119) * CFrame.Angles(-2, 0, 2),[3] = {
+        ["2617721424"] = Vector3.new(-273, -724, -20),
+        },[4] = {[1] = 910,[2] = 154}}
+        game:GetService("ReplicatedStorage").Remotes.ParryAttempt:FireServer(unpack(args))task.wait()
+      end
+    end
+  end)
+end
+
+task.spawn(function()
+  while task.wait() do
+    if getgenv().SpamClickA then
+      Click_Button()
+    end
+  end
+end)
+
+local function DetectSpam()
+  local Balls = workspace:WaitForChild("Balls", 20)
+  
+  local OldPos = Vector3.new()
+  local OldTick1 = tick()
+  
+  local OldBall = Balls
+  local TargetPlayer = ""
+  local SpamNum = 0
+  local BallSpeed = 0
+  local BallDistance = 0
+  
+  task.spawn(function()
+    local OldTick = tick()
+    local OldPos = Vector3.new()
+    while getgenv().DetectSpam do task.wait()
+      local plrRP = get_plrRP()
+      local Ball = Balls:FindFirstChildOfClass("Part")
+      if plrRP and Ball then
+        BallDistance = (plrRP.Position - Ball.Position).Magnitude
+        BallSpeed = (OldPos - Ball.Position).Magnitude
+        if tick() - OldTick >= 2/60 then
+          OldTick = tick()
+          OldPos = Ball.Position
+        end
+      end
+    end
+  end)
+  
+  while getgenv().DetectSpam do task.wait()
+    local Ball = Balls:FindFirstChildOfClass("Part")
+    local plrRP = get_plrRP()
+    local ProxyPlayer = get_ProxyPlayer()
+    
+    if not Ball then
+      getgenv().SpamClickA = false
+    end
+  
+    if Ball and Ball:GetAttribute("realBall") and OldBall ~= Ball then
+    
+      Ball.Changed:Connect(function()task.wait()
+        local Ball = Balls:FindFirstChildOfClass("Part")
+        
+        if Ball then
+          TargetPlayer = Ball:GetAttribute("target")
+          
+          if ProxyPlayer and TargetPlayer == ProxyPlayer.Name or get_plr() and TargetPlayer == get_plr().Name then
+            SpamNum = SpamNum + 1
+          else
+            SpamNum = 0
+          end
+          
+          local args = ProxyPlayer and ProxyPlayer:FindFirstChild("HumanoidRootPart")
+          local HL1 = ProxyPlayer and ProxyPlayer:FindFirstChild("Highlight")
+          local HL2 = get_plrChar() and get_plrChar():FindFirstChild("Highlight")
+          
+          if plrRP and HL1 and args or plrRP and HL2 and args then
+            local DistancePlayer = (ProxyPlayer.HumanoidRootPart.Position - plrRP.Position).Magnitude
+            local DistanceBall = (Ball.Position - plrRP.Position).Magnitude
+            
+            if get_PlayersNumber() < 3 then
+              if DistancePlayer <= 30 and DistanceBall <= 35 and SpamNum >= 2 then
+                getgenv().SpamClickA = true
+              else
+                getgenv().SpamClickA = false
+              end
+            else
+              if DistancePlayer <= 30 and DistanceBall <= 35 and SpamNum >= 3 then
+                getgenv().SpamClickA = true
+              else
+                getgenv().SpamClickA = false
+              end
+            end
+          else
+            getgenv().SpamClickA = false
+          end
+        end
+      end)
+      OldBall = Ball
+    end
+  end
+end
+
+getgenv().DetectSpam = true
+DetectSpam()
+print(value)
+end)
+
+KillingCheats:CreateToggle("Auto Spam", function(value) 
+loadstring(game:HttpGet("https://pastebin.com/raw/t2391h1A"))()
+print(value)
+end)
+
+KillingCheats:CreateToggle("Auto detect", function(value) loadstring(game:HttpGet("https://pastebin.com/raw/6aZGZefE"))()
+
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 local replicatedStorage = game:GetService("ReplicatedStorage")
-local heartbeatConnection
-local upgrades = localPlayer.Upgrades
-local UseRage = false
-local sliderValue = 20
---
+local runService = game:GetService("RunService")
+local parryButtonPress = replicatedStorage.Remotes.ParryButtonPress
+local ballsFolder = workspace:WaitForChild("Balls")
+
+print("Script successfully ran.")
+
 local function onCharacterAdded(newCharacter)
     character = newCharacter
-    abilitiesFolder = character:WaitForChild("Abilities")
 end
---
-localPlayer.CharacterAdded:Connect(onCharacterAdded)
 
-local TruValue = Instance.new("StringValue")
-if workspace:FindFirstChild("12User12") then
-    workspace:FindFirstChild("12User12"):Remove()
-    task.wait(0.1)
-    TruValue.Parent = game:GetService("Workspace")
-        TruValue.Name = "12User12"
-        TruValue.Value = "Dash" 
-    else
-        TruValue.Parent = game:GetService("Workspace")
-        TruValue.Name = "12User12"
-        TruValue.Value = "Dash" 
-end
---
-local function startAutoParry()
-    local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-    local ballsFolder = workspace:WaitForChild("Balls")
-    local parryButtonPress = replicatedStorage.Remotes.ParryButtonPress
-    local abilityButtonPress = replicatedStorage.Remotes.AbilityButtonPress
+player.CharacterAdded:Connect(onCharacterAdded)
 
-    print("Script successfully ran.")
-
-    local function onCharacterAdded(newCharacter)
-        character = newCharacter
-    end
-    localPlayer.CharacterAdded:Connect(onCharacterAdded)
-
-    if character then
-        print("Character found.")
-    else
-        print("Character not found.")
-        return
-    end
-    
+local focusedBall = nil  
 
 local function chooseNewFocusedBall()
     local balls = ballsFolder:GetChildren()
+    focusedBall = nil
     for _, ball in ipairs(balls) do
-        if ball:GetAttribute("realBall") ~= nil and ball:GetAttribute("realBall") == true then
+        if ball:GetAttribute("realBall") == true then
             focusedBall = ball
-            print(focusedBall.Name)
-            break
-        elseif ball:GetAttribute("target") ~= nil then
-            focusedBall = ball
-            print(focusedBall.Name)
             break
         end
+    end
+end
+
+chooseNewFocusedBall()
+
+local function timeUntilImpact(ballVelocity, distanceToPlayer, playerVelocity)
+    local directionToPlayer = (character.HumanoidRootPart.Position - focusedBall.Position).Unit
+    local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer) - playerVelocity:Dot(directionToPlayer)
+    
+    if velocityTowardsPlayer <= 0 then
+        return math.huge
     end
     
-    if focusedBall == nil then
-        print("Debug: Could not find a ball that's the realBall or has a target.")
+    local distanceToBeCovered = distanceToPlayer - 30
+    return distanceToBeCovered / velocityTowardsPlayer
+end
+
+local BASE_THRESHOLD = 0.15
+local VELOCITY_SCALING_FACTOR = 0.002
+
+local function getDynamicThreshold(ballVelocityMagnitude)
+    local adjustedThreshold = BASE_THRESHOLD - (ballVelocityMagnitude * VELOCITY_SCALING_FACTOR)
+    return math.max(0.12, adjustedThreshold)
+end
+
+local function checkBallDistance()
+    if not character:FindFirstChild("Highlight") then return end
+    local charPos = character.PrimaryPart.Position
+    local charVel = character.PrimaryPart.Velocity
+
+    if focusedBall and not focusedBall.Parent then
+        chooseNewFocusedBall()
     end
-    return focusedBall
+
+    if not focusedBall then return end
+
+    local ball = focusedBall
+    local distanceToPlayer = (ball.Position - charPos).Magnitude
+
+    if distanceToPlayer < 10 then
+        parryButtonPress:Fire()
+        return
+    end
+
+    local timeToImpact = timeUntilImpact(ball.Velocity, distanceToPlayer, charVel)
+    local dynamicThreshold = getDynamicThreshold(ball.Velocity.Magnitude)
+
+    if timeToImpact < dynamicThreshold then
+        parryButtonPress:Fire()
+    end
 end
 
 
 
-
-
-    chooseNewFocusedBall()
-
-    local BASE_THRESHOLD = 0.15
-    local VELOCITY_SCALING_FACTOR_FAST = 0.050
-    local VELOCITY_SCALING_FACTOR_SLOW = 0.1
-
-    local function getDynamicThreshold(ballVelocityMagnitude)
-        if ballVelocityMagnitude > 60 then
-            print("Going Fast!")
-            return math.max(0.20, BASE_THRESHOLD - (ballVelocityMagnitude * VELOCITY_SCALING_FACTOR_FAST))
-        else
-            return math.min(0.01, BASE_THRESHOLD + (ballVelocityMagnitude * VELOCITY_SCALING_FACTOR_SLOW))
-        end
-    end
-
-    local function timeUntilImpact(ballVelocity, distanceToPlayer, playerVelocity)
-        local directionToPlayer = (character.HumanoidRootPart.Position - focusedBall.Position).Unit
-        local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer) - playerVelocity:Dot(directionToPlayer)
-        
-        if velocityTowardsPlayer <= 0 then
-            return math.huge
-        end
-        
-        return (distanceToPlayer - sliderValue) / velocityTowardsPlayer
-    end
-
-    local function isWalkSpeedZero()
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            return humanoid.WalkSpeed == 0
-        end
-        return false
-    end
-
-
-    local function checkBallDistance()
-        if not character or not character:FindFirstChild("Highlight") then return end
-
-        local charPos = character.PrimaryPart.Position
-        local charVel = character.PrimaryPart.Velocity
-
-        if focusedBall and not focusedBall.Parent then
-            print("Focused ball lost parent. Choosing a new focused ball.")
-            chooseNewFocusedBall()
-        end
-        if not focusedBall then 
-            print("No focused ball.")
-            chooseNewFocusedBall()
-        end
-
-        local ball = focusedBall
-        local distanceToPlayer = (ball.Position - charPos).Magnitude
-        local ballVelocityTowardsPlayer = ball.Velocity:Dot((charPos - ball.Position).Unit)
-        
-        if distanceToPlayer < 8 then
-            parryButtonPress:Fire()
-        end
-        local isCheckingRage = false
-
-        if timeUntilImpact(ball.Velocity, distanceToPlayer, charVel) < getDynamicThreshold(ballVelocityTowardsPlayer) then
-            if character.Abilities["Raging Deflection"].Enabled and UseRage == true then
-                if not isCheckingRage then
-                    isCheckingRage = true
-                    abilityButtonPress:Fire()
-                    if not isWalkSpeedZero() then
-                        parryButtonPress:Fire()
-                    end
-                    isCheckingRage = false
-                end
-            else
-                parryButtonPress:Fire()
-            end
-        end
-    end
-
-
-    heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(function()
-        checkBallDistance()
+runService.Heartbeat:Connect(function()
+    checkBallDistance()
     end)
-end
-
-local function stopAutoParry()
-    if heartbeatConnection then
-        heartbeatConnection:Disconnect()
-        heartbeatConnection = nil
-    end
-end
---
-
-local BladeBallWindow = Library:NewWindow("🍂")
--- Tabs
-local MainTab = BladeBallWindow:NewSection("Main")
-local SettingsTab = BladeBallWindow:NewSection("Sertings")
-local ServerTab = BladeBallWindow:NewSection("Server")
---
-
--- Main Tab
-MainTab:CreateDropdown("DropDown", {"🦋"}, 1, function(text)
-print(text)
-end)
-
-MainTab:CreateToggle("Auto Parry", function(value)
-if value then
-        startAutoParry()
-    else
-        stopAutoParry()
-    end
-end)
-
-MainTab:CreateToggle("Boosted", function(value)
-if value then
-        loadstring(game:HttpGet("https://pastebin.com/raw/t2391h1A"))()
-    else
-        stopAutoDetect()
-    end
-end)
-
-MainTab:CreateToggle("Raging Deflection", function(value)
-if value then
-        UseRage = true
-    else
-        UseRage = false
-    end
-end)
--- 
-
--- Settings Tab
-SettingsTab:CreateButton("Show Ping", function()
-repeat wait() until game:IsLoaded() wait(2)
-local ScreenGui = Instance.new("ScreenGui")
-local Ping = Instance.new("TextLabel")
-
--- Properties:
-
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-Ping.Name = "Ping"
-Ping.Parent = ScreenGui
-Ping.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Ping.BackgroundTransparency = 1.000
-Ping.BorderColor3 = Color3.fromRGB(40, 38, 35)
-Ping.Position = UDim2.new(0.700000048, 0, 0, 0)
-Ping.Size = UDim2.new(0, 125, 0, 25)
-Ping.Font = Enum.Font.FredokaOne
-Ping.TextColor3 = Color3.fromRGB(42, 38, 35)
-Ping.TextScaled = true
-Ping.TextSize = 18,000
-Ping.TextWrapped = true
-
--- 
-
-local script = Instance.new('LocalScript', Ping)
-local RunService = game:GetService("RunService")
-RunService.RenderStepped:Connect(function(ping) 
-script.Parent.Text = ("Ping: " ..game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString(math.round(2/ping))) -- your ping
-end)
-end)
-
-SettingsTab:CreateButton("FPS Booster", function()
-for _,v in pairs(workspace:GetDescendants()) do
-if v.ClassName == "Part"
-or v.ClassName == "SpawnLocation"
-or v.ClassName == "WedgePart"
-or v.ClassName == "Terrain"
-or v.ClassName == "MeshPart" then
-v.Material = "Plastic"
-end
-end
-end)
-
-SettingsTab:CreateButton("Toggle To Spam", function(value)
-getgenv().SpamSpeed = 25 
-
-if not getgenv().exeSpam then
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Hosvile/Refinement/main/Toggle%20Block%20Spam",true))()
-end
-getgenv().exeSpam = true
-end)
-
-SettingsTab:CreateToggle("Aim Ball", function(value)
-if value then
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Hosvile/Refinement/main/M%3ABlade%20Ball%20Mechanism",true))()
-    else
-        stopAimBall()
-    end
-end)
-
--- Server Tab
-ServerTab:CreateToggle("Server Hop", function(value)
-local module = loadstring(game:HttpGet"https://raw.githubusercontent.com/LeoKholYt/roblox/main/lk_serverhop.lua")()
-module:Teleport(game.PlaceId)
-end)
-
-ServerTab:CreateToggle("Rejoin Server", function(value)
-loadstring(game:HttpGet("https://pastebin.com/raw/yVdXMaFy"))()
-end)
-
-ServerTab:CreateToggle("Join Lowest Server", function(value)
-local Http = game:GetService("HttpService")
-local TPS = game:GetService("TeleportService")
-local Api = "https://games.roblox.com/v1/games/"
-
-local _place = game.PlaceId
-local _servers = Api.._place.."/servers/Public?sortOrder=Asc&limit=100"
-function ListServers(cursor)
-   local Raw = game:HttpGet(_servers .. ((cursor and "&cursor="..cursor) or ""))
-   return Http:JSONDecode(Raw)
-end
-
-local Server, Next; repeat
-   local Servers = ListServers(Next)
-   Server = Servers.data[2]
-   Next = Servers.nextPageCursor
-until Server
-
-TPS:TeleportToPlaceInstance(_place,Server.id,game.Players.LocalPlayer)
+print(value)
 end)
