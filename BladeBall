@@ -66,9 +66,9 @@ local function checkBallsProximity()
 end
 
 runService.Heartbeat:Connect(checkBallsProximity)
-
+-- Message --
 local msg = Instance.new("Message",workspace)
-msg.Text = "Beta Version"
+msg.Text = "🍂 version 1.5 🍂"
 wait(3.5)
 msg:Destroy()
 
@@ -77,7 +77,7 @@ getgenv().Paws = {
         ["AutoParry"] = true,
         ["PingBased"] = true,
         ["PingBasedOffset"] = 0,
-        ["DistanceToParry"] = 0.5,
+        ["DistanceToParry"] = 0.3,
         ["BallSpeedCheck"] = true,
 }
 
@@ -130,7 +130,7 @@ game:GetService("RunService").PreRender:connect(function()
 end)
 --
 
-local BladeBallWindow = Library:NewWindow("🤍 snowwie 🤍")
+local BladeBallWindow = Library:NewWindow("🍂 snowwie 🍂")
 -- Tabs
 local MainTab = BladeBallWindow:NewSection("Main")
 local SettingsTab = BladeBallWindow:NewSection("Settings")
