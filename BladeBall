@@ -140,9 +140,9 @@ local ServerTab = BladeBallWindow:NewSection("Server")
 -- Main Tab --
 MainTab:CreateToggle("Auto Parry", function(value)
 if value then
-        ["AutoParry"] = true
+        PawsTable.AutoParry = true
     else
-        ["AutoParry"] = false
+        PawsTable.AutoParry = false
     end
 end)
 
@@ -211,9 +211,9 @@ end)
 
 SettingsTab:CreateToggle("Ping Based", function(value)
 if value then
-        ["PingBased"] = true
+        PawsTable.PingBased = true
     else
-        ["PingBased"] = false
+        PawsTable.PingBased = false
     end
 end)
 
