@@ -1,0 +1,196 @@
+
+-- Instances
+
+local ScreenGui = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local TopBarFrame = Instance.new("Frame")
+local UICorner = Instance.new("UICorner")
+local TextLabel = Instance.new("TextLabel")
+local CloseFrame = Instance.new("Frame")
+local UICorner_2 = Instance.new("UICorner")
+local CloseBtn = Instance.new("TextButton")
+local UICorner_3 = Instance.new("UICorner")
+local EnterBtn = Instance.new("TextButton")
+local UICorner_4 = Instance.new("UICorner")
+local GetKeyBtn = Instance.new("TextButton")
+local UICorner_5 = Instance.new("UICorner")
+local TextBox = Instance.new("TextBox")
+local UICorner_6 = Instance.new("UICorner")
+local ImageLabel = Instance.new("ImageLabel")
+local UICorner_7 = Instance.new("UICorner")
+local UIStroke = Instance.new("UIStroke")
+local TextLabelversion = Instance.new("TextLabel")
+
+-- Properties --
+
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
+
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.new(0.137255, 0.137255, 0.137255)
+Frame.BorderColor3 = Color3.new(1, 1, 1)
+Frame.BorderSizePixel = 0
+Frame.Position = UDim2.new(0.218643025, 0, 0.222072095, 0)
+Frame.Size = UDim2.new(0, 400, 0, 200)
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+TopBarFrame.Name = "TopBarFrame"
+TopBarFrame.Parent = Frame
+TopBarFrame.BackgroundColor3 = Color3.new(0.0980392, 0.0980392, 0.0980392)
+TopBarFrame.BorderColor3 = Color3.new(1, 1, 1)
+TopBarFrame.BorderSizePixel = 0
+TopBarFrame.Position = UDim2.new(0, 0, -0.000150146487, 0)
+TopBarFrame.Size = UDim2.new(0, 400, 0, 40)
+
+UICorner.Parent = TopBarFrame
+UICorner.CornerRadius = UDim.new(0, 5)
+
+TextLabel.Parent = TopBarFrame
+TextLabel.BackgroundColor3 = Color3.new(1, 1, 1)
+TextLabel.BackgroundTransparency = 1
+TextLabel.BorderColor3 = Color3.new(0, 0, 0)
+TextLabel.BorderSizePixel = 0
+TextLabel.Position = UDim2.new(0, 0, 0.275000006, 0)
+TextLabel.Size = UDim2.new(0, 400, 0, 29)
+TextLabel.Font = Enum.Font.LuckiestGuy
+TextLabel.Text = "Key System"
+TextLabel.TextColor3 = Color3.new(1, 1, 1)
+TextLabel.TextScaled = true
+TextLabel.TextSize = 14
+TextLabel.TextWrapped = true
+
+CloseFrame.Name = "CloseFrame"
+CloseFrame.Parent = TopBarFrame
+CloseFrame.BackgroundColor3 = Color3.new(0.137255, 0.137255, 0.137255)
+CloseFrame.BackgroundTransparency = 1
+CloseFrame.BorderColor3 = Color3.new(1, 1, 1)
+CloseFrame.BorderSizePixel = 0
+CloseFrame.Position = UDim2.new(0.708994687, 0, 0.34984985, 0)
+CloseFrame.Size = UDim2.new(0, 42, 0, 39)
+
+UICorner_2.Parent = CloseFrame
+UICorner_2.CornerRadius = UDim.new(0, 5)
+
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Parent = CloseFrame
+CloseBtn.BackgroundColor3 = Color3.new(1, 1, 1)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.BorderColor3 = Color3.new(0, 0, 0)
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Position = UDim2.new(1.76190472, 0, -0.333333343, 0)
+CloseBtn.Size = UDim2.new(0, 42, 0, 38)
+CloseBtn.Font = Enum.Font.LuckiestGuy
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.TextSize = 14
+CloseBtn.TextWrapped = true
+CloseBtn.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+end)
+
+UICorner_3.Parent = Frame
+UICorner_3.CornerRadius = UDim.new(0, 5)
+UIStroke.Parent = Frame
+
+EnterBtn.Name = "EnterBtn"
+EnterBtn.Parent = Frame
+EnterBtn.BackgroundColor3 = Color3.new(1, 1, 1)
+EnterBtn.BorderColor3 = Color3.new(0, 0, 0)
+EnterBtn.BorderSizePixel = 0
+EnterBtn.Position = UDim2.new(0.512499988, 0, 0.685000002, 0)
+EnterBtn.Size = UDim2.new(0, 79, 0, 32)
+EnterBtn.Font = Enum.Font.FredokaOne
+EnterBtn.Text = "Enter"
+EnterBtn.TextColor3 = Color3.new(0, 0, 0)
+EnterBtn.TextSize = 14
+
+UICorner_4.Parent = EnterBtn
+UICorner_4.CornerRadius = UDim.new(0, 5)
+
+GetKeyBtn.Name = "GetKeyBtn"
+GetKeyBtn.Parent = Frame
+GetKeyBtn.BackgroundColor3 = Color3.new(1, 1, 1)
+GetKeyBtn.BorderColor3 = Color3.new(0, 0, 0)
+GetKeyBtn.BorderSizePixel = 0
+GetKeyBtn.Position = UDim2.new(0.282499999, 0, 0.685000002, 0)
+GetKeyBtn.Size = UDim2.new(0, 79, 0, 32)
+GetKeyBtn.Font = Enum.Font.FredokaOne
+GetKeyBtn.Text = "Get Key"
+GetKeyBtn.TextColor3 = Color3.new(0, 0, 0)
+GetKeyBtn.TextSize = 14
+
+UICorner_5.Parent = GetKeyBtn
+UICorner_5.CornerRadius = UDim.new(0, 5)
+
+TextBox.Parent = Frame
+TextBox.BackgroundColor3 = Color3.new(1, 1, 1)
+TextBox.BorderColor3 = Color3.new(0, 0, 0)
+TextBox.BorderSizePixel = 0
+TextBox.Position = UDim2.new(0.25, 0, 0.375, 0)
+TextBox.Size = UDim2.new(0, 200, 0, 50)
+TextBox.Font = Enum.Font.FredokaOne
+TextBox.PlaceholderText = "Enter Key"
+TextBox.Text = ""
+TextBox.TextColor3 = Color3.new(0, 0, 0)
+TextBox.TextSize = 14
+
+UICorner_6.Parent = TextBox
+UICorner_6.CornerRadius = UDim.new(0, 5)
+
+ImageLabel.Parent = Frame
+ImageLabel.BackgroundColor3 = Color3.new(1, 1, 1)
+ImageLabel.BorderColor3 = Color3.new(0, 0, 0)
+ImageLabel.BorderSizePixel = 0
+ImageLabel.Position = UDim2.new(0, 0, 0.00481979363, 0)
+ImageLabel.Size = UDim2.new(0, 49, 0, 37)
+ImageLabel.Image = "rbxassetid://16038840027"
+
+UICorner_7.Parent = ImageLabel
+UICorner_7.CornerRadius = UDim.new(0, 5)
+
+TextLabelversion.Name = "TextLabelversion"
+TextLabelversion.Parent = Frame
+TextLabelversion.BackgroundColor3 = Color3.new(1, 1, 1)
+TextLabelversion.BackgroundTransparency = 1
+TextLabelversion.BorderColor3 = Color3.new(1, 1, 1)
+TextLabelversion.BorderSizePixel = 0
+TextLabelversion.Position = UDim2.new(0.911000013, 0, 0.910000026, 0)
+TextLabelversion.Size = UDim2.new(0, 35, 0, 18)
+TextLabelversion.Font = Enum.Font.FredokaOne
+TextLabelversion.Text = "v1.5"
+TextLabelversion.TextColor3 = Color3.new(1, 1, 1)
+TextLabelversion.TextSize = 14
+
+-- Scripts --
+
+--
+GetKeyBtn.MouseButton1Click:Connect(function()
+	setclipboard("https://link-target.net/561600/key")
+end)
+
+local function validateKey(key)
+	return key == "" 
+end
+
+EnterBtn.MouseButton1Click:Connect(function()
+	local enteredKey = TextBox.Text
+	if validateKey(enteredKey) then
+		TextBox.PlaceholderText = "Correct Key!"
+		TextBox.Text = ""
+		wait(1)
+		ScreenGui:Destroy()
+
+		-- Loaded --
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/BladeBall/main/betaversion",true))()
+
+	else
+		TextBox.PlaceholderText = "Invalid key"
+		TextBox.Text = ""
+		wait(1)
+		TextBox.PlaceholderText = "Enter Key"
+		TextBox.Text = ""
+	end
+end)
