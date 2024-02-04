@@ -172,7 +172,7 @@ GetKeyBtn.MouseButton1Click:Connect(function()
 end)
 
 local function validateKey(key)
-	return key == "" 
+	return key == "" -- Key 
 end
 
 EnterBtn.MouseButton1Click:Connect(function()
