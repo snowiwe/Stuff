@@ -72,12 +72,12 @@ msg.Text = "🍂 version 1.5 🍂"
 wait(3.5)
 msg:Destroy()
 
- -- Open Source Blade Ball Auto Parry By PawsThePaw --
+ -- PawsThePaw Table --
 getgenv().Paws = {
         ["AutoParry"] = true,
         ["PingBased"] = true,
         ["PingBasedOffset"] = 0,
-        ["DistanceToParry"] = 0.3,
+        ["DistanceToParry"] = 0.42,
         ["BallSpeedCheck"] = true,
 }
 
@@ -141,8 +141,10 @@ local ServerTab = BladeBallWindow:NewSection("Server")
 MainTab:CreateToggle("Auto Parry", function(value)
 if value then
         PawsTable.AutoParry = true
+        PawTable.PingBased = true 
     else
         PawsTable.AutoParry = false
+        PawTable.PingBased = false
     end
 end)
 
@@ -152,8 +154,8 @@ if value then
     else
         getgenv().DetectSpam = false
     end
-end)      
--- 
+end) 
+--
 
 -- Settings Tab --
 SettingsTab:CreateButton("Show Ping", function()
@@ -207,14 +209,6 @@ if not getgenv().exeSpam then
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Hosvile/Refinement/main/Toggle%20Block%20Spam",true))()
 end
 getgenv().exeSpam = true
-end)
-
-SettingsTab:CreateToggle("Ping Based", function(value)
-if value then
-        PawsTable.PingBased = true
-    else
-        PawsTable.PingBased = false
-    end
 end)
 
 SettingsTab:CreateToggle("Aim Ball", function(value)
