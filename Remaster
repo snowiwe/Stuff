@@ -1,1 +1,31 @@
+-- Load the DrRay library
+
+local DrRayLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/DrRay-UI-Library/main/DrRay.lua"))()
+
+-- Create Window Main
+
+local window = DrRayLibrary:Load("Blizzard", "Default")
+
+-- Create Tab Main
+
+local tab1 = DrRayLibrary.newTab("Main", "ImageIdHere")
+
+-- Add Element Main 
+
+tab1.newLabel("Hello, this is Tab 1.")
+tab1.newButton("Button", "Prints Hello!", function()
+    print('Hello!')
+end)
+tab1.newToggle("Toggle", "Toggle! (prints the state)", true, function(toggleState)
+    if toggleState then
+        print("On")
+    else
+        print("Off")
+    end
+end)
+tab1.newInput("Input", "Prints your input.", function(text)
+    print("Entered text in Tab 1: " .. text)
+end)
+
+-- Create Second Tab --
 
