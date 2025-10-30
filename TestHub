@@ -31,7 +31,7 @@ local function updateUIScale()
     mainFrame.Position = UDim2.new(0.5, -width/2, 0, 0)
     
     titleLabel.Size = UDim2.new(1, backButton.Visible and -80 or -120, 1, 0)
-    titleLabel.Position = UDim2.new(0, 0, 0, 0)
+    titleLabel.Position = UDim2.new(0, backButton.Visible and 40 or 10, 0, 0)
 end
 
 -- Main Frame
@@ -83,12 +83,12 @@ titleGradient.Color = ColorSequence.new{
 }
 titleGradient.Parent = titleFrame
 
--- Back Button
+-- Back Button (Arrow)
 local backButton = Instance.new("TextButton")
 backButton.Size = UDim2.new(0, 40, 1, 0)
 backButton.Position = UDim2.new(0, 0, 0, 0)
 backButton.BackgroundTransparency = 1
-backButton.Text = "Back"
+backButton.Text = "Left Arrow"
 backButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 backButton.TextSize = 24
 backButton.Font = Enum.Font.Gotham
@@ -126,7 +126,7 @@ local minimizeButton = Instance.new("TextButton")
 minimizeButton.Size = UDim2.new(0, 40, 1, 0)
 minimizeButton.Position = UDim2.new(1, -40, 0, 0)
 minimizeButton.BackgroundTransparency = 1
-minimizeButton.Text = "Up"
+minimizeButton.Text = "Up Arrow"  -- Start minimized
 minimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 minimizeButton.TextSize = 24
 minimizeButton.Font = Enum.Font.Gotham
@@ -268,117 +268,127 @@ local function createSectionContent()
     versionFooter.TextXAlignment = Enum.TextXAlignment.Center
     versionFooter.Parent = contentFrame
 
-    -- Destroy Button
+    -- Destroy Button (in sections area)
+    local destroyFrame = Instance.new("Frame")
+    destroyFrame.Size = UDim2.new(1, 0, 0, 40)
+    destroyFrame.BackgroundTransparency = 1
+    destroyFrame.Parent = contentFrame
+
+    local destroyLabel = Instance.new("TextLabel")
+    destroyLabel.Size = UDim2.new(0.7, 0, 1, 0)
+    destroyLabel.BackgroundTransparency = 1
+    destroyLabel.Text = "Destroy TestHub"
+    destroyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+    destroyLabel.TextSize = 16
+    destroyLabel.Font = Enum.Font.GothamSemibold
+    destroyLabel.TextXAlignment = Enum.TextXAlignment.Left
+    destroyLabel.Parent = destroyFrame
+
     local destroyButton = Instance.new("TextButton")
-    destroyButton.Size = UDim2.new(0, 100, 0, 30)
-    destroyButton.Position = UDim2.new(0.5, -50, 0, 0)
+    destroyButton.Size = UDim2.new(0, 30, 0, 30)
+    destroyButton.Position = UDim2.new(1, -35, 0.5, -15)
     destroyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    destroyButton.Text = "Destroy"
-    destroyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    destroyButton.TextSize = 14
-    destroyButton.Font = Enum.Font.GothamBold
-    destroyButton.Parent = contentFrame
+    destroyButton.Text = ""
+    destroyButton.Parent = destroyFrame
 
     local destroyCorner = Instance.new("UICorner")
     destroyCorner.CornerRadius = UDim.new(0, 6)
     destroyCorner.Parent = destroyButton
 
-    -- Confirmation Popup
-    local popup = Instance.new("Frame")
-    popup.Size = UDim2.new(0, 240, 0, 120)
-    popup.Position = UDim2.new(0.5, -120, 0.5, -60)
-    popup.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    popup.BorderSizePixel = 0
-    popup.Visible = false
-    popup.ZIndex = 200
-    popup.Parent = screenGui
+    local destroyIcon = Instance.new("TextLabel")
+    destroyIcon.Size = UDim2.new(1, 0, 1, 0)
+    destroyIcon.BackgroundTransparency = 1
+    destroyIcon.Text = "X"
+    destroyIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+    destroyIcon.TextSize = 18
+    destroyIcon.Font = Enum.Font.GothamBold
+    destroyIcon.Parent = destroyButton
 
-    local popupCorner = Instance.new("UICorner")
-    popupCorner.CornerRadius = UDim.new(0, 10)
-    popupCorner.Parent = popup
+    -- Mini Banner Popup (Confirmation)
+    local banner = Instance.new("Frame")
+    banner.Size = UDim2.new(0, 260, 0, 50)
+    banner.Position = UDim2.new(0.5, -130, 0, -60)
+    banner.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    banner.BorderSizePixel = 0
+    banner.Visible = false
+    banner.ZIndex = 200
+    banner.Parent = screenGui
 
-    local popupStroke = Instance.new("UIStroke")
-    popupStroke.Thickness = 1
-    popupStroke.Color = Color3.fromRGB(80, 80, 80)
-    popupStroke.Transparency = 0.5
-    popupStroke.Parent = popup
+    local bannerCorner = Instance.new("UICorner")
+    bannerCorner.CornerRadius = UDim.new(0, 8)
+    bannerCorner.Parent = banner
 
-    local popupTitle = Instance.new("TextLabel")
-    popupTitle.Size = UDim2.new(1, 0, 0, 40)
-    popupTitle.BackgroundTransparency = 1
-    popupTitle.Text = "Confirm Destroy"
-    popupTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    popupTitle.TextSize = 18
-    popupTitle.Font = Enum.Font.GothamBold
-    popupTitle.TextXAlignment = Enum.TextXAlignment.Center
-    popupTitle.Parent = popup
+    local bannerStroke = Instance.new("UIStroke")
+    bannerStroke.Thickness = 1
+    bannerStroke.Color = Color3.fromRGB(200, 50, 50)
+    bannerStroke.Transparency = 0.3
+    bannerStroke.Parent = banner
 
-    local popupMessage = Instance.new("TextLabel")
-    popupMessage.Size = UDim2.new(1, -20, 0, 30)
-    popupMessage.Position = UDim2.new(0, 10, 0, 40)
-    popupMessage.BackgroundTransparency = 1
-    popupMessage.Text = "This will permanently remove Test Hub."
-    popupMessage.TextColor3 = Color3.fromRGB(200, 200, 200)
-    popupMessage.TextSize = 14
-    popupMessage.Font = Enum.Font.Gotham
-    popupMessage.TextXAlignment = Enum.TextXAlignment.Center
-    popupMessage.TextWrapped = true
-    popupMessage.Parent = popup
+    local bannerMessage = Instance.new("TextLabel")
+    bannerMessage.Size = UDim2.new(1, -80, 1, 0)
+    bannerMessage.Position = UDim2.new(0, 10, 0, 0)
+    bannerMessage.BackgroundTransparency = 1
+    bannerMessage.Text = "Destroy TestHub?"
+    bannerMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
+    bannerMessage.TextSize = 16
+    bannerMessage.Font = Enum.Font.GothamBold
+    bannerMessage.TextXAlignment = Enum.TextXAlignment.Left
+    bannerMessage.Parent = banner
 
-    local confirmButton = Instance.new("TextButton")
-    confirmButton.Size = UDim2.new(0, 100, 0, 30)
-    confirmButton.Position = UDim2.new(0.5, -55, 1, -40)
-    confirmButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    confirmButton.Text = "Confirm"
-    confirmButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    confirmButton.TextSize = 14
-    confirmButton.Font = Enum.Font.GothamBold
-    confirmButton.Parent = popup
+    local confirmBtn = Instance.new("TextButton")
+    confirmBtn.Size = UDim2.new(0, 60, 0, 30)
+    confirmBtn.Position = UDim2.new(1, -70, 0.5, -15)
+    confirmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    confirmBtn.Text = "Yes"
+    confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    confirmBtn.TextSize = 14
+    confirmBtn.Font = Enum.Font.GothamBold
+    confirmBtn.Parent = banner
 
     local confirmCorner = Instance.new("UICorner")
     confirmCorner.CornerRadius = UDim.new(0, 6)
-    confirmCorner.Parent = confirmButton
+    confirmCorner.Parent = confirmBtn
 
-    local cancelButton = Instance.new("TextButton")
-    cancelButton.Size = UDim2.new(0, 100, 0, 30)
-    cancelButton.Position = UDim2.new(0.5, -55, 1, -40)
-    cancelButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    cancelButton.Text = "Cancel"
-    cancelButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    cancelButton.TextSize = 14
-    cancelButton.Font = Enum.Font.GothamBold
-    cancelButton.Visible = false
-    cancelButton.Parent = popup
+    local cancelBtn = Instance.new("TextButton")
+    cancelBtn.Size = UDim2.new(0, 60, 0, 30)
+    cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
+    cancelBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    cancelBtn.Text = "No"
+    cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    cancelBtn.TextSize = 14
+    cancelBtn.Font = Enum.Font.GothamBold
+    cancelBtn.Visible = false
+    cancelBtn.Parent = banner
 
     local cancelCorner = Instance.new("UICorner")
     cancelCorner.CornerRadius = UDim.new(0, 6)
-    cancelCorner.Parent = cancelButton
+    cancelCorner.Parent = cancelBtn
 
-    -- Animate popup
-    local function showPopup()
-        popup.Position = UDim2.new(0.5, -120, 0.5, -160)
-        popup.Visible = true
-        popup.Transparency = 1
-        confirmButton.Position = UDim2.new(0.5, -110, 1, -40)
-        cancelButton.Position = UDim2.new(0.5, 10, 1, -40)
-        cancelButton.Visible = true
-        TweenService:Create(popup, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 0, Position = UDim2.new(0.5, -120, 0.5, -60)}):Play()
-        TweenService:Create(confirmButton, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -110, 1, -40)}):Play()
-        TweenService:Create(cancelButton, TweenInfo.new(0.3), {Position = UDim2.new(0.5, 10, 1, -40)}):Play()
+    -- Banner animation
+    local function showBanner()
+        banner.Position = UDim2.new(0.5, -130, 0, -60)
+        banner.Visible = true
+        banner.Transparency = 1
+        confirmBtn.Position = UDim2.new(1, -130, 0.5, -15)
+        cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
+        cancelBtn.Visible = true
+        TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 0, Position = UDim2.new(0.5, -130, 0, 10)}):Play()
+        TweenService:Create(confirmBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -130, 0.5, -15)}):Play()
+        TweenService:Create(cancelBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -70, 0.5, -15)}):Play()
     end
 
-    local function hidePopup()
-        local tween = TweenService:Create(popup, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 1, Position = UDim2.new(0.5, -120, 0.5, -160)})
+    local function hideBanner()
+        local tween = TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 1, Position = UDim2.new(0.5, -130, 0, -60)})
         tween:Play()
         tween.Completed:Connect(function()
-            popup.Visible = false
+            banner.Visible = false
         end)
     end
 
-    destroyButton.MouseButton1Click:Connect(showPopup)
+    destroyButton.MouseButton1Click:Connect(showBanner)
 
-    confirmButton.MouseButton1Click:Connect(function()
-        hidePopup()
+    confirmBtn.MouseButton1Click:Connect(function()
+        hideBanner()
         local fade = TweenService:Create(mainFrame, TweenInfo.new(0.4), {Transparency = 1})
         fade:Play()
         fade.Completed:Connect(function()
@@ -386,7 +396,7 @@ local function createSectionContent()
         end)
     end)
 
-    cancelButton.MouseButton1Click:Connect(hidePopup)
+    cancelBtn.MouseButton1Click:Connect(hideBanner)
 
     return contentFrame
 end
@@ -535,6 +545,7 @@ local function navigateToSection(sectionName)
     if currentSection == sectionName then return end
     currentSection = sectionName
     titleLabel.Text = sectionName
+    titleLabel.Position = UDim2.new(0, 40, 0, 0)
     titleLabel.Size = UDim2.new(1, -80, 1, 0)
     backButton.Visible = true
 
@@ -569,6 +580,7 @@ local function navigateBack()
     -- Reset title
     currentSection = nil
     titleLabel.Text = "Test Hub"
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
     titleLabel.Size = UDim2.new(1, -120, 1, 0)
     backButton.Visible = false
 end
@@ -592,11 +604,11 @@ minimizeButton.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     local goal = {}
     if isMinimized then
-        minimizeButton.Text = "Up"
+        minimizeButton.Text = "Up Arrow"
         goal.Size = UDim2.new(0, mainFrame.AbsoluteSize.X, 0, TITLE_HEIGHT)
         contentContainer.Visible = false
     else
-        minimizeButton.Text = "Down"
+        minimizeButton.Text = "Down Arrow"
         goal.Size = originalSize
         contentContainer.Visible = true
     end
