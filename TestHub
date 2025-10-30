@@ -1,524 +1,596 @@
--- Test Hub Script
--- This is a LocalScript that should be placed in StarterGui or StarterPlayerScripts
+-- Test Hub v2 — Indigo Flow (Refined, Single-file)
+-- Deep Indigo Glass, slide-up + fade transitions, isolated toggles, smart scroll
 
+-- Services
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 
+-- Player
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Create ScreenGui
+-- Constants / Theme
+local THEME_INDIGO = Color3.fromRGB(85, 85, 127)
+local DEEP1 = Color3.fromRGB(60, 60, 90)
+local DEEP2 = Color3.fromRGB(30, 30, 50)
+local ACCENT = Color3.fromRGB(120, 110, 190)
+local BLUR_AMOUNT = 15 -- chosen "surprise" depth
+local BASE_WIDTH = 340
+local BASE_HEIGHT = 420
+local TITLE_HEIGHT = 56
+local FOOTER_HEIGHT = 18
+local PADDING = 10
+
+local TWEEN_FAST = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local TWEEN_MED = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local TWEEN_SMOOTH = TweenInfo.new(0.40, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
+local TOGGLE_TWEEN = TweenInfo.new(0.36, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out)
+
+-- Clear existing UI if present
+local existing = playerGui:FindFirstChild("TestHub")
+if existing then
+	existing:Destroy()
+end
+
+-- Blur effect (Lighting)
+local blur = Instance.new("BlurEffect")
+blur.Name = "TestHub_DeepBlur"
+blur.Size = 0
+blur.Parent = Lighting
+
+-- Helper tween function
+local function tween(obj, props, info)
+	info = info or TWEEN_MED
+	local tw = TweenService:Create(obj, info, props)
+	tw:Play()
+	return tw
+end
+
+-- ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TestHub"
-screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
 
--- Responsive sizing
-local BASE_WIDTH = 300
-local MIN_WIDTH = 280
-local MAX_WIDTH = 400
-local TITLE_HEIGHT = 40
-local PADDING = 10
+-- Main Frame (top-centered)
+local main = Instance.new("Frame")
+main.Name = "MainFrame"
+main.AnchorPoint = Vector2.new(0.5, 0)
+main.Position = UDim2.new(0.5, 0, 0.02, 0) -- near top center
+main.Size = UDim2.new(0, BASE_WIDTH, 0, TITLE_HEIGHT)
+main.BackgroundColor3 = THEME_INDIGO
+main.BorderSizePixel = 0
+main.ClipsDescendants = true
+main.Parent = screenGui
 
-local function updateUIScale()
-    local screenSize = workspace.CurrentCamera.ViewportSize
-    local scaleFactor = math.clamp(screenSize.X / 1920, 0.7, 1.3)
-    local width = math.clamp(BASE_WIDTH * scaleFactor, MIN_WIDTH, MAX_WIDTH)
-    
-    mainFrame.Size = UDim2.new(0, width, 0, isMinimized and TITLE_HEIGHT or originalSize.Y.Offset)
-    mainFrame.Position = UDim2.new(0.5, -width/2, 0, 0)
-    
-    titleLabel.Size = UDim2.new(1, backButton.Visible and -80 or -120, 1, 0)
-    titleLabel.Position = UDim2.new(0, backButton.Visible and 40 or 0, 0, 0)
-end
-
--- Main Frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, BASE_WIDTH, 0, TITLE_HEIGHT)
-mainFrame.Position = UDim2.new(0.5, -BASE_WIDTH/2, 0, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.ClipsDescendants = true
-mainFrame.Parent = screenGui
-mainFrame.ZIndex = 100
-
--- UICorner for main frame
-local mainCorner = Instance.new("UICorner")
+-- Rounded & gradient
+local mainCorner = Instance.new("UICorner", main)
 mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = mainFrame
-
--- UIStroke for main frame
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Thickness = 1
-mainStroke.Color = Color3.fromRGB(50, 50, 50)
-mainStroke.Transparency = 0.5
-mainStroke.Parent = mainFrame
-
--- UIGradient for main frame
-local mainGradient = Instance.new("UIGradient")
-mainGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 40)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
+local mainGrad = Instance.new("UIGradient", main)
+mainGrad.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, DEEP1),
+	ColorSequenceKeypoint.new(1, DEEP2)
 }
-mainGradient.Parent = mainFrame
+mainGrad.Rotation = 90
 
--- Title Frame
-local titleFrame = Instance.new("Frame")
-titleFrame.Size = UDim2.new(1, 0, 0, TITLE_HEIGHT)
-titleFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-titleFrame.BorderSizePixel = 0
-titleFrame.Parent = mainFrame
-titleFrame.ZIndex = 101
+-- Soft stroke glow
+local mainStroke = Instance.new("UIStroke", main)
+mainStroke.Thickness = 1.8
+mainStroke.Color = ACCENT
+mainStroke.Transparency = 0.55
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = titleFrame
+-- Title bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, TITLE_HEIGHT)
+titleBar.BackgroundTransparency = 1
+titleBar.Parent = main
 
-local titleGradient = Instance.new("UIGradient")
-titleGradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(10, 10, 10))
-}
-titleGradient.Parent = titleFrame
-
--- Back Button
-local backButton = Instance.new("TextButton")
-backButton.Size = UDim2.new(0, 40, 1, 0)
-backButton.Position = UDim2.new(0, 0, 0, 0)
-backButton.BackgroundTransparency = 1
-backButton.Text = "←"
-backButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-backButton.TextSize = 24
-backButton.Font = Enum.Font.Gotham
-backButton.Visible = false
-backButton.Parent = titleFrame
-backButton.ZIndex = 102
-
--- Title Label (Centered)
 local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
 titleLabel.Size = UDim2.new(1, -120, 1, 0)
+titleLabel.Position = UDim2.new(0, 60, 0, 0)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "Test Hub"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextSize = 24
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextXAlignment = Enum.TextXAlignment.Center
-titleLabel.Position = UDim2.new(0, 0, 0, 0)
-titleLabel.Parent = titleFrame
-titleLabel.ZIndex = 102
+titleLabel.TextColor3 = Color3.fromRGB(248,248,250)
+titleLabel.Font = Enum.Font.GothamMedium
+titleLabel.TextScaled = true
+titleLabel.Parent = titleBar
 
--- Drag Button
-local dragButton = Instance.new("TextButton")
-dragButton.Size = UDim2.new(0, 40, 1, 0)
-dragButton.Position = UDim2.new(1, -80, 0, 0)
-dragButton.BackgroundTransparency = 1
-dragButton.Text = "☰"
-dragButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-dragButton.TextSize = 24
-dragButton.Font = Enum.Font.Gotham
-dragButton.Parent = titleFrame
-dragButton.ZIndex = 102
+-- Back button (will appear inside sections)
+local backBtn = Instance.new("TextButton")
+backBtn.Name = "BackButton"
+backBtn.Size = UDim2.new(0, 48, 0, 40)
+backBtn.Position = UDim2.new(0, 6, 0, 8)
+backBtn.BackgroundTransparency = 1
+backBtn.Text = "←"
+backBtn.TextColor3 = Color3.fromRGB(235,235,235)
+backBtn.Font = Enum.Font.GothamMedium
+backBtn.TextSize = 22
+backBtn.Visible = false
+backBtn.Parent = titleBar
 
--- Minimize Button
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Size = UDim2.new(0, 40, 1, 0)
-minimizeButton.Position = UDim2.new(1, -40, 0, 0)
-minimizeButton.BackgroundTransparency = 1
-minimizeButton.Text = "↓"
-minimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-minimizeButton.TextSize = 24
-minimizeButton.Font = Enum.Font.Gotham
-minimizeButton.Parent = titleFrame
-minimizeButton.ZIndex = 102
+-- Expand / collapse arrow
+local expandBtn = Instance.new("TextButton")
+expandBtn.Name = "ExpandButton"
+expandBtn.Size = UDim2.new(0, 48, 0, 40)
+expandBtn.Position = UDim2.new(1, -54, 0, 8)
+expandBtn.BackgroundTransparency = 1
+expandBtn.Text = "↓"
+expandBtn.TextColor3 = Color3.fromRGB(235,235,235)
+expandBtn.Font = Enum.Font.GothamMedium
+expandBtn.TextSize = 22
+expandBtn.Parent = titleBar
 
--- Draggable on dragButton
-local dragging = false
-local dragInput, dragStart, startPos
+-- glow pulse around stroke (subtle)
+local pulseStroke = Instance.new("UIStroke", main)
+pulseStroke.Color = ACCENT
+pulseStroke.Thickness = 2.2
+pulseStroke.Transparency = 0.9 -- will tween to more visible when expanded
 
-local function update(input)
-    local delta = input.Position - dragStart
-    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
-end
-
-dragButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-dragButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        update(input)
-    end
-end)
-
--- Content Container
+-- Content container
 local contentContainer = Instance.new("Frame")
+contentContainer.Name = "ContentContainer"
 contentContainer.Size = UDim2.new(1, 0, 1, -TITLE_HEIGHT)
 contentContainer.Position = UDim2.new(0, 0, 0, TITLE_HEIGHT)
 contentContainer.BackgroundTransparency = 1
-contentContainer.Parent = mainFrame
-contentContainer.ZIndex = 100
+contentContainer.Parent = main
+contentContainer.ClipsDescendants = true
 
--- Sections Menu (ScrollingFrame)
+-- Sections menu (left page)
 local sectionsMenu = Instance.new("ScrollingFrame")
+sectionsMenu.Name = "SectionsMenu"
 sectionsMenu.Size = UDim2.new(1, 0, 1, 0)
+sectionsMenu.Position = UDim2.new(0, 0, 0, 0)
 sectionsMenu.BackgroundTransparency = 1
 sectionsMenu.BorderSizePixel = 0
-sectionsMenu.ScrollBarThickness = 0
+sectionsMenu.ScrollBarThickness = 0 -- invisible scrollbar
 sectionsMenu.AutomaticCanvasSize = Enum.AutomaticSize.Y
-sectionsMenu.CanvasSize = UDim2.new(0, 0, 0, 0)
+sectionsMenu.CanvasSize = UDim2.new(0,0,0,0)
 sectionsMenu.Parent = contentContainer
-sectionsMenu.ZIndex = 100
 
-local sectionsList = Instance.new("UIListLayout")
-sectionsList.Padding = UDim.new(0, 5)
-sectionsList.SortOrder = Enum.SortOrder.LayoutOrder
-sectionsList.Parent = sectionsMenu
+local menuList = Instance.new("UIListLayout", sectionsMenu)
+menuList.Padding = UDim.new(0, 8)
+menuList.SortOrder = Enum.SortOrder.LayoutOrder
+local menuPad = Instance.new("UIPadding", sectionsMenu)
+menuPad.PaddingTop = UDim.new(0, PADDING)
+menuPad.PaddingLeft = UDim.new(0, PADDING)
+menuPad.PaddingRight = UDim.new(0, PADDING)
 
-local paddingSections = Instance.new("UIPadding")
-paddingSections.PaddingLeft = UDim.new(0, PADDING)
-paddingSections.PaddingRight = UDim.new(0, PADDING)
-paddingSections.PaddingTop = UDim.new(0, 5)
-paddingSections.PaddingBottom = UDim.new(0, 5)
-paddingSections.Parent = sectionsMenu
+-- Track sections (frames)
+local sections = {}
 
--- Function to create section button
-local function createSectionButton(name)
-    local buttonFrame = Instance.new("TextButton")
-    buttonFrame.Size = UDim2.new(1, 0, 0, 40)
-    buttonFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    buttonFrame.Text = ""
-    buttonFrame.Parent = sectionsMenu
+-- Create Section (subpage)
+local function createSection(name)
+	local frame = Instance.new("ScrollingFrame")
+	frame.Name = name .. "_Frame"
+	frame.Size = UDim2.new(1, 0, 1, 0)
+	frame.Position = UDim2.new(0, 0, 1, 0) -- start off-screen (below)
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 0
+	frame.ScrollBarThickness = 0
+	frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	frame.Visible = false
+	frame.Parent = contentContainer
 
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = buttonFrame
+	local layout = Instance.new("UIListLayout", frame)
+	layout.Padding = UDim.new(0, 8)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	local pad = Instance.new("UIPadding", frame)
+	pad.PaddingTop = UDim.new(0, PADDING)
+	pad.PaddingLeft = UDim.new(0, PADDING)
+	pad.PaddingRight = UDim.new(0, PADDING)
+	pad.PaddingBottom = UDim.new(0, PADDING)
 
-    local buttonLabel = Instance.new("TextLabel")
-    buttonLabel.Size = UDim2.new(1, 0, 1, 0)
-    buttonLabel.BackgroundTransparency = 1
-    buttonLabel.Text = name
-    buttonLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-    buttonLabel.TextSize = 18
-    buttonLabel.Font = Enum.Font.GothamSemibold
-    buttonLabel.TextXAlignment = Enum.TextXAlignment.Left
-    buttonLabel.Position = UDim2.new(0, 10, 0, 0)
-    buttonLabel.Parent = buttonFrame
-
-    return buttonFrame
+	sections[name] = {
+		frame = frame,
+		layout = layout
+	}
+	return frame
 end
 
--- Create section buttons
-local mainStuffButton = createSectionButton("Main Stuff")
-local settingsButton = createSectionButton("Settings")
-
--- Destroy button at bottom of sections menu
-local destroyFrame = Instance.new("Frame")
-destroyFrame.Size = UDim2.new(1, 0, 0, 40)
-destroyFrame.BackgroundTransparency = 1
-destroyFrame.Parent = sectionsMenu
-
-local destroyLabel = Instance.new("TextLabel")
-destroyLabel.Size = UDim2.new(1, 0, 1, 0)
-destroyLabel.BackgroundTransparency = 1
-destroyLabel.Text = "Destroy TestHub"
-destroyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-destroyLabel.TextSize = 16
-destroyLabel.Font = Enum.Font.GothamSemibold
-destroyLabel.TextXAlignment = Enum.TextXAlignment.Center
-destroyLabel.Parent = destroyFrame
-
--- Version label under destroy
-local versionFooter = Instance.new("TextLabel")
-versionFooter.Size = UDim2.new(1, 0, 0, 30)
-versionFooter.BackgroundTransparency = 1
-versionFooter.Text = "v1.0"
-versionFooter.TextColor3 = Color3.fromRGB(150, 150, 150)
-versionFooter.TextSize = 14
-versionFooter.Font = Enum.Font.Gotham
-versionFooter.TextXAlignment = Enum.TextXAlignment.Center
-versionFooter.Parent = sectionsMenu
-
--- Mini Banner Popup (Confirmation)
-local banner = Instance.new("Frame")
-banner.Size = UDim2.new(0, 260, 0, 50)
-banner.Position = UDim2.new(0.5, -130, 0, -60)
-banner.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-banner.BorderSizePixel = 0
-banner.Visible = false
-banner.ZIndex = 200
-banner.Parent = screenGui
-
-local bannerCorner = Instance.new("UICorner")
-bannerCorner.CornerRadius = UDim.new(0, 8)
-bannerCorner.Parent = banner
-
-local bannerStroke = Instance.new("UIStroke")
-bannerStroke.Thickness = 1
-bannerStroke.Color = Color3.fromRGB(200, 50, 50)
-bannerStroke.Transparency = 0.3
-bannerStroke.Parent = banner
-
-local bannerMessage = Instance.new("TextLabel")
-bannerMessage.Size = UDim2.new(1, -80, 1, 0)
-bannerMessage.Position = UDim2.new(0, 10, 0, 0)
-bannerMessage.BackgroundTransparency = 1
-bannerMessage.Text = "Destroy TestHub?"
-bannerMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
-bannerMessage.TextSize = 16
-bannerMessage.Font = Enum.Font.GothamBold
-bannerMessage.TextXAlignment = Enum.TextXAlignment.Left
-bannerMessage.Parent = banner
-
-local confirmBtn = Instance.new("TextButton")
-confirmBtn.Size = UDim2.new(0, 60, 0, 30)
-confirmBtn.Position = UDim2.new(1, -70, 0.5, -15)
-confirmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-confirmBtn.Text = "Yes"
-confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-confirmBtn.TextSize = 14
-confirmBtn.Font = Enum.Font.GothamBold
-confirmBtn.Parent = banner
-
-local confirmCorner = Instance.new("UICorner")
-confirmCorner.CornerRadius = UDim.new(0, 6)
-confirmCorner.Parent = confirmBtn
-
-local cancelBtn = Instance.new("TextButton")
-cancelBtn.Size = UDim2.new(0, 60, 0, 30)
-cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
-cancelBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-cancelBtn.Text = "No"
-cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-cancelBtn.TextSize = 14
-cancelBtn.Font = Enum.Font.GothamBold
-cancelBtn.Visible = false
-cancelBtn.Parent = banner
-
-local cancelCorner = Instance.new("UICorner")
-cancelCorner.CornerRadius = UDim.new(0, 6)
-cancelCorner.Parent = cancelBtn
-
--- Banner animation
-local function showBanner()
-    banner.Position = UDim2.new(0.5, -130, 0, -60)
-    banner.Visible = true
-    banner.Transparency = 1
-    confirmBtn.Position = UDim2.new(1, -130, 0.5, -15)
-    cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
-    cancelBtn.Visible = true
-    TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 0, Position = UDim2.new(0.5, -130, 0, 10)}):Play()
-    TweenService:Create(confirmBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -130, 0.5, -15)}):Play()
-    TweenService:Create(cancelBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -70, 0.5, -15)}):Play()
+-- Helper to create clean buttons used in menus & sections
+local function createMenuButton(text)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -20, 0, 44)
+	btn.BackgroundColor3 = Color3.fromRGB(38, 38, 70)
+	btn.BorderSizePixel = 0
+	btn.AutoButtonColor = false
+	btn.Text = text
+	btn.Font = Enum.Font.GothamMedium
+	btn.TextSize = 16
+	btn.TextColor3 = Color3.fromRGB(245,245,248)
+	btn.Parent = sectionsMenu
+	local corner = Instance.new("UICorner", btn); corner.CornerRadius = UDim.new(0, 8)
+	-- hover
+	btn.MouseEnter:Connect(function()
+		tween(btn, {BackgroundColor3 = Color3.fromRGB(60, 60, 100)}, TWEEN_FAST)
+	end)
+	btn.MouseLeave:Connect(function()
+		tween(btn, {BackgroundColor3 = Color3.fromRGB(38, 38, 70)}, TWEEN_FAST)
+	end)
+	return btn
 end
 
-local function hideBanner()
-    local tween = TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 1, Position = UDim2.new(0.5, -130, 0, -60)})
-    tween:Play()
-    tween.Completed:Connect(function()
-        banner.Visible = false
-    end)
+-- Create section buttons (Main Stuff, Settings)
+local btnMain = createMenuButton("Main Stuff")
+local btnSettings = createMenuButton("Settings")
+local btnDestroy = createMenuButton("Destroy TestHub")
+btnDestroy.BackgroundColor3 = Color3.fromRGB(95, 40, 40)
+btnDestroy.TextColor3 = Color3.fromRGB(255, 150, 150)
+
+-- Smart canvas resizing helper (enables/disables scrolling only when needed)
+local function updateScrollingForFrame(scrollingFrame)
+	-- compute content height and viewport height
+	local layout = scrollingFrame:FindFirstChildWhichIsA("UIListLayout", true)
+	if not layout then
+		return
+	end
+	local contentHeight = layout.AbsoluteContentSize.Y
+	local viewportHeight = scrollingFrame.AbsoluteSize.Y
+	-- Add top/bottom padding ~ PADDING * 2
+	local desired = contentHeight + (PADDING * 2)
+	if desired > viewportHeight then
+		scrollingFrame.ScrollBarThickness = 0 -- invisible but enabled
+		scrollingFrame.ScrollingEnabled = true
+		-- adjust CanvasSize for automatic sizing if needed
+		scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, contentHeight + (PADDING * 2))
+	else
+		scrollingFrame.ScrollingEnabled = false
+		scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	end
 end
 
-destroyFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        showBanner()
-    end
-end)
+-- Create toggle (switch-style) as a self-contained TextButton for click isolation
+local function createSwitch(name, initial)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(1, -20, 0, 44)
+	container.BackgroundTransparency = 1
 
-confirmBtn.MouseButton1Click:Connect(function()
-    hideBanner()
-    local fade = TweenService:Create(mainFrame, TweenInfo.new(0.4), {Transparency = 1})
-    fade:Play()
-    fade.Completed:Connect(function()
-        screenGui:Destroy()
-    end)
-end)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, -90, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = name
+	label.Font = Enum.Font.GothamMedium
+	label.TextSize = 16
+	label.TextColor3 = Color3.fromRGB(235,235,238)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = container
 
-cancelBtn.MouseButton1Click:Connect(hideBanner)
+	-- toggle background (frame)
+	local toggleBg = Instance.new("Frame")
+	toggleBg.Size = UDim2.new(0, 56, 0, 28)
+	toggleBg.AnchorPoint = Vector2.new(1, 0.5)
+	toggleBg.Position = UDim2.new(1, -12, 0.5, 0)
+	toggleBg.BackgroundColor3 = Color3.fromRGB(110, 110, 140)
+	toggleBg.BorderSizePixel = 0
+	toggleBg.Parent = container
+	local tcorner = Instance.new("UICorner", toggleBg); tcorner.CornerRadius = UDim.new(1, 0)
 
--- Section Contents
-local sectionContents = {}
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 22, 0, 22)
+	knob.Position = UDim2.new(0, 6, 0.5, -11)
+	knob.BorderSizePixel = 0
+	knob.BackgroundColor3 = Color3.fromRGB(245,245,248)
+	knob.Parent = toggleBg
+	local kcorner = Instance.new("UICorner", knob); kcorner.CornerRadius = UDim.new(1, 0)
 
--- Function to create section content frame (ScrollingFrame)
-local function createSectionContent()
-    local contentFrame = Instance.new("ScrollingFrame")
-    contentFrame.Size = UDim2.new(1, 0, 1, 0)
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.BorderSizePixel = 0
-    contentFrame.ScrollBarThickness = 0
-    contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-    contentFrame.Visible = false
-    contentFrame.Parent = contentContainer
-    contentFrame.ZIndex = 100
+	-- Use TextButton overlay for clicks to avoid propagation
+	local clicker = Instance.new("TextButton")
+	clicker.Size = UDim2.new(1, 0, 1, 0)
+	clicker.BackgroundTransparency = 1
+	clicker.Text = ""
+	clicker.AutoButtonColor = false
+	clicker.Parent = toggleBg
 
-    local contentList = Instance.new("UIListLayout")
-    contentList.Padding = UDim.new(0, 5)
-    contentList.SortOrder = Enum.SortOrder.LayoutOrder
-    contentList.Parent = contentFrame
+	-- Initialize
+	local on = (initial == true)
+	if on then
+		knob.Position = UDim2.new(1, -30, 0.5, -11)
+		toggleBg.BackgroundColor3 = ACCENT
+	end
 
-    local padding = Instance.new("UIPadding")
-    padding.PaddingLeft = UDim.new(0, PADDING)
-    padding.PaddingRight = UDim.new(0, PADDING)
-    padding.PaddingTop = UDim.new(0, 5)
-    padding.PaddingBottom = UDim.new(0, 5)
-    padding.Parent = contentFrame
+	-- Click handler
+	clicker.MouseButton1Click:Connect(function()
+		on = not on
+		local knobGoal = on and UDim2.new(1, -30, 0.5, -11) or UDim2.new(0, 6, 0.5, -11)
+		local bgGoal = on and ACCENT or Color3.fromRGB(110, 110, 140)
+		tween(knob, {Position = knobGoal}, TOGGLE_TWEEN)
+		tween(toggleBg, {BackgroundColor3 = bgGoal}, TWEEN_FAST)
+	end)
 
-    return contentFrame
+	return container
 end
 
--- Main Stuff Content
-local mainStuffContent = createSectionContent()
-sectionContents["Main Stuff"] = mainStuffContent
-
--- Add content to Main Stuff
-createToggle("Test Toggle 1", mainStuffContent)
-createToggle("Test Toggle 2", mainStuffContent)
-createToggle("Test Toggle 3", mainStuffContent)
-createButton("Test button 1", mainStuffContent)
-createButton("Test button 2", mainStuffContent)
-
--- Settings Content
-local settingsContent = createSectionContent()
-sectionContents["Settings"] = settingsContent
-
--- Navigation logic
-local currentSection = nil
-local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-local function navigateToSection(sectionName)
-    if currentSection == sectionName then return end
-    currentSection = sectionName
-    titleLabel.Text = sectionName
-    titleLabel.Position = UDim2.new(0, 40, 0, 0)
-    titleLabel.Size = UDim2.new(1, -80, 1, 0)
-    backButton.Visible = true
-
-    -- Animate out sections menu
-    TweenService:Create(sectionsMenu, tweenInfo, {Transparency = 1}):Play()
-    task.delay(0.3, function()
-        sectionsMenu.Visible = false
-    end)
-
-    -- Animate in content
-    local content = sectionContents[sectionName]
-    content.Transparency = 1
-    content.Visible = true
-    TweenService:Create(content, tweenInfo, {Transparency = 0}):Play()
+-- Create compact description label (smaller, at top of section)
+local function createSectionHeader(text)
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -20, 0, 26)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = text
+	lbl.Font = Enum.Font.GothamMedium
+	lbl.TextSize = 14
+	lbl.TextColor3 = Color3.fromRGB(210,210,215) -- slightly lighter
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = nil
+	return lbl
 end
 
-local function navigateBack()
-    if not currentSection then return end
-    local oldContent = sectionContents[currentSection]
+-- Build "Main Stuff" section
+local mainSection = createSection("Main Stuff")
+local mainHeader = createSectionHeader("This is the Main Stuff")
+mainHeader.Position = UDim2.new(0, 10, 0, 0)
+mainHeader.Parent = mainSection
 
-    -- Animate out content
-    TweenService:Create(oldContent, tweenInfo, {Transparency = 1}):Play()
-    task.delay(0.3, function()
-        oldContent.Visible = false
-    end)
+-- Add switches and buttons (attach to mainSection)
+local musicSwitch = createSwitch("Music", false)
+musicSwitch.Parent = mainSection
 
-    -- Animate in sections menu
-    sectionsMenu.Visible = true
-    sectionsMenu.Transparency = 1
-    TweenService:Create(sectionsMenu, tweenInfo, {Transparency = 0}):Play()
+local partSwitch = createSwitch("Particles", true)
+partSwitch.Parent = mainSection
 
-    -- Reset title
-    currentSection = nil
-    titleLabel.Text = "Test Hub"
-    titleLabel.Position = UDim2.new(0, 0, 0, 0)
-    titleLabel.Size = UDim2.new(1, -120, 1, 0)
-    backButton.Visible = false
+local action1 = Instance.new("TextButton")
+action1.Size = UDim2.new(1, -20, 0, 42)
+action1.BackgroundColor3 = Color3.fromRGB(60, 60, 110)
+action1.BorderSizePixel = 0
+action1.AutoButtonColor = false
+action1.Font = Enum.Font.GothamMedium
+action1.Text = "Action 1"
+action1.TextColor3 = Color3.fromRGB(245,245,248)
+action1.TextSize = 16
+action1.Parent = mainSection
+Instance.new("UICorner", action1).CornerRadius = UDim.new(0, 8)
+action1.MouseEnter:Connect(function() tween(action1, {BackgroundColor3 = Color3.fromRGB(82,82,140)}, TWEEN_FAST) end)
+action1.MouseLeave:Connect(function() tween(action1, {BackgroundColor3 = Color3.fromRGB(60,60,110)}, TWEEN_FAST) end)
+
+local action2 = action1:Clone()
+action2.Text = "Action 2"
+action2.Parent = mainSection
+
+local action3 = action1:Clone()
+action3.Text = "Action 3"
+action3.Parent = mainSection
+
+-- Add a small soft description at bottom (smaller font)
+local mainDesc = Instance.new("TextLabel")
+mainDesc.Size = UDim2.new(1, -20, 0, 28)
+mainDesc.BackgroundTransparency = 1
+mainDesc.Text = "Short description can go here."
+mainDesc.Font = Enum.Font.GothamMedium
+mainDesc.TextSize = 14
+mainDesc.TextColor3 = Color3.fromRGB(200,200,205)
+mainDesc.TextTransparency = 0.1
+mainDesc.TextXAlignment = Enum.TextXAlignment.Left
+mainDesc.Parent = mainSection
+
+-- Build "Settings" section
+local settingsSection = createSection("Settings")
+local settingsHeader = createSectionHeader("This is the Settings")
+settingsHeader.Parent = settingsSection
+
+local s1 = createSwitch("Sound", true); s1.Parent = settingsSection
+local s2 = createSwitch("VFX", true); s2.Parent = settingsSection
+local s3 = createSwitch("Notifications", false); s3.Parent = settingsSection
+
+-- Utility: show section with slide-up + fade
+local function openSection(name)
+	-- hide menu and any visible sections
+	for k, v in pairs(sections) do
+		if v.frame.Visible then
+			-- slide down and hide
+			tween(v.frame, {Position = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1}, TWEEN_FAST)
+			task.delay(0.18, function() v.frame.Visible = false end)
+		end
+	end
+
+	-- reveal chosen
+	local target = sections[name]
+	if not target then return end
+	backBtn.Visible = true
+	titleLabel.Text = name
+	target.frame.Visible = true
+	-- start just below with slight transparency
+	target.frame.Position = UDim2.new(0, 0, 0, 18)
+	target.frame.BackgroundTransparency = 1
+	-- update scrolling enabled based on content (ensure AbsoluteContentSize is available)
+	RunService.Heartbeat:Wait() -- wait a frame so layout measures
+	updateScrollingForFrame(target.frame)
+	-- animate in (slide up + fade)
+	tween(target.frame, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, TWEEN_SMOOTH)
+	-- make sure menu is not interactable
+	sectionsMenu.Visible = false
 end
 
--- Connect buttons
-mainStuffButton.MouseButton1Click:Connect(function()
-    navigateToSection("Main Stuff")
+-- Utility: close sections (back to main menu)
+local function closeSections()
+	for k, v in pairs(sections) do
+		if v.frame.Visible then
+			tween(v.frame, {Position = UDim2.new(0, 0, 1, 0), BackgroundTransparency = 1}, TWEEN_FAST)
+			task.delay(0.18, function() v.frame.Visible = false end)
+		end
+	end
+	backBtn.Visible = false
+	titleLabel.Text = "Test Hub"
+	sectionsMenu.Visible = true
+	-- update sectionsMenu scrolling
+	RunService.Heartbeat:Wait()
+	updateScrollingForFrame(sectionsMenu)
+end
+
+-- Bind section buttons
+btnMain.Activated:Connect(function()
+	openSection("Main Stuff")
+end)
+btnSettings.Activated:Connect(function()
+	openSection("Settings")
 end)
 
-settingsButton.MouseButton1Click:Connect(function()
-    navigateToSection("Settings")
+-- Destroy popup
+local popup = Instance.new("Frame")
+popup.Name = "ConfirmPopup"
+popup.AnchorPoint = Vector2.new(0.5, 0.5)
+popup.Position = UDim2.new(0.5, 0, 0.5, 0)
+popup.Size = UDim2.new(0, 320, 0, 140)
+popup.BackgroundColor3 = Color3.fromRGB(35, 35, 60)
+popup.BorderSizePixel = 0
+popup.Visible = false
+popup.ZIndex = 500
+popup.Parent = screenGui
+Instance.new("UICorner", popup).CornerRadius = UDim.new(0, 10)
+local popupStroke = Instance.new("UIStroke", popup); popupStroke.Color = ACCENT; popupStroke.Thickness = 1.2
+
+local popLabel = Instance.new("TextLabel", popup)
+popLabel.Size = UDim2.new(1, -28, 0, 64)
+popLabel.Position = UDim2.new(0, 14, 0, 12)
+popLabel.BackgroundTransparency = 1
+popLabel.Text = "Are you sure you want to destroy Test Hub?"
+popLabel.TextWrapped = true
+popLabel.Font = Enum.Font.GothamMedium
+popLabel.TextSize = 16
+popLabel.TextColor3 = Color3.fromRGB(235,235,238)
+
+local popYes = Instance.new("TextButton", popup)
+popYes.Size = UDim2.new(0.44, 0, 0, 40)
+popYes.Position = UDim2.new(0.05, 0, 1, -50)
+popYes.Text = "Yes"
+popYes.Font = Enum.Font.GothamMedium
+popYes.TextSize = 16
+popYes.BackgroundColor3 = Color3.fromRGB(95, 40, 40)
+popYes.TextColor3 = Color3.fromRGB(255, 180, 180)
+Instance.new("UICorner", popYes).CornerRadius = UDim.new(0, 8)
+
+local popNo = Instance.new("TextButton", popup)
+popNo.Size = UDim2.new(0.44, 0, 0, 40)
+popNo.Position = UDim2.new(0.51, 0, 1, -50)
+popNo.Text = "No"
+popNo.Font = Enum.Font.GothamMedium
+popNo.TextSize = 16
+popNo.BackgroundColor3 = Color3.fromRGB(70, 70, 100)
+popNo.TextColor3 = Color3.fromRGB(235,235,238)
+Instance.new("UICorner", popNo).CornerRadius = UDim.new(0, 8)
+
+-- Bind destroy button
+btnDestroy.Activated:Connect(function()
+	-- show popup and animate in
+	popup.Visible = true
+	popup.Size = UDim2.new(0, 220, 0, 0)
+	popup.BackgroundTransparency = 1
+	tween(popup, {Size = UDim2.new(0, 320, 0, 140), BackgroundTransparency = 0}, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+	-- blur in
+	tween(blur, {Size = BLUR_AMOUNT}, TWEEN_FAST)
 end)
 
-backButton.MouseButton1Click:Connect(navigateBack)
-
--- Minimize/Expand logic
-local isMinimized = true
-local originalSize = UDim2.new(0, BASE_WIDTH, 0, 300)
-
-minimizeButton.MouseButton1Click:Connect(function()
-    isMinimized = not isMinimized
-    local goal = {}
-    if isMinimized then
-        minimizeButton.Text = "↓"
-        goal.Size = UDim2.new(0, mainFrame.AbsoluteSize.X, 0, TITLE_HEIGHT)
-        contentContainer.Visible = false
-    else
-        minimizeButton.Text = "↑"
-        goal.Size = originalSize
-        contentContainer.Visible = true
-    end
-    TweenService:Create(mainFrame, tweenInfo, goal):Play()
+popYes.Activated:Connect(function()
+	tween(popup, {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}, TWEEN_FAST)
+	task.wait(0.28)
+	screenGui:Destroy()
+	blur:Destroy()
 end)
 
--- Loading Label
-local loadingLabel = Instance.new("TextLabel")
-loadingLabel.Size = UDim2.new(1, 0, 1, 0)
-loadingLabel.BackgroundTransparency = 1
-loadingLabel.Text = "Loading..."
-loadingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-loadingLabel.TextSize = 24
-loadingLabel.Font = Enum.Font.GothamBold
-loadingLabel.Parent = mainFrame
-loadingLabel.ZIndex = 103
-
--- Intro animation
-mainFrame.Transparency = 1
-mainFrame.Position = UDim2.new(0.5, -BASE_WIDTH/2, 0, -TITLE_HEIGHT)
-local introTween = TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
-    Transparency = 0,
-    Position = UDim2.new(0.5, -BASE_WIDTH/2, 0, 0)
-})
-introTween:Play()
-
-introTween.Completed:Connect(function()
-    wait(1)
-    local loadingFade = TweenService:Create(loadingLabel, TweenInfo.new(0.3), {TextTransparency = 1})
-    loadingFade:Play()
-    loadingFade.Completed:Connect(function()
-        loadingLabel:Destroy()
-    end)
+popNo.Activated:Connect(function()
+	tween(popup, {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}, TWEEN_FAST)
+	task.wait(0.28)
+	popup.Visible = false
+	tween(blur, {Size = 0}, TWEEN_FAST)
 end)
 
--- Responsive scaling
-workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateUIScale)
-updateUIScale()
-
--- Open/close with Insert
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.Insert then
-        screenGui.Enabled = not screenGui.Enabled
-    end
+-- Back button behavior
+backBtn.Activated:Connect(function()
+	closeSections()
 end)
 
--- Initial state
-sectionsMenu.Visible = true
-sectionsMenu.Transparency = 0
-contentContainer.Visible = false
+-- Expand / collapse main
+local expanded = false
+expandBtn.Activated:Connect(function()
+	expanded = not expanded
+	if expanded then
+		expandBtn.Text = "↑"
+		-- expand main frame, show menu
+		tween(main, {Size = UDim2.new(0, BASE_WIDTH, 0, BASE_HEIGHT)}, TWEEN_SMOOTH)
+		tween(pulseStroke, {Transparency = 0.35}, TWEEN_MED)
+		tween(blur, {Size = BLUR_AMOUNT}, TWEEN_FAST)
+		-- show menu after expand
+		task.delay(0.06, function()
+			sectionsMenu.Visible = true
+			-- ensure the menu scrolling is updated
+			RunService.Heartbeat:Wait()
+			updateScrollingForFrame(sectionsMenu)
+		end)
+	else
+		expandBtn.Text = "↓"
+		-- hide any open sections
+		closeSections()
+		-- collapse
+		tween(main, {Size = UDim2.new(0, BASE_WIDTH, 0, TITLE_HEIGHT)}, TWEEN_SMOOTH)
+		tween(pulseStroke, {Transparency = 0.9}, TWEEN_MED)
+		-- fade blur
+		tween(blur, {Size = 0}, TWEEN_FAST)
+		-- ensure popup hidden
+		if popup.Visible then
+			popup.Visible = false
+		end
+	end
+end)
+
+-- Responsiveness: center & scale across screens
+local function updateScale()
+	local view = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720)
+	local scale = math.clamp(view.X / 1920, 0.65, 1.15)
+	local width = math.clamp(BASE_WIDTH * scale, 260, 520)
+	local height = math.clamp(BASE_HEIGHT * scale, 280, 720)
+	-- Keep TitleHeight proportional-ish
+	local tH = math.clamp(TITLE_HEIGHT * scale, 42, 72)
+	main.Size = UDim2.new(0, main.Size.X.Offset, 0, main.Size.Y.Offset) -- preserve until expanded state changes it
+	main.Position = UDim2.new(0.5, 0, 0.02, 0)
+	-- If currently expanded, set expanded size with scale
+	if expanded then
+		main.Size = UDim2.new(0, width, 0, height)
+	else
+		main.Size = UDim2.new(0, width, 0, tH)
+	end
+	-- scale popup width
+	popup.Size = UDim2.new(0, math.clamp(width * 0.9, 260, 480), 0, popup.Size.Y.Offset)
+	-- refresh scrolling frames after layout recalculation
+	RunService.Heartbeat:Wait()
+	updateScrollingForFrame(sectionsMenu)
+	for _, s in pairs(sections) do
+		updateScrollingForFrame(s.frame)
+	end
+end
+
+-- connect viewport changes
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+end
+updateScale()
+
+-- Ensure sectionsMenu canvas is sized on change
+menuList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	updateScrollingForFrame(sectionsMenu)
+end)
+
+-- Ensure each section updates its scrolling when content changes
+for _, s in pairs(sections) do
+	local layout = s.layout
+	if layout then
+		layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			updateScrollingForFrame(s.frame)
+		end)
+	end
+end
+
+-- Initial micro-entrance animation (subtle)
+task.defer(function()
+	tween(main, {Position = UDim2.new(0.5, 0, 0.03, 0)}, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out))
+end)
+
+-- Make sure main menu is visible initially only when expanded
+sectionsMenu.Visible = false
+
+-- Final: no global input propagation issues; everything wired to its own button handlers
+-- End of script
