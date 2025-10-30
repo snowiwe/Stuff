@@ -31,7 +31,7 @@ local function updateUIScale()
     mainFrame.Position = UDim2.new(0.5, -width/2, 0, 0)
     
     titleLabel.Size = UDim2.new(1, backButton.Visible and -80 or -120, 1, 0)
-    titleLabel.Position = UDim2.new(0, backButton.Visible and 40 or 10, 0, 0)
+    titleLabel.Position = UDim2.new(0, backButton.Visible and 40 or 0, 0, 0)
 end
 
 -- Main Frame
@@ -83,12 +83,12 @@ titleGradient.Color = ColorSequence.new{
 }
 titleGradient.Parent = titleFrame
 
--- Back Button (Arrow)
+-- Back Button
 local backButton = Instance.new("TextButton")
 backButton.Size = UDim2.new(0, 40, 1, 0)
 backButton.Position = UDim2.new(0, 0, 0, 0)
 backButton.BackgroundTransparency = 1
-backButton.Text = "Left Arrow"
+backButton.Text = "←"
 backButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 backButton.TextSize = 24
 backButton.Font = Enum.Font.Gotham
@@ -114,7 +114,7 @@ local dragButton = Instance.new("TextButton")
 dragButton.Size = UDim2.new(0, 40, 1, 0)
 dragButton.Position = UDim2.new(1, -80, 0, 0)
 dragButton.BackgroundTransparency = 1
-dragButton.Text = "Drag"
+dragButton.Text = "☰"
 dragButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 dragButton.TextSize = 24
 dragButton.Font = Enum.Font.Gotham
@@ -126,7 +126,7 @@ local minimizeButton = Instance.new("TextButton")
 minimizeButton.Size = UDim2.new(0, 40, 1, 0)
 minimizeButton.Position = UDim2.new(1, -40, 0, 0)
 minimizeButton.BackgroundTransparency = 1
-minimizeButton.Text = "Up Arrow"  -- Start minimized
+minimizeButton.Text = "↑"
 minimizeButton.TextColor3 = Color3.fromRGB(200, 200, 200)
 minimizeButton.TextSize = 24
 minimizeButton.Font = Enum.Font.Gotham
@@ -229,6 +229,131 @@ end
 local mainStuffButton = createSectionButton("Main Stuff")
 local settingsButton = createSectionButton("Settings")
 
+-- Add Destroy button to sections menu bottom
+local destroyFrame = Instance.new("Frame")
+destroyFrame.Size = UDim2.new(1, 0, 0, 40)
+destroyFrame.BackgroundTransparency = 1
+destroyFrame.Parent = sectionsMenu
+
+local destroyLabel = Instance.new("TextLabel")
+destroyLabel.Size = UDim2.new(1, 0, 1, 0)
+destroyLabel.BackgroundTransparency = 1
+destroyLabel.Text = "Destroy TestHub"
+destroyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+destroyLabel.TextSize = 16
+destroyLabel.Font = Enum.Font.GothamSemibold
+destroyLabel.TextXAlignment = Enum.TextXAlignment.Center
+destroyLabel.Parent = destroyFrame
+
+-- Version label under destroy
+local versionFooter = Instance.new("TextLabel")
+versionFooter.Size = UDim2.new(1, 0, 0, 30)
+versionFooter.BackgroundTransparency = 1
+versionFooter.Text = "v1.0"
+versionFooter.TextColor3 = Color3.fromRGB(150, 150, 150)
+versionFooter.TextSize = 14
+versionFooter.Font = Enum.Font.Gotham
+versionFooter.TextXAlignment = Enum.TextXAlignment.Center
+versionFooter.Parent = sectionsMenu
+
+-- Mini Banner Popup (Confirmation)
+local banner = Instance.new("Frame")
+banner.Size = UDim2.new(0, 260, 0, 50)
+banner.Position = UDim2.new(0.5, -130, 0, -60)
+banner.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+banner.BorderSizePixel = 0
+banner.Visible = false
+banner.ZIndex = 200
+banner.Parent = screenGui
+
+local bannerCorner = Instance.new("UICorner")
+bannerCorner.CornerRadius = UDim.new(0, 8)
+bannerCorner.Parent = banner
+
+local bannerStroke = Instance.new("UIStroke")
+bannerStroke.Thickness = 1
+bannerStroke.Color = Color3.fromRGB(200, 50, 50)
+bannerStroke.Transparency = 0.3
+bannerStroke.Parent = banner
+
+local bannerMessage = Instance.new("TextLabel")
+bannerMessage.Size = UDim2.new(1, -80, 1, 0)
+bannerMessage.Position = UDim2.new(0, 10, 0, 0)
+bannerMessage.BackgroundTransparency = 1
+bannerMessage.Text = "Destroy TestHub?"
+bannerMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
+bannerMessage.TextSize = 16
+bannerMessage.Font = Enum.Font.GothamBold
+bannerMessage.TextXAlignment = Enum.TextXAlignment.Left
+bannerMessage.Parent = banner
+
+local confirmBtn = Instance.new("TextButton")
+confirmBtn.Size = UDim2.new(0, 60, 0, 30)
+confirmBtn.Position = UDim2.new(1, -70, 0.5, -15)
+confirmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+confirmBtn.Text = "Yes"
+confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+confirmBtn.TextSize = 14
+confirmBtn.Font = Enum.Font.GothamBold
+confirmBtn.Parent = banner
+
+local confirmCorner = Instance.new("UICorner")
+confirmCorner.CornerRadius = UDim.new(0, 6)
+confirmCorner.Parent = confirmBtn
+
+local cancelBtn = Instance.new("TextButton")
+cancelBtn.Size = UDim2.new(0, 60, 0, 30)
+cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
+cancelBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+cancelBtn.Text = "No"
+cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+cancelBtn.TextSize = 14
+cancelBtn.Font = Enum.Font.GothamBold
+cancelBtn.Visible = false
+cancelBtn.Parent = banner
+
+local cancelCorner = Instance.new("UICorner")
+cancelCorner.CornerRadius = UDim.new(0, 6)
+cancelCorner.Parent = cancelBtn
+
+-- Banner animation
+local function showBanner()
+    banner.Position = UDim2.new(0.5, -130, 0, -60)
+    banner.Visible = true
+    banner.Transparency = 1
+    confirmBtn.Position = UDim2.new(1, -130, 0.5, -15)
+    cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
+    cancelBtn.Visible = true
+    TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 0, Position = UDim2.new(0.5, -130, 0, 10)}):Play()
+    TweenService:Create(confirmBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -130, 0.5, -15)}):Play()
+    TweenService:Create(cancelBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -70, 0.5, -15)}):Play()
+end
+
+local function hideBanner()
+    local tween = TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 1, Position = UDim2.new(0.5, -130, 0, -60)})
+    tween:Play()
+    tween.Completed:Connect(function()
+        banner.Visible = false
+    end)
+end
+
+destroyFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        showBanner()
+    end
+end)
+
+confirmBtn.MouseButton1Click:Connect(function()
+    hideBanner()
+    local fade = TweenService:Create(mainFrame, TweenInfo.new(0.4), {Transparency = 1})
+    fade:Play()
+    fade.Completed:Connect(function()
+        screenGui:Destroy()
+    end)
+end)
+
+cancelBtn.MouseButton1Click:Connect(hideBanner)
+
 -- Section Contents
 local sectionContents = {}
 
@@ -257,274 +382,12 @@ local function createSectionContent()
     padding.PaddingBottom = UDim.new(0, 5)
     padding.Parent = contentFrame
 
-    -- Version label at bottom
-    local versionFooter = Instance.new("TextLabel")
-    versionFooter.Size = UDim2.new(1, 0, 0, 30)
-    versionFooter.BackgroundTransparency = 1
-    versionFooter.Text = "v1.0"
-    versionFooter.TextColor3 = Color3.fromRGB(150, 150, 150)
-    versionFooter.TextSize = 14
-    versionFooter.Font = Enum.Font.Gotham
-    versionFooter.TextXAlignment = Enum.TextXAlignment.Center
-    versionFooter.Parent = contentFrame
-
-    -- Destroy Button (in sections area)
-    local destroyFrame = Instance.new("Frame")
-    destroyFrame.Size = UDim2.new(1, 0, 0, 40)
-    destroyFrame.BackgroundTransparency = 1
-    destroyFrame.Parent = contentFrame
-
-    local destroyLabel = Instance.new("TextLabel")
-    destroyLabel.Size = UDim2.new(0.7, 0, 1, 0)
-    destroyLabel.BackgroundTransparency = 1
-    destroyLabel.Text = "Destroy TestHub"
-    destroyLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-    destroyLabel.TextSize = 16
-    destroyLabel.Font = Enum.Font.GothamSemibold
-    destroyLabel.TextXAlignment = Enum.TextXAlignment.Left
-    destroyLabel.Parent = destroyFrame
-
-    local destroyButton = Instance.new("TextButton")
-    destroyButton.Size = UDim2.new(0, 30, 0, 30)
-    destroyButton.Position = UDim2.new(1, -35, 0.5, -15)
-    destroyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    destroyButton.Text = ""
-    destroyButton.Parent = destroyFrame
-
-    local destroyCorner = Instance.new("UICorner")
-    destroyCorner.CornerRadius = UDim.new(0, 6)
-    destroyCorner.Parent = destroyButton
-
-    local destroyIcon = Instance.new("TextLabel")
-    destroyIcon.Size = UDim2.new(1, 0, 1, 0)
-    destroyIcon.BackgroundTransparency = 1
-    destroyIcon.Text = "X"
-    destroyIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
-    destroyIcon.TextSize = 18
-    destroyIcon.Font = Enum.Font.GothamBold
-    destroyIcon.Parent = destroyButton
-
-    -- Mini Banner Popup (Confirmation)
-    local banner = Instance.new("Frame")
-    banner.Size = UDim2.new(0, 260, 0, 50)
-    banner.Position = UDim2.new(0.5, -130, 0, -60)
-    banner.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    banner.BorderSizePixel = 0
-    banner.Visible = false
-    banner.ZIndex = 200
-    banner.Parent = screenGui
-
-    local bannerCorner = Instance.new("UICorner")
-    bannerCorner.CornerRadius = UDim.new(0, 8)
-    bannerCorner.Parent = banner
-
-    local bannerStroke = Instance.new("UIStroke")
-    bannerStroke.Thickness = 1
-    bannerStroke.Color = Color3.fromRGB(200, 50, 50)
-    bannerStroke.Transparency = 0.3
-    bannerStroke.Parent = banner
-
-    local bannerMessage = Instance.new("TextLabel")
-    bannerMessage.Size = UDim2.new(1, -80, 1, 0)
-    bannerMessage.Position = UDim2.new(0, 10, 0, 0)
-    bannerMessage.BackgroundTransparency = 1
-    bannerMessage.Text = "Destroy TestHub?"
-    bannerMessage.TextColor3 = Color3.fromRGB(255, 255, 255)
-    bannerMessage.TextSize = 16
-    bannerMessage.Font = Enum.Font.GothamBold
-    bannerMessage.TextXAlignment = Enum.TextXAlignment.Left
-    bannerMessage.Parent = banner
-
-    local confirmBtn = Instance.new("TextButton")
-    confirmBtn.Size = UDim2.new(0, 60, 0, 30)
-    confirmBtn.Position = UDim2.new(1, -70, 0.5, -15)
-    confirmBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-    confirmBtn.Text = "Yes"
-    confirmBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    confirmBtn.TextSize = 14
-    confirmBtn.Font = Enum.Font.GothamBold
-    confirmBtn.Parent = banner
-
-    local confirmCorner = Instance.new("UICorner")
-    confirmCorner.CornerRadius = UDim.new(0, 6)
-    confirmCorner.Parent = confirmBtn
-
-    local cancelBtn = Instance.new("TextButton")
-    cancelBtn.Size = UDim2.new(0, 60, 0, 30)
-    cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
-    cancelBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    cancelBtn.Text = "No"
-    cancelBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    cancelBtn.TextSize = 14
-    cancelBtn.Font = Enum.Font.GothamBold
-    cancelBtn.Visible = false
-    cancelBtn.Parent = banner
-
-    local cancelCorner = Instance.new("UICorner")
-    cancelCorner.CornerRadius = UDim.new(0, 6)
-    cancelCorner.Parent = cancelBtn
-
-    -- Banner animation
-    local function showBanner()
-        banner.Position = UDim2.new(0.5, -130, 0, -60)
-        banner.Visible = true
-        banner.Transparency = 1
-        confirmBtn.Position = UDim2.new(1, -130, 0.5, -15)
-        cancelBtn.Position = UDim2.new(1, -70, 0.5, -15)
-        cancelBtn.Visible = true
-        TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 0, Position = UDim2.new(0.5, -130, 0, 10)}):Play()
-        TweenService:Create(confirmBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -130, 0.5, -15)}):Play()
-        TweenService:Create(cancelBtn, TweenInfo.new(0.3), {Position = UDim2.new(1, -70, 0.5, -15)}):Play()
-    end
-
-    local function hideBanner()
-        local tween = TweenService:Create(banner, TweenInfo.new(0.3, Enum.EasingStyle.Quint), {Transparency = 1, Position = UDim2.new(0.5, -130, 0, -60)})
-        tween:Play()
-        tween.Completed:Connect(function()
-            banner.Visible = false
-        end)
-    end
-
-    destroyButton.MouseButton1Click:Connect(showBanner)
-
-    confirmBtn.MouseButton1Click:Connect(function()
-        hideBanner()
-        local fade = TweenService:Create(mainFrame, TweenInfo.new(0.4), {Transparency = 1})
-        fade:Play()
-        fade.Completed:Connect(function()
-            screenGui:Destroy()
-        end)
-    end)
-
-    cancelBtn.MouseButton1Click:Connect(hideBanner)
-
     return contentFrame
 end
 
 -- Main Stuff Content
 local mainStuffContent = createSectionContent()
 sectionContents["Main Stuff"] = mainStuffContent
-
--- Function to create toggle
-local function createToggle(name, parent)
-    local toggleFrame = Instance.new("Frame")
-    toggleFrame.Size = UDim2.new(1, 0, 0, 40)
-    toggleFrame.BackgroundTransparency = 1
-    toggleFrame.Parent = parent
-
-    local toggleLabel = Instance.new("TextLabel")
-    toggleLabel.Size = UDim2.new(0.8, 0, 1, 0)
-    toggleLabel.BackgroundTransparency = 1
-    toggleLabel.Text = name
-    toggleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggleLabel.TextSize = 18
-    toggleLabel.Font = Enum.Font.Gotham
-    toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    toggleLabel.Parent = toggleFrame
-
-    local toggleButton = Instance.new("Frame")
-    toggleButton.Size = UDim2.new(0, 40, 0, 20)
-    toggleButton.Position = UDim2.new(1, -40, 0.5, -10)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    toggleButton.Parent = toggleFrame
-
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0, 10)
-    toggleCorner.Parent = toggleButton
-
-    local toggleStroke = Instance.new("UIStroke")
-    toggleStroke.Thickness = 1
-    toggleStroke.Color = Color3.fromRGB(70, 70, 70)
-    toggleStroke.Transparency = 0.5
-    toggleStroke.Parent = toggleButton
-
-    local toggleKnob = Instance.new("Frame")
-    toggleKnob.Size = UDim2.new(0.5, 0, 1, 0)
-    toggleKnob.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
-    toggleKnob.Parent = toggleButton
-
-    local knobCorner = Instance.new("UICorner")
-    knobCorner.CornerRadius = UDim.new(0, 10)
-    knobCorner.Parent = toggleKnob
-
-    local knobStroke = Instance.new("UIStroke")
-    knobStroke.Thickness = 1
-    knobStroke.Color = Color3.fromRGB(170, 170, 170)
-    knobStroke.Transparency = 0.5
-    knobStroke.Parent = toggleKnob
-
-    -- Toggle logic
-    local isToggled = false
-    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-    toggleButton.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isToggled = not isToggled
-
-            local knobGoal = {}
-            local buttonColorGoal = {}
-
-            if isToggled then
-                knobGoal.Position = UDim2.new(0.5, 0, 0, 0)
-                buttonColorGoal.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-            else
-                knobGoal.Position = UDim2.new(0, 0, 0, 0)
-                buttonColorGoal.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-            end
-
-            TweenService:Create(toggleKnob, tweenInfo, knobGoal):Play()
-            TweenService:Create(toggleButton, tweenInfo, buttonColorGoal):Play()
-        end
-    end)
-
-    return toggleFrame
-end
-
--- Function to create button
-local function createButton(name, parent)
-    local buttonFrame = Instance.new("Frame")
-    buttonFrame.Size = UDim2.new(1, 0, 0, 40)
-    buttonFrame.BackgroundTransparency = 1
-    buttonFrame.Parent = parent
-
-    local buttonLabel = Instance.new("TextLabel")
-    buttonLabel.Size = UDim2.new(0.8, 0, 1, 0)
-    buttonLabel.BackgroundTransparency = 1
-    buttonLabel.Text = name
-    buttonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    buttonLabel.TextSize = 18
-    buttonLabel.Font = Enum.Font.Gotham
-    buttonLabel.TextXAlignment = Enum.TextXAlignment.Left
-    buttonLabel.Parent = buttonFrame
-
-    local miniButton = Instance.new("TextButton")
-    miniButton.Size = UDim2.new(0, 40, 0, 20)
-    miniButton.Position = UDim2.new(1, -40, 0.5, -10)
-    miniButton.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-    miniButton.Text = ""
-    miniButton.Parent = buttonFrame
-
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 10)
-    buttonCorner.Parent = miniButton
-
-    local buttonStroke = Instance.new("UIStroke")
-    buttonStroke.Thickness = 1
-    buttonStroke.Color = Color3.fromRGB(0, 140, 235)
-    buttonStroke.Transparency = 0.5
-    buttonStroke.Parent = miniButton
-
-    -- Button click animation
-    miniButton.MouseButton1Click:Connect(function()
-        local pressTween = TweenService:Create(miniButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(0, 100, 195)})
-        pressTween:Play()
-        pressTween.Completed:Connect(function()
-            TweenService:Create(miniButton, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(0, 120, 215)}):Play()
-        end)
-    end)
-
-    return buttonFrame
-end
 
 -- Add content to Main Stuff
 createToggle("Test Toggle 1", mainStuffContent)
@@ -604,11 +467,11 @@ minimizeButton.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
     local goal = {}
     if isMinimized then
-        minimizeButton.Text = "Up Arrow"
+        minimizeButton.Text = "↑"
         goal.Size = UDim2.new(0, mainFrame.AbsoluteSize.X, 0, TITLE_HEIGHT)
         contentContainer.Visible = false
     else
-        minimizeButton.Text = "Down Arrow"
+        minimizeButton.Text = "↓"
         goal.Size = originalSize
         contentContainer.Visible = true
     end
