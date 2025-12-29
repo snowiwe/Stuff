@@ -1,7 +1,8 @@
 --[[ 
-    LUMACORE MINI: SLAP EDITION v5.1
+    LUMACORE MINI: SLAP EDITION v5.2
     --------------------------------------------------
-    - Removed Auto Dodge & Ability (Pending codes).
+    - Updated Auto Slap to use Client.Net.Combat.
+    - Combat now targets ANY active player in range.
     - Features: Auto Slap, Join/Leave, Player Stats.
     - Static UI (Non-draggable).
     --------------------------------------------------
@@ -19,18 +20,22 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LumaCoreMini_SlapV5_1"
+gui.Name = "LumaCoreMini_SlapV5_2"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
 -- // CONFIGURATION //
-local SLAP_RANGE = 15
-local COOLDOWN = 0.25
+local SLAP_RANGE = 18 -- Slightly increased range for better combat
+local COOLDOWN = 0.25 -- Attack speed
 
 -- // REMOTES //
 local ZAP = ReplicatedStorage:WaitForChild("ZAP")
-local CombatRemote = ZAP:WaitForChild("COMBAT_RELIABLE")
 local MiscRemote = ZAP:WaitForChild("MISC_RELIABLE") -- Used for Join/Leave
+
+-- [UPDATED] Combat Remote Path
+local ClientPath = ReplicatedStorage:WaitForChild("Client")
+local NetPath = ClientPath:WaitForChild("Net")
+local CombatRemote = NetPath:WaitForChild("Combat")
 
 -- // NOTIFICATION SYSTEM //
 local NotifContainer = Instance.new("Frame")
@@ -75,7 +80,7 @@ end
 -- // MAIN UI //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
-MainFrame.Size = UDim2.new(0, 220, 0, 300) -- Adjusted height since buttons were removed
+MainFrame.Size = UDim2.new(0, 220, 0, 300)
 MainFrame.Position = UDim2.new(0, 20, 0.5, -150) -- Fixed Left Position
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
@@ -197,13 +202,13 @@ end
 CreateSection("MATCH")
 
 CreateButton("Join Game", Color3.fromRGB(46, 204, 113), function()
-    local args = { buffer.fromstring("\002"), {} } -- Fixed code
+    local args = { buffer.fromstring("\002"), {} }
     MiscRemote:FireServer(unpack(args))
     Notify("Sent Join Request", Color3.fromRGB(46, 204, 113))
 end)
 
 CreateButton("Leave Game", Color3.fromRGB(231, 76, 60), function()
-    local args = { buffer.fromstring("\001"), {} } -- Fixed code
+    local args = { buffer.fromstring("\001"), {} }
     MiscRemote:FireServer(unpack(args))
     Notify("Sent Leave Request", Color3.fromRGB(231, 76, 60))
 end)
@@ -228,16 +233,16 @@ local function getNearbyTarget(radius)
 end
 
 local slapLoop
-CreateToggle("Auto Slap (Faint)", function(state)
+CreateToggle("Auto Slap (Aura)", function(state)
     if state then
         slapLoop = RunService.Heartbeat:Connect(function()
             local target = getNearbyTarget(SLAP_RANGE)
-            if target and target:FindFirstChild("Humanoid") then
+            -- Check for valid target and humanoid
+            if target and target:FindFirstChild("Humanoid") and target:FindFirstChild("HumanoidRootPart") then
                 local hum = target.Humanoid
-                local state = hum:GetState()
-                if state == Enum.HumanoidStateType.Physics or state == Enum.HumanoidStateType.Ragdoll or hum.PlatformStand then
-                    local args = { buffer.fromstring("\000"), {} }
-                    CombatRemote:FireServer(unpack(args))
+                if hum.Health > 0 then
+                    -- Fire new Combat Remote
+                    CombatRemote:FireServer(target.HumanoidRootPart)
                     Notify("Slapped!", Color3.fromRGB(255, 100, 100))
                     task.wait(COOLDOWN)
                 end
@@ -312,4 +317,4 @@ ToggleBtn.MouseButton1Click:Connect(function()
 end)
 
 MainFrame.Visible = true
-Notify("LumaCore Mini v5.1 Loaded", Color3.fromRGB(255, 255, 255))
+Notify("LumaCore Mini v5.2 Loaded", Color3.fromRGB(255, 255, 255))
