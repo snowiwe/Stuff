@@ -1,0 +1,209 @@
+--[[ 
+    LUMACORE MINI: SLAP EDITION
+    --------------------------------------------------
+    - Compact UI focused on Slap Battles.
+    - Custom Remote Events integrated.
+    - Auto Dodge: Fires ZAP \002 when Highlight detected.
+    - Auto Slap: Fires Combat Remote when target faints.
+    - Auto Action B: Fires ZAP \000 on proximity.
+    --------------------------------------------------
+]]
+
+-- // SERVICES //
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local gui = Instance.new("ScreenGui")
+gui.Name = "LumaCoreMini_Slap"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- // CONFIGURATION //
+local SLAP_RANGE = 15 -- Studs distance to detect enemies
+local COOLDOWN = 0.2  -- Debounce speed
+
+-- // REMOTES //
+-- Safely get remotes to prevent errors if game updates
+local RS = ReplicatedStorage
+local ZapRemote = RS:FindFirstChild("ZAP") and RS.ZAP:FindFirstChild("COMBAT_RELIABLE")
+local CombatRemote = RS:FindFirstChild("Client") and RS.Client:FindFirstChild("Net") and RS.Client.Net:FindFirstChild("Combat")
+
+if not ZapRemote or not CombatRemote then
+    warn("LumaCore: Could not find one or more RemoteEvents. Check game updates.")
+end
+
+-- // UI CONSTRUCTION //
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "Main"
+MainFrame.Size = UDim2.new(0, 220, 0, 190)
+MainFrame.Position = UDim2.new(0.1, 0, 0.5, -95)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = gui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Text = "Slap Tactics"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 18
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.BackgroundTransparency = 1
+Title.Parent = MainFrame
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(1, -20, 1, -45)
+Container.Position = UDim2.new(0, 10, 0, 40)
+Container.BackgroundTransparency = 1
+Container.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 8)
+UIList.Parent = Container
+
+-- // UTILITY: TOGGLE CREATOR //
+local function CreateToggle(text, callback)
+    local ToggleBtn = Instance.new("TextButton")
+    ToggleBtn.Size = UDim2.new(1, 0, 0, 32)
+    ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    ToggleBtn.Text = text
+    ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+    ToggleBtn.Font = Enum.Font.GothamSemibold
+    ToggleBtn.TextSize = 14
+    ToggleBtn.AutoButtonColor = false
+    ToggleBtn.Parent = Container
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = ToggleBtn
+    
+    local Indicator = Instance.new("Frame")
+    Indicator.Size = UDim2.new(0, 4, 1, 0)
+    Indicator.BackgroundColor3 = Color3.fromRGB(255, 60, 60) -- Red (Off)
+    Indicator.Parent = ToggleBtn
+    
+    local indCorner = Instance.new("UICorner")
+    indCorner.CornerRadius = UDim.new(0, 6)
+    indCorner.Parent = Indicator
+
+    local state = false
+
+    ToggleBtn.MouseButton1Click:Connect(function()
+        state = not state
+        -- Animate Color
+        local targetColor = state and Color3.fromRGB(80, 200, 120) or Color3.fromRGB(255, 60, 60)
+        TweenService:Create(Indicator, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
+        ToggleBtn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
+        
+        task.spawn(function() callback(state) end)
+    end)
+end
+
+-- // LOGIC FUNCTIONS //
+
+local function getNearbyTarget(radius)
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    
+    local closest = nil
+    local minDist = radius
+    
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (p.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+            if dist < minDist then
+                minDist = dist
+                closest = p.Character
+            end
+        end
+    end
+    return closest
+end
+
+-- // TOGGLES //
+
+-- 1. AUTO DODGE (Attack Highlight)
+local dodgeLoop
+CreateToggle("Auto Dodge (Visuals)", function(state)
+    if state then
+        dodgeLoop = RunService.Heartbeat:Connect(function()
+            local target = getNearbyTarget(SLAP_RANGE)
+            if target and ZapRemote then
+                -- Check for Highlight (Attack Indicator)
+                if target:FindFirstChild("AttackHighlight") or target:FindFirstChild("Highlight") then
+                    -- FIRE DODGE REMOTE (\002)
+                    local args = { buffer.fromstring("\002"), {} }
+                    ZapRemote:FireServer(unpack(args))
+                    task.wait(COOLDOWN) 
+                end
+            end
+        end)
+    else
+        if dodgeLoop then dodgeLoop:Disconnect() end
+    end
+end)
+
+-- 2. AUTO SLAP (On Faint)
+local slapLoop
+CreateToggle("Auto Slap (Fainted)", function(state)
+    if state then
+        slapLoop = RunService.Heartbeat:Connect(function()
+            local target = getNearbyTarget(SLAP_RANGE)
+            if target and CombatRemote and target:FindFirstChild("Humanoid") then
+                local hum = target.Humanoid
+                local state = hum:GetState()
+                
+                -- Check if Fainted/Ragdolled
+                if state == Enum.HumanoidStateType.Physics or state == Enum.HumanoidStateType.Ragdoll or hum.PlatformStand then
+                    -- FIRE SLAP REMOTE
+                    CombatRemote:FireServer(target.HumanoidRootPart)
+                    task.wait(COOLDOWN)
+                end
+            end
+        end)
+    else
+        if slapLoop then slapLoop:Disconnect() end
+    end
+end)
+
+-- 3. ZAP ACTION B (\000)
+local zapLoop
+CreateToggle("Auto Action B (ZAP)", function(state)
+    if state then
+        zapLoop = RunService.Heartbeat:Connect(function()
+            local target = getNearbyTarget(SLAP_RANGE)
+            -- Only fire if someone is actually close, to avoid detection/waste
+            if target and ZapRemote then
+                -- FIRE ACTION B REMOTE (\000)
+                local args = { buffer.fromstring("\000"), {} }
+                ZapRemote:FireServer(unpack(args))
+                task.wait(COOLDOWN)
+            end
+        end)
+    else
+        if zapLoop then zapLoop:Disconnect() end
+    end
+end)
+
+-- // CLOSE BUTTON //
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.fromRGB(150,150,150)
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -30, 0, 0)
+CloseBtn.Parent = MainFrame
+CloseBtn.MouseButton1Click:Connect(function()
+    gui:Destroy()
+end)
+
+print("LumaCore Mini: Slap Edition Loaded")
