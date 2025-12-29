@@ -1,9 +1,9 @@
 --[[ 
-    LUMACORE MINI: SLAP EDITION v2
+    LUMACORE MINI: SLAP EDITION v3
     --------------------------------------------------
-    - Updated Remotes for ZAP system.
-    - Added Notification System.
-    - Added Mobile Toggle Button.
+    - Screen Lock: UI cannot be dragged off-screen.
+    - Smart Notifs: Only shows when actions trigger while enabled.
+    - Updated Remotes: Matches your specific codes.
     --------------------------------------------------
 ]]
 
@@ -13,13 +13,14 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LumaCoreMini_SlapV2"
+gui.Name = "LumaCoreMini_SlapV3"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
@@ -81,8 +82,8 @@ MainFrame.Position = UDim2.new(0.5, -110, 0.5, -100)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Visible = false -- Hidden by default
+-- MainFrame.Draggable = false -- Disabled to use custom clamping logic
+MainFrame.Visible = false 
 MainFrame.Parent = gui
 
 local UICorner = Instance.new("UICorner")
@@ -107,6 +108,48 @@ Container.Parent = MainFrame
 local UIList = Instance.new("UIListLayout")
 UIList.Padding = UDim.new(0, 8)
 UIList.Parent = Container
+
+-- // SCREEN CLAMP LOGIC (Prevents dragging off screen) //
+local dragging, dragInput, dragStart, startPos
+
+local function clampToScreen(position)
+    local viewport = Workspace.CurrentCamera.ViewportSize
+    local size = MainFrame.AbsoluteSize
+    
+    local x = math.clamp(position.X.Offset, 0, viewport.X - size.X)
+    local y = math.clamp(position.Y.Offset, 0, viewport.Y - size.Y)
+    
+    return UDim2.new(position.X.Scale, x, position.Y.Scale, y)
+end
+
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        -- Apply Clamp
+        MainFrame.Position = clampToScreen(newPos)
+    end
+end)
 
 -- // TOGGLE CREATOR //
 local function CreateToggle(text, callback)
@@ -141,6 +184,7 @@ local function CreateToggle(text, callback)
         TweenService:Create(Indicator, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
         ToggleBtn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
         
+        -- System Notification
         Notify(text .. (state and " Enabled" or " Disabled"), targetColor)
         task.spawn(function() callback(state) end)
     end)
@@ -172,6 +216,7 @@ CreateToggle("Auto Dodge", function(state)
         dodgeLoop = RunService.Heartbeat:Connect(function()
             local target = getNearbyTarget(SLAP_RANGE)
             if target then
+                -- Check for Visual Indicators
                 if target:FindFirstChild("AttackHighlight") or target:FindFirstChild("Highlight") then
                     local args = { buffer.fromstring("\002"), {} }
                     DodgeRemote:FireServer(unpack(args))
@@ -215,7 +260,7 @@ CreateToggle("Auto Ability", function(state)
         abilityLoop = RunService.Heartbeat:Connect(function()
             local target = getNearbyTarget(SLAP_RANGE)
             if target then
-                -- Logic: If enemy uses a tool/ability
+                -- Check if enemy is holding a tool
                 local tool = target:FindFirstChildOfClass("Tool")
                 if tool then 
                     local args = { buffer.fromstring("\000\004\000swap"), {} }
@@ -248,23 +293,23 @@ ToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Draggable Logic for Button
-local dragging, dragStart, startPos
+-- Draggable Logic for Button (Basic Clamp)
+local bDragging, bDragStart, bStartPos
 ToggleBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = ToggleBtn.Position
+        bDragging = true
+        bDragStart = input.Position
+        bStartPos = ToggleBtn.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            if input.UserInputState == Enum.UserInputState.End then bDragging = false end
         end)
     end
 end)
 
 ToggleBtn.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - dragStart
-        ToggleBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    if bDragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - bDragStart
+        ToggleBtn.Position = UDim2.new(bStartPos.X.Scale, bStartPos.X.Offset + delta.X, bStartPos.Y.Scale, bStartPos.Y.Offset + delta.Y)
     end
 end)
 
