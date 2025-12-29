@@ -1,16 +1,15 @@
 --[[ 
-    LUMACORE MINI: SLAP EDITION v4
+    LUMACORE MINI: SLAP EDITION v5.1
     --------------------------------------------------
-    - Added Play & Leave Buttons (ZAP Remotes).
-    - Screen Lock: UI cannot be dragged off-screen.
-    - Smart Notifs: Only shows when actions trigger.
+    - Removed Auto Dodge & Ability (Pending codes).
+    - Features: Auto Slap, Join/Leave, Player Stats.
+    - Static UI (Non-draggable).
     --------------------------------------------------
 ]]
 
 -- // SERVICES //
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -20,7 +19,7 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LumaCoreMini_SlapV4"
+gui.Name = "LumaCoreMini_SlapV5_1"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
@@ -31,8 +30,7 @@ local COOLDOWN = 0.25
 -- // REMOTES //
 local ZAP = ReplicatedStorage:WaitForChild("ZAP")
 local CombatRemote = ZAP:WaitForChild("COMBAT_RELIABLE")
-local MiscRemote = ZAP:WaitForChild("MISC_RELIABLE") -- Used for Play/Leave/Dodge
-local AbilityRemote = ZAP:WaitForChild("ABILITY_RELIABLE")
+local MiscRemote = ZAP:WaitForChild("MISC_RELIABLE") -- Used for Join/Leave
 
 -- // NOTIFICATION SYSTEM //
 local NotifContainer = Instance.new("Frame")
@@ -77,11 +75,11 @@ end
 -- // MAIN UI //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
-MainFrame.Size = UDim2.new(0, 220, 0, 280) -- Increased height for new buttons
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -140)
+MainFrame.Size = UDim2.new(0, 220, 0, 300) -- Adjusted height since buttons were removed
+MainFrame.Position = UDim2.new(0, 20, 0.5, -150) -- Fixed Left Position
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
-MainFrame.Active = true
+MainFrame.Active = true 
 MainFrame.Visible = false 
 MainFrame.Parent = gui
 
@@ -98,68 +96,54 @@ Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
 Title.Parent = MainFrame
 
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -20, 1, -50)
-Container.Position = UDim2.new(0, 10, 0, 45)
+local Container = Instance.new("ScrollingFrame")
+Container.Size = UDim2.new(1, -10, 1, -50)
+Container.Position = UDim2.new(0, 5, 0, 45)
 Container.BackgroundTransparency = 1
+Container.ScrollBarThickness = 4
+Container.CanvasSize = UDim2.new(0,0,0,0)
+Container.AutomaticCanvasSize = Enum.AutomaticSize.Y
 Container.Parent = MainFrame
 
 local UIList = Instance.new("UIListLayout")
-UIList.Padding = UDim.new(0, 8)
+UIList.Padding = UDim.new(0, 6)
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
 UIList.Parent = Container
 
--- // SCREEN CLAMP LOGIC //
-local dragging, dragInput, dragStart, startPos
-
-local function clampToScreen(position)
-    local viewport = Workspace.CurrentCamera.ViewportSize
-    local size = MainFrame.AbsoluteSize
-    local x = math.clamp(position.X.Offset, 0, viewport.X - size.X)
-    local y = math.clamp(position.Y.Offset, 0, viewport.Y - size.Y)
-    return UDim2.new(position.X.Scale, x, position.Y.Scale, y)
-end
-
-MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        MainFrame.Position = clampToScreen(newPos)
-    end
-end)
+local UIPad = Instance.new("UIPadding")
+UIPad.PaddingLeft = UDim.new(0, 5)
+UIPad.PaddingRight = UDim.new(0, 5)
+UIPad.PaddingBottom = UDim.new(0, 5)
+UIPad.Parent = Container
 
 -- // UI BUILDERS //
 
--- 1. Create Toggle (For Auto Features)
+local function CreateSection(text)
+    local Label = Instance.new("TextLabel")
+    Label.Text = text
+    Label.Size = UDim2.new(1, 0, 0, 24)
+    Label.BackgroundTransparency = 1
+    Label.TextColor3 = Color3.fromRGB(150, 150, 160)
+    Label.Font = Enum.Font.GothamBold
+    Label.TextSize = 12
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = Container
+end
+
 local function CreateToggle(text, callback)
     local ToggleBtn = Instance.new("TextButton")
-    ToggleBtn.Size = UDim2.new(1, 0, 0, 36)
+    ToggleBtn.Size = UDim2.new(1, 0, 0, 32)
     ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
-    ToggleBtn.Text = text
+    ToggleBtn.Text = "  " .. text
     ToggleBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
     ToggleBtn.Font = Enum.Font.GothamSemibold
-    ToggleBtn.TextSize = 14
+    ToggleBtn.TextSize = 13
+    ToggleBtn.TextXAlignment = Enum.TextXAlignment.Left
     ToggleBtn.AutoButtonColor = false
     ToggleBtn.Parent = Container
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = ToggleBtn
     
     local Indicator = Instance.new("Frame")
@@ -168,7 +152,7 @@ local function CreateToggle(text, callback)
     Indicator.Parent = ToggleBtn
     
     local indCorner = Instance.new("UICorner")
-    indCorner.CornerRadius = UDim.new(0, 8)
+    indCorner.CornerRadius = UDim.new(0, 6)
     indCorner.Parent = Indicator
 
     local state = false
@@ -179,54 +163,54 @@ local function CreateToggle(text, callback)
         TweenService:Create(Indicator, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
         ToggleBtn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
         
-        Notify(text .. (state and " Enabled" or " Disabled"), targetColor)
+        Notify(text .. (state and " On" or " Off"), targetColor)
         task.spawn(function() callback(state) end)
     end)
 end
 
--- 2. Create Action Button (For One-Time Actions like Play/Leave)
 local function CreateButton(text, color, callback)
     local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, 0, 0, 36)
+    Btn.Size = UDim2.new(1, 0, 0, 32)
     Btn.BackgroundColor3 = color or Color3.fromRGB(60, 60, 80)
     Btn.Text = text
     Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     Btn.Font = Enum.Font.GothamBold
-    Btn.TextSize = 14
+    Btn.TextSize = 13
     Btn.AutoButtonColor = false
     Btn.Parent = Container
     
     local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.CornerRadius = UDim.new(0, 6)
     btnCorner.Parent = Btn
     
     Btn.MouseButton1Click:Connect(function()
-        -- Click Animation
-        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(0.95, 0, 0, 34)}):Play()
+        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(0.95, 0, 0, 30)}):Play()
         task.wait(0.1)
-        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 36)}):Play()
-        
+        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 32)}):Play()
         callback()
     end)
 end
 
 -- // FEATURES //
 
--- PLAY BUTTON
+-- === MATCH SECTION ===
+CreateSection("MATCH")
+
 CreateButton("Join Game", Color3.fromRGB(46, 204, 113), function()
-    local args = { buffer.fromstring("\001"), {} }
+    local args = { buffer.fromstring("\002"), {} } -- Fixed code
     MiscRemote:FireServer(unpack(args))
-    Notify("Joining Game...", Color3.fromRGB(46, 204, 113))
+    Notify("Sent Join Request", Color3.fromRGB(46, 204, 113))
 end)
 
--- LEAVE BUTTON
 CreateButton("Leave Game", Color3.fromRGB(231, 76, 60), function()
-    local args = { buffer.fromstring("\002"), {} }
+    local args = { buffer.fromstring("\001"), {} } -- Fixed code
     MiscRemote:FireServer(unpack(args))
-    Notify("Left Game", Color3.fromRGB(231, 76, 60))
+    Notify("Sent Leave Request", Color3.fromRGB(231, 76, 60))
 end)
 
--- LOGIC HELPERS
+-- === COMBAT SECTION ===
+CreateSection("COMBAT")
+
 local function getNearbyTarget(radius)
     local char = player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -243,28 +227,8 @@ local function getNearbyTarget(radius)
     return closest
 end
 
--- TOGGLES
-local dodgeLoop
-CreateToggle("Auto Dodge", function(state)
-    if state then
-        dodgeLoop = RunService.Heartbeat:Connect(function()
-            local target = getNearbyTarget(SLAP_RANGE)
-            if target then
-                if target:FindFirstChild("AttackHighlight") or target:FindFirstChild("Highlight") then
-                    local args = { buffer.fromstring("\002"), {} }
-                    MiscRemote:FireServer(unpack(args)) -- Updated to use MiscRemote per your code
-                    Notify("Dodged!", Color3.fromRGB(100, 150, 255))
-                    task.wait(COOLDOWN) 
-                end
-            end
-        end)
-    else
-        if dodgeLoop then dodgeLoop:Disconnect() end
-    end
-end)
-
 local slapLoop
-CreateToggle("Auto Slap", function(state)
+CreateToggle("Auto Slap (Faint)", function(state)
     if state then
         slapLoop = RunService.Heartbeat:Connect(function()
             local target = getNearbyTarget(SLAP_RANGE)
@@ -284,23 +248,49 @@ CreateToggle("Auto Slap", function(state)
     end
 end)
 
-local abilityLoop
-CreateToggle("Auto Ability", function(state)
+-- === VISUALS SECTION ===
+CreateSection("VISUALS")
+
+local statsLoop
+CreateToggle("Show Player Stats", function(state)
     if state then
-        abilityLoop = RunService.Heartbeat:Connect(function()
-            local target = getNearbyTarget(SLAP_RANGE)
-            if target then
-                local tool = target:FindFirstChildOfClass("Tool")
-                if tool then 
-                    local args = { buffer.fromstring("\000\004\000swap"), {} }
-                    AbilityRemote:FireServer(unpack(args))
-                    Notify("Ability Used!", Color3.fromRGB(200, 100, 255))
-                    task.wait(COOLDOWN)
+        statsLoop = RunService.RenderStepped:Connect(function()
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("Head") and p.Character:FindFirstChild("Humanoid") then
+                    local head = p.Character.Head
+                    local hum = p.Character.Humanoid
+                    
+                    local bg = head:FindFirstChild("LumaStats")
+                    if not bg then
+                        bg = Instance.new("BillboardGui")
+                        bg.Name = "LumaStats"
+                        bg.Size = UDim2.new(0, 100, 0, 40)
+                        bg.StudsOffset = Vector3.new(0, 3, 0)
+                        bg.AlwaysOnTop = true
+                        bg.Parent = head
+                        
+                        local t = Instance.new("TextLabel", bg)
+                        t.BackgroundTransparency = 1
+                        t.Size = UDim2.fromScale(1, 1)
+                        t.TextColor3 = Color3.new(1,1,1)
+                        t.TextStrokeTransparency = 0
+                        t.Font = Enum.Font.GothamBold
+                        t.TextSize = 12
+                        t.TextWrapped = false
+                    end
+                    
+                    bg.TextLabel.Text = string.format("%s\nHP: %.0f", p.DisplayName, hum.Health)
+                    bg.TextLabel.TextColor3 = Color3.fromHSV((hum.Health/hum.MaxHealth)*0.3, 1, 1)
                 end
             end
         end)
     else
-        if abilityLoop then abilityLoop:Disconnect() end
+        if statsLoop then statsLoop:Disconnect() end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("LumaStats") then
+                p.Character.Head.LumaStats:Destroy()
+            end
+        end
     end
 end)
 
@@ -321,25 +311,5 @@ ToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Mobile Drag
-local mDragging, mDragStart, mStartPos
-ToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        mDragging = true
-        mDragStart = input.Position
-        mStartPos = ToggleBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then mDragging = false end
-        end)
-    end
-end)
-
-ToggleBtn.InputChanged:Connect(function(input)
-    if mDragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - mDragStart
-        ToggleBtn.Position = UDim2.new(mStartPos.X.Scale, mStartPos.X.Offset + delta.X, mStartPos.Y.Scale, mStartPos.Y.Offset + delta.Y)
-    end
-end)
-
 MainFrame.Visible = true
-Notify("LumaCore Mini v4 Loaded", Color3.fromRGB(255, 255, 255))
+Notify("LumaCore Mini v5.1 Loaded", Color3.fromRGB(255, 255, 255))
