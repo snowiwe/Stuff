@@ -1,9 +1,9 @@
 --[[ 
-    LUMACORE MINI: SLAP EDITION v3
+    LUMACORE MINI: SLAP EDITION v4
     --------------------------------------------------
+    - Added Play & Leave Buttons (ZAP Remotes).
     - Screen Lock: UI cannot be dragged off-screen.
-    - Smart Notifs: Only shows when actions trigger while enabled.
-    - Updated Remotes: Matches your specific codes.
+    - Smart Notifs: Only shows when actions trigger.
     --------------------------------------------------
 ]]
 
@@ -20,18 +20,18 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LumaCoreMini_SlapV3"
+gui.Name = "LumaCoreMini_SlapV4"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 
 -- // CONFIGURATION //
-local SLAP_RANGE = 15 -- Studs distance to detect enemies
-local COOLDOWN = 0.25 -- Debounce speed
+local SLAP_RANGE = 15
+local COOLDOWN = 0.25
 
 -- // REMOTES //
 local ZAP = ReplicatedStorage:WaitForChild("ZAP")
 local CombatRemote = ZAP:WaitForChild("COMBAT_RELIABLE")
-local DodgeRemote = ZAP:WaitForChild("MISC_RELIABLE")
+local MiscRemote = ZAP:WaitForChild("MISC_RELIABLE") -- Used for Play/Leave/Dodge
 local AbilityRemote = ZAP:WaitForChild("ABILITY_RELIABLE")
 
 -- // NOTIFICATION SYSTEM //
@@ -43,7 +43,7 @@ NotifContainer.Parent = gui
 local function Notify(text, color)
     local banner = Instance.new("Frame")
     banner.Size = UDim2.new(0, 200, 0, 30)
-    banner.Position = UDim2.new(0.5, -100, 0.85, 0) -- Bottom Center
+    banner.Position = UDim2.new(0.5, -100, 0.85, 0)
     banner.BackgroundColor3 = color or Color3.fromRGB(40, 40, 50)
     banner.Parent = NotifContainer
     
@@ -77,12 +77,11 @@ end
 -- // MAIN UI //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
-MainFrame.Size = UDim2.new(0, 220, 0, 200)
-MainFrame.Position = UDim2.new(0.5, -110, 0.5, -100)
+MainFrame.Size = UDim2.new(0, 220, 0, 280) -- Increased height for new buttons
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -140)
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
--- MainFrame.Draggable = false -- Disabled to use custom clamping logic
 MainFrame.Visible = false 
 MainFrame.Parent = gui
 
@@ -109,16 +108,14 @@ local UIList = Instance.new("UIListLayout")
 UIList.Padding = UDim.new(0, 8)
 UIList.Parent = Container
 
--- // SCREEN CLAMP LOGIC (Prevents dragging off screen) //
+-- // SCREEN CLAMP LOGIC //
 local dragging, dragInput, dragStart, startPos
 
 local function clampToScreen(position)
     local viewport = Workspace.CurrentCamera.ViewportSize
     local size = MainFrame.AbsoluteSize
-    
     local x = math.clamp(position.X.Offset, 0, viewport.X - size.X)
     local y = math.clamp(position.Y.Offset, 0, viewport.Y - size.Y)
-    
     return UDim2.new(position.X.Scale, x, position.Y.Scale, y)
 end
 
@@ -127,11 +124,8 @@ MainFrame.InputBegan:Connect(function(input)
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
@@ -146,12 +140,13 @@ UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        -- Apply Clamp
         MainFrame.Position = clampToScreen(newPos)
     end
 end)
 
--- // TOGGLE CREATOR //
+-- // UI BUILDERS //
+
+-- 1. Create Toggle (For Auto Features)
 local function CreateToggle(text, callback)
     local ToggleBtn = Instance.new("TextButton")
     ToggleBtn.Size = UDim2.new(1, 0, 0, 36)
@@ -184,13 +179,54 @@ local function CreateToggle(text, callback)
         TweenService:Create(Indicator, TweenInfo.new(0.2), {BackgroundColor3 = targetColor}):Play()
         ToggleBtn.TextColor3 = state and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
         
-        -- System Notification
         Notify(text .. (state and " Enabled" or " Disabled"), targetColor)
         task.spawn(function() callback(state) end)
     end)
 end
 
--- // LOGIC HELPERS //
+-- 2. Create Action Button (For One-Time Actions like Play/Leave)
+local function CreateButton(text, color, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 36)
+    Btn.BackgroundColor3 = color or Color3.fromRGB(60, 60, 80)
+    Btn.Text = text
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 14
+    Btn.AutoButtonColor = false
+    Btn.Parent = Container
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = Btn
+    
+    Btn.MouseButton1Click:Connect(function()
+        -- Click Animation
+        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(0.95, 0, 0, 34)}):Play()
+        task.wait(0.1)
+        TweenService:Create(Btn, TweenInfo.new(0.1), {Size = UDim2.new(1, 0, 0, 36)}):Play()
+        
+        callback()
+    end)
+end
+
+-- // FEATURES //
+
+-- PLAY BUTTON
+CreateButton("Join Game", Color3.fromRGB(46, 204, 113), function()
+    local args = { buffer.fromstring("\001"), {} }
+    MiscRemote:FireServer(unpack(args))
+    Notify("Joining Game...", Color3.fromRGB(46, 204, 113))
+end)
+
+-- LEAVE BUTTON
+CreateButton("Leave Game", Color3.fromRGB(231, 76, 60), function()
+    local args = { buffer.fromstring("\002"), {} }
+    MiscRemote:FireServer(unpack(args))
+    Notify("Left Game", Color3.fromRGB(231, 76, 60))
+end)
+
+-- LOGIC HELPERS
 local function getNearbyTarget(radius)
     local char = player.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
@@ -207,19 +243,16 @@ local function getNearbyTarget(radius)
     return closest
 end
 
--- // TOGGLES //
-
--- 1. AUTO DODGE
+-- TOGGLES
 local dodgeLoop
 CreateToggle("Auto Dodge", function(state)
     if state then
         dodgeLoop = RunService.Heartbeat:Connect(function()
             local target = getNearbyTarget(SLAP_RANGE)
             if target then
-                -- Check for Visual Indicators
                 if target:FindFirstChild("AttackHighlight") or target:FindFirstChild("Highlight") then
                     local args = { buffer.fromstring("\002"), {} }
-                    DodgeRemote:FireServer(unpack(args))
+                    MiscRemote:FireServer(unpack(args)) -- Updated to use MiscRemote per your code
                     Notify("Dodged!", Color3.fromRGB(100, 150, 255))
                     task.wait(COOLDOWN) 
                 end
@@ -230,7 +263,6 @@ CreateToggle("Auto Dodge", function(state)
     end
 end)
 
--- 2. AUTO SLAP (Combat)
 local slapLoop
 CreateToggle("Auto Slap", function(state)
     if state then
@@ -239,7 +271,6 @@ CreateToggle("Auto Slap", function(state)
             if target and target:FindFirstChild("Humanoid") then
                 local hum = target.Humanoid
                 local state = hum:GetState()
-                -- Check for Fainted/Ragdoll
                 if state == Enum.HumanoidStateType.Physics or state == Enum.HumanoidStateType.Ragdoll or hum.PlatformStand then
                     local args = { buffer.fromstring("\000"), {} }
                     CombatRemote:FireServer(unpack(args))
@@ -253,14 +284,12 @@ CreateToggle("Auto Slap", function(state)
     end
 end)
 
--- 3. AUTO ABILITY
 local abilityLoop
 CreateToggle("Auto Ability", function(state)
     if state then
         abilityLoop = RunService.Heartbeat:Connect(function()
             local target = getNearbyTarget(SLAP_RANGE)
             if target then
-                -- Check if enemy is holding a tool
                 local tool = target:FindFirstChildOfClass("Tool")
                 if tool then 
                     local args = { buffer.fromstring("\000\004\000swap"), {} }
@@ -279,39 +308,38 @@ end)
 local ToggleBtn = Instance.new("ImageButton")
 ToggleBtn.Name = "MobileToggle"
 ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25) -- Left Center
+ToggleBtn.Position = UDim2.new(0, 20, 0.5, -25) 
 ToggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-ToggleBtn.Image = "rbxassetid://13475878297" -- Generic UI Icon
+ToggleBtn.Image = "rbxassetid://13475878297"
 ToggleBtn.Parent = gui
 
 local btnCorner = Instance.new("UICorner")
 btnCorner.CornerRadius = UDim.new(0, 12)
 btnCorner.Parent = ToggleBtn
 
--- Toggle Logic
 ToggleBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = not MainFrame.Visible
 end)
 
--- Draggable Logic for Button (Basic Clamp)
-local bDragging, bDragStart, bStartPos
+-- Mobile Drag
+local mDragging, mDragStart, mStartPos
 ToggleBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
-        bDragging = true
-        bDragStart = input.Position
-        bStartPos = ToggleBtn.Position
+        mDragging = true
+        mDragStart = input.Position
+        mStartPos = ToggleBtn.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then bDragging = false end
+            if input.UserInputState == Enum.UserInputState.End then mDragging = false end
         end)
     end
 end)
 
 ToggleBtn.InputChanged:Connect(function(input)
-    if bDragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - bDragStart
-        ToggleBtn.Position = UDim2.new(bStartPos.X.Scale, bStartPos.X.Offset + delta.X, bStartPos.Y.Scale, bStartPos.Y.Offset + delta.Y)
+    if mDragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - mDragStart
+        ToggleBtn.Position = UDim2.new(mStartPos.X.Scale, mStartPos.X.Offset + delta.X, mStartPos.Y.Scale, mStartPos.Y.Offset + delta.Y)
     end
 end)
 
-MainFrame.Visible = true -- Open by default
-Notify("LumaCore Mini Loaded", Color3.fromRGB(255, 255, 255))
+MainFrame.Visible = true
+Notify("LumaCore Mini v4 Loaded", Color3.fromRGB(255, 255, 255))
