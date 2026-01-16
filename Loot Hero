@@ -1,10 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v3.5
+    LOOT HERO [ALPHA] v3.8
     --------------------------------------------------
-    - NEW: Low Performance, No Camera Shake, ESP.
-    - NEW: Destroy UI with Confirmation & Script Cleanup.
-    - NEW: Info Tab with Avatar, ID, and Leaderboard.
-    - LOGIC: Auto Collect (Amethyst/Gold), Start Game.
+    - UPDATE: Added "USER PROFILE" Sub-section in Info.
+    - PREVIOUS: Game Settings, Mobile Fixes, No Shake.
+    - LOGIC: Auto Collect, Auto Pick, Start Game.
     --------------------------------------------------
 ]]
 
@@ -27,6 +26,7 @@ local SCALE_FACTOR = isMobile and 1.2 or 1.0
 local DRAGGABLE_DEFAULT = true
 local NOTIFICATIONS_DEFAULT = true
 local ANIMATIONS_DEFAULT = true 
+local MOBILE_BTN_DRAG_DEFAULT = false
 
 -- Dynamic Sizing
 local OPEN_SIZE
@@ -62,9 +62,11 @@ local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
 local EspEnabled = false
+local NoShakeEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
 local AnimationsEnabled = ANIMATIONS_DEFAULT
+local MobileBtnDraggable = MOBILE_BTN_DRAG_DEFAULT
 local Minimized = true 
 
 local ActiveCheats = {
@@ -74,11 +76,18 @@ local ActiveCheats = {
     InfLuck = false
 }
 
--- ESP Storage
+local GameConfig = {
+    ButtonText = true,
+    Music = 0.5,
+    Sfx = 0.5,
+    FreeCamera = false
+}
+
 local EspHighlights = {}
+local ShakeConnection = nil
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, UpdateRemote
 task.spawn(function()
     pcall(function()
         Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -88,14 +97,22 @@ task.spawn(function()
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
             PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
+            UpdateRemote = Remotes:WaitForChild("Update", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
 end)
 
+local function PushGameSettings()
+    if UpdateRemote then
+        local args = { GameConfig }
+        UpdateRemote:FireServer(unpack(args))
+    end
+end
+
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v3_5"
+gui.Name = "LootHero_v3_8"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -525,11 +542,9 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
     end
 end)
 
-CreateSection(MainTab, "STORE")
-
-CreateButton(MainTab, "Basic Chest", "Comming soon...", function(updateStyle)
-    Notify("Feature in development", Theme.warning)
-end)
+-- [HIDDEN] Store
+-- CreateSection(MainTab, "STORE")
+-- CreateButton(MainTab, "Basic Chest", "Comming soon...", function() Notify("Feature in development", Theme.warning) end)
 
 CreateSection(MainTab, "SURVIVAL")
 
@@ -597,6 +612,32 @@ end)
 
 -- // 2. SETTINGS SECTION //
 
+CreateSection(SettingsTab, "GAME SETTINGS")
+
+CreateToggle(SettingsTab, "Show Button Text", "Toggle in-game text", true, function(value)
+    GameConfig.ButtonText = value
+    PushGameSettings()
+    Notify(value and "Text Shown" or "Text Hidden", value and Theme.success or Theme.danger)
+end)
+
+CreateToggle(SettingsTab, "Free Camera", "Toggle freecam", false, function(value)
+    GameConfig.FreeCamera = value
+    PushGameSettings()
+    Notify(value and "Freecam Enabled" or "Freecam Disabled", value and Theme.success or Theme.danger)
+end)
+
+CreateToggle(SettingsTab, "Music", "Mute/Unmute Music", true, function(value)
+    GameConfig.Music = value and 0.5 or 0
+    PushGameSettings()
+    Notify(value and "Music On" or "Music Muted", value and Theme.success or Theme.danger)
+end)
+
+CreateToggle(SettingsTab, "SFX", "Mute/Unmute SFX", true, function(value)
+    GameConfig.Sfx = value and 0.5 or 0
+    PushGameSettings()
+    Notify(value and "SFX On" or "SFX Muted", value and Theme.success or Theme.danger)
+end)
+
 CreateSection(SettingsTab, "PERFORMANCE")
 
 CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false, function(value)
@@ -608,9 +649,20 @@ CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false
     end
 end)
 
-CreateToggle(SettingsTab, "No Camera Shake", "Disables Bobbing", false, function(value)
-    -- Simple placeholder for now
-    Notify(value and "Camera Shake Disabled" or "Camera Shake Enabled", value and Theme.success or Theme.danger)
+CreateToggle(SettingsTab, "No Camera Shake", "Disables Bobbing/Recoil", false, function(value)
+    NoShakeEnabled = value
+    if NoShakeEnabled then
+        Notify("Camera Locked (Steady)", Theme.success)
+        if ShakeConnection then ShakeConnection:Disconnect() end
+        ShakeConnection = RunService.RenderStepped:Connect(function()
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid.CameraOffset = Vector3.new(0, 0, 0)
+            end
+        end)
+    else
+        Notify("Camera Shake Enabled", Theme.danger)
+        if ShakeConnection then ShakeConnection:Disconnect() end
+    end
 end)
 
 CreateToggle(SettingsTab, "ESP", "Highlight Players/Enemies", false, function(value)
@@ -641,7 +693,15 @@ CreateSection(SettingsTab, "INTERFACE")
 
 CreateToggle(SettingsTab, "Draggable UI", "Allows dragging the window", true, function(value)
     DraggableEnabled = value
+    Notify(value and "Dragging Enabled" or "Dragging Disabled", value and Theme.success or Theme.danger)
 end)
+
+if isMobile then
+    CreateToggle(SettingsTab, "Draggable Button", "Move the toggle button", false, function(value)
+        MobileBtnDraggable = value
+        Notify(value and "Button Dragging Enabled" or "Button Dragging Disabled", value and Theme.success or Theme.danger)
+    end)
+end
 
 CreateToggle(SettingsTab, "Notifications", "Show banners at the bottom", true, function(value)
     NotificationsEnabled = value
@@ -661,13 +721,16 @@ destroyBtn = CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", f
         GodModeEnabled = false
         AutoCollectEnabled = false
         AutoPickEnabled = false
+        if ShakeConnection then ShakeConnection:Disconnect() end
         gui:Destroy()
     end
 end)
 
 -- // 3. INFO SECTION //
 
--- User Profile
+-- [NEW] User Profile Sub-Section
+CreateSection(InfoTab, "USER PROFILE")
+
 local ProfileFrame = Instance.new("Frame")
 ProfileFrame.Size = UDim2.new(1, -10, 0, 70)
 ProfileFrame.BackgroundColor3 = Theme.base
@@ -715,8 +778,9 @@ Spacer.Size = UDim2.new(1,0,0,10)
 Spacer.BackgroundTransparency = 1
 Spacer.Parent = InfoTab
 
-CreateSection(InfoTab, "LEADERBOARD")
-CreateInfoLabel(InfoTab, "Placement", "(Coming Soon)")
+-- [HIDDEN] Leaderboard
+-- CreateSection(InfoTab, "LEADERBOARD")
+-- CreateInfoLabel(InfoTab, "Placement", "(Coming Soon)")
 
 CreateSection(InfoTab, "CREDITS")
 CreateInfoLabel(InfoTab, "Interface", "LumaCore")
@@ -797,7 +861,7 @@ ToggleIcon.Name = "ToggleIcon"
 ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = Theme.base
-ToggleIcon.Image = "rbxassetid://13475878297" 
+ToggleIcon.Image = "rbxassetid://13475878297" -- Menu Icon
 ToggleIcon.Visible = true 
 ToggleIcon.ZIndex = 1000 
 ToggleIcon.Parent = gui
@@ -807,6 +871,24 @@ local ts = Instance.new("UIStroke"); ts.Color = Theme.stroke; ts.Thickness = 1.5
 
 ToggleIcon.MouseButton1Click:Connect(ToggleUI)
 UserInputService.InputBegan:Connect(function(input) if input.KeyCode == Enum.KeyCode.RightControl then ToggleUI() end end)
+
+-- Mobile Button Drag
+local btnDragging, btnDragStart, btnStartPos
+ToggleIcon.InputBegan:Connect(function(input)
+    if not MobileBtnDraggable then return end
+    if input.UserInputType == Enum.UserInputType.Touch then
+        btnDragging = true
+        btnDragStart = input.Position
+        btnStartPos = ToggleIcon.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then btnDragging = false end end)
+    end
+end)
+ToggleIcon.InputChanged:Connect(function(input)
+    if btnDragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - btnDragStart
+        ToggleIcon.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
+    end
+end)
 
 -- // INTRO FUNCTION //
 local function PlayIntro()
@@ -856,4 +938,4 @@ local function PlayIntro()
 end
 
 PlayIntro()
-print("Loot Hero [Alpha] - v3.5 (Settings & Info Update)")
+print("Loot Hero [Alpha] - v3.8 (Profile Added)")
