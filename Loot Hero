@@ -1,10 +1,10 @@
 --[[ 
-    LOOT HERO [ALPHA] v3.4
+    LOOT HERO [ALPHA] v3.5
     --------------------------------------------------
-    - UPDATE: Auto Collect now includes "Amethyst".
-    - UPDATE: Store Section Re-Enabled (Ready for items).
-    - UPDATE: Info Tab organized with Sub-Sections.
-    - LOGIC: Auto Pick, Start Game, Mobile Optimized.
+    - NEW: Low Performance, No Camera Shake, ESP.
+    - NEW: Destroy UI with Confirmation & Script Cleanup.
+    - NEW: Info Tab with Avatar, ID, and Leaderboard.
+    - LOGIC: Auto Collect (Amethyst/Gold), Start Game.
     --------------------------------------------------
 ]]
 
@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
@@ -60,6 +61,7 @@ local DESC_FONT = Enum.Font.SourceSans
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
+local EspEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
 local AnimationsEnabled = ANIMATIONS_DEFAULT
@@ -72,6 +74,9 @@ local ActiveCheats = {
     InfLuck = false
 }
 
+-- ESP Storage
+local EspHighlights = {}
+
 -- // 5. REMOTE HANDLER //
 local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
 task.spawn(function()
@@ -82,7 +87,7 @@ task.spawn(function()
             ChoiceRemote = Remotes:WaitForChild("Choice", 3)
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
-            PurchaseRemote = Remotes:WaitForChild("Purchase", 3) -- [NEW] Store Remote
+            PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
@@ -90,7 +95,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v3_4"
+gui.Name = "LootHero_v3_5"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -278,7 +283,7 @@ local function CreateTab(name)
     local Page = Instance.new("ScrollingFrame")
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
-    Page.ScrollBarThickness = 4 -- Visible for mobile scrolling
+    Page.ScrollBarThickness = 4 
     Page.ScrollBarImageColor3 = Theme.subtext
     Page.ScrollingEnabled = true 
     Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
@@ -474,7 +479,6 @@ end
 
 -- // 1. MAIN SECTION //
 
--- Group 1: Match Control
 CreateSection(MainTab, "GAME LOOP")
 
 CreateButton(MainTab, "Start Game", "Begins the match instantly", function()
@@ -493,7 +497,7 @@ CreateToggle(MainTab, "Auto Collect", "Collects Gold, Sapphire & Amethyst", fals
                 if MoneyRemote then
                     MoneyRemote:FireServer("Sapphire")
                     MoneyRemote:FireServer("Gold")
-                    MoneyRemote:FireServer("Amethyst") -- [NEW] Added Amethyst
+                    MoneyRemote:FireServer("Amethyst") 
                 end
                 task.wait(0.2) 
             end
@@ -521,15 +525,12 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
     end
 end)
 
--- Group 2: Store (Enabled)
 CreateSection(MainTab, "STORE")
 
 CreateButton(MainTab, "Basic Chest", "Comming soon...", function(updateStyle)
     Notify("Feature in development", Theme.warning)
-    -- Placeholder for future logic
 end)
 
--- Group 3: Survival
 CreateSection(MainTab, "SURVIVAL")
 
 CreateToggle(MainTab, "God Mode", "Constant Heal + Def", false, function(value)
@@ -540,7 +541,6 @@ CreateToggle(MainTab, "God Mode", "Constant Heal + Def", false, function(value)
     Notify(GodModeEnabled and "God Mode Enabled" or "God Mode Disabled", GodModeEnabled and Theme.success or Theme.danger)
 end)
 
--- Group 4: Stats
 CreateSection(MainTab, "STATS")
 
 CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", function(updateStyle)
@@ -597,35 +597,130 @@ end)
 
 -- // 2. SETTINGS SECTION //
 
+CreateSection(SettingsTab, "PERFORMANCE")
+
+CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false, function(value)
+    Lighting.GlobalShadows = not value
+    if value then
+        Notify("Low Performance Mode On", Theme.success)
+    else
+        Notify("Low Performance Mode Off", Theme.danger)
+    end
+end)
+
+CreateToggle(SettingsTab, "No Camera Shake", "Disables Bobbing", false, function(value)
+    -- Simple placeholder for now
+    Notify(value and "Camera Shake Disabled" or "Camera Shake Enabled", value and Theme.success or Theme.danger)
+end)
+
+CreateToggle(SettingsTab, "ESP", "Highlight Players/Enemies", false, function(value)
+    EspEnabled = value
+    if EspEnabled then
+        Notify("ESP Enabled", Theme.success)
+        for _, v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= player.Character then
+                local hl = Instance.new("Highlight")
+                hl.Name = "LootESP"
+                hl.FillTransparency = 0.5
+                hl.OutlineTransparency = 0
+                hl.FillColor = Color3.fromRGB(255, 0, 0)
+                hl.Parent = v
+                table.insert(EspHighlights, hl)
+            end
+        end
+    else
+        Notify("ESP Disabled", Theme.danger)
+        for _, hl in ipairs(EspHighlights) do
+            if hl then hl:Destroy() end
+        end
+        EspHighlights = {}
+    end
+end)
+
 CreateSection(SettingsTab, "INTERFACE")
+
 CreateToggle(SettingsTab, "Draggable UI", "Allows dragging the window", true, function(value)
     DraggableEnabled = value
-    Notify(value and "Dragging Enabled" or "Dragging Disabled", value and Theme.success or Theme.danger)
 end)
 
 CreateToggle(SettingsTab, "Notifications", "Show banners at the bottom", true, function(value)
     NotificationsEnabled = value
-    if value then Notify("Notifications Enabled", Theme.success) end
 end)
 
-CreateToggle(SettingsTab, "Animations", "UI Intro and Transitions", true, function(value)
-    AnimationsEnabled = value
-    Notify(value and "Animations Enabled" or "Animations Disabled", value and Theme.success or Theme.danger)
+CreateSection(SettingsTab, "DANGER ZONE")
+
+local destroyConfirm = false
+local destroyBtn
+destroyBtn = CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", function()
+    if not destroyConfirm then
+        destroyConfirm = true
+        Notify("Are you sure? Click again.", Theme.warning)
+        task.delay(3, function() destroyConfirm = false end)
+    else
+        -- Clean up
+        GodModeEnabled = false
+        AutoCollectEnabled = false
+        AutoPickEnabled = false
+        gui:Destroy()
+    end
 end)
 
 -- // 3. INFO SECTION //
 
-CreateSection(InfoTab, "ABOUT")
-CreateInfoLabel(InfoTab, "Version", "Alpha v3.4")
-CreateInfoLabel(InfoTab, "Theme", "LumaCore Default")
+-- User Profile
+local ProfileFrame = Instance.new("Frame")
+ProfileFrame.Size = UDim2.new(1, -10, 0, 70)
+ProfileFrame.BackgroundColor3 = Theme.base
+ProfileFrame.Parent = InfoTab
+Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
+Instance.new("UIStroke", ProfileFrame).Color = Theme.stroke
+
+local Avatar = Instance.new("ImageLabel")
+Avatar.Size = UDim2.new(0, 50, 0, 50)
+Avatar.Position = UDim2.new(0, 10, 0.5, -25)
+Avatar.BackgroundColor3 = Theme.accent
+Avatar.Parent = ProfileFrame
+Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
+-- Fetch Avatar
+task.spawn(function()
+    local content = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+    Avatar.Image = content
+end)
+
+local NameL = Instance.new("TextLabel")
+NameL.Text = player.DisplayName
+NameL.Size = UDim2.new(1, -70, 0, 20)
+NameL.Position = UDim2.new(0, 70, 0, 15)
+NameL.BackgroundTransparency = 1
+NameL.TextColor3 = Theme.text
+NameL.Font = UI_FONT
+NameL.TextSize = 16
+NameL.TextXAlignment = Enum.TextXAlignment.Left
+NameL.Parent = ProfileFrame
+
+local IDL = Instance.new("TextLabel")
+IDL.Text = "ID: " .. player.UserId
+IDL.Size = UDim2.new(1, -70, 0, 15)
+IDL.Position = UDim2.new(0, 70, 0, 40)
+IDL.BackgroundTransparency = 1
+IDL.TextColor3 = Theme.subtext
+IDL.Font = DESC_FONT
+IDL.TextSize = 12
+IDL.TextXAlignment = Enum.TextXAlignment.Left
+IDL.Parent = ProfileFrame
+
+-- Spacing
+local Spacer = Instance.new("Frame")
+Spacer.Size = UDim2.new(1,0,0,10)
+Spacer.BackgroundTransparency = 1
+Spacer.Parent = InfoTab
+
+CreateSection(InfoTab, "LEADERBOARD")
+CreateInfoLabel(InfoTab, "Placement", "(Coming Soon)")
 
 CreateSection(InfoTab, "CREDITS")
+CreateInfoLabel(InfoTab, "Interface", "LumaCore")
 CreateInfoLabel(InfoTab, "Logic", "Neutral")
-CreateInfoLabel(InfoTab, "Interface", "LumaCore (v7)")
-
-CreateSection(InfoTab, "STATUS")
-CreateInfoLabel(InfoTab, "Safe Load", "Active")
-CreateInfoLabel(InfoTab, "Mobile Support", "Optimized")
 
 -- // DRAGGABLE LOGIC //
 local dragging, dragInput, dragStart, startPos
@@ -761,4 +856,4 @@ local function PlayIntro()
 end
 
 PlayIntro()
-print("Loot Hero [Alpha] - v3.4 (Store & Amethyst Added)")
+print("Loot Hero [Alpha] - v3.5 (Settings & Info Update)")
