@@ -1,10 +1,10 @@
 --[[ 
-    LOOT HERO [ALPHA] v3.1
+    LOOT HERO [ALPHA] v3.2
     --------------------------------------------------
-    - NEW: "STORE" Sub-section.
-    - NEW: "Basic Chest" Button (With Anti-Spam).
-    - LOGIC: Added 'Purchase' RemoteFunction support.
-    - PREVIOUS: Animations, Mobile, Luma Theme.
+    - NEW: "Auto Pick" Toggle (Game Loop).
+    - UPDATE: Store Section Disabled/Removed.
+    - UPDATE: Enhanced Mobile Scaling & Touch Targets.
+    - LOGIC: Auto Collect, God Mode, Instant Load.
     --------------------------------------------------
 ]]
 
@@ -20,11 +20,14 @@ local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION //
-local SCALE_FACTOR = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled) and 1.3 or 1.0 
+-- [MOBILE] Increased scale factor for better readability on phones
+local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
+local SCALE_FACTOR = isMobile and 1.4 or 1.0 
+
 local DRAGGABLE_DEFAULT = true
 local NOTIFICATIONS_DEFAULT = true
 local ANIMATIONS_DEFAULT = true 
-local OPEN_SIZE = UDim2.new(0, 260, 0, 520) -- [UPDATE] Increased height for Store
+local OPEN_SIZE = UDim2.new(0, 260, 0, 460) -- Adjusted height
 local CLOSED_SIZE = UDim2.new(0, 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -50,6 +53,7 @@ local DESC_FONT = Enum.Font.SourceSans
 -- // 4. VARIABLES //
 local GodModeEnabled = false
 local AutoCollectEnabled = false
+local AutoPickEnabled = false -- [NEW]
 local PickupRangeEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
@@ -64,7 +68,7 @@ local ActiveCheats = {
 }
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote
 task.spawn(function()
 	pcall(function()
 		Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -73,7 +77,6 @@ task.spawn(function()
 			ChoiceRemote = Remotes:WaitForChild("Choice", 3)
 			MoneyRemote = Remotes:WaitForChild("Money", 3)
 			StartRemote = Remotes:WaitForChild("Start", 3)
-			PurchaseRemote = Remotes:WaitForChild("Purchase", 3) -- [NEW]
 		end
 	end)
 	if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
@@ -81,7 +84,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v3_1"
+gui.Name = "LootHero_v3_2"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -184,7 +187,7 @@ TitleLabel.Text = "Loot Hero [Alpha]"
 TitleLabel.Font = UI_FONT 
 TitleLabel.TextSize = 18
 TitleLabel.TextColor3 = Theme.text
-TitleLabel.Size = UDim2.new(1, -40, 1, 0)
+TitleLabel.Size = UDim2.new(1, -50, 1, 0)
 TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleLabel.BackgroundTransparency = 1
@@ -194,10 +197,10 @@ local MinBtn = Instance.new("TextButton")
 MinBtn.Name = "Minimize"
 MinBtn.Text = "+"
 MinBtn.Font = UI_FONT
-MinBtn.TextSize = 24
+MinBtn.TextSize = 28 -- Larger for Mobile
 MinBtn.TextColor3 = Theme.subtext
-MinBtn.Size = UDim2.new(0, 40, 1, 0)
-MinBtn.Position = UDim2.new(1, -40, 0, 0)
+MinBtn.Size = UDim2.new(0, 50, 1, 0) -- Larger Touch Target
+MinBtn.Position = UDim2.new(1, -50, 0, 0)
 MinBtn.BackgroundTransparency = 1
 MinBtn.Parent = TopBar
 
@@ -269,7 +272,7 @@ local function CreateTab(name)
 	local Page = Instance.new("ScrollingFrame")
 	Page.Size = UDim2.new(1, 0, 1, 0)
 	Page.BackgroundTransparency = 1
-	Page.ScrollBarThickness = 3 
+	Page.ScrollBarThickness = 4 -- Visible for Mobile
 	Page.ScrollBarImageColor3 = Theme.subtext
 	Page.ScrollingEnabled = true 
 	Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
@@ -320,11 +323,11 @@ Pages["Main"].Btn.BackgroundColor3 = Theme.banner
 local function CreateSection(parent, text)
 	local Label = Instance.new("TextLabel")
 	Label.Text = text
-	Label.Size = UDim2.new(1, -10, 0, 20)
+	Label.Size = UDim2.new(1, -10, 0, 24)
 	Label.BackgroundTransparency = 1
 	Label.TextColor3 = Theme.accent
 	Label.Font = UI_FONT
-	Label.TextSize = 11
+	Label.TextSize = 12
 	Label.TextXAlignment = Enum.TextXAlignment.Left
 	Label.Parent = parent
 end
@@ -493,28 +496,27 @@ CreateToggle(MainTab, "Auto Collect", "Collects Gold & Sapphire", false, functio
 	end
 end)
 
--- Group 2: Store [NEW]
-CreateSection(MainTab, "STORE")
-
-local chestDebounce = false
-CreateButton(MainTab, "Basic Chest", "Buy Basic Chest (1s Anti-Spam)", function(updateStyle)
-	if chestDebounce then return end
-	chestDebounce = true
-
-	if PurchaseRemote then
-		-- Wrap invoke because it yields
+-- [NEW] Auto Pick
+CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(value)
+	AutoPickEnabled = value
+	if AutoPickEnabled then
+		Notify("Auto Pick Enabled", Theme.success)
 		task.spawn(function()
-			local args = { "BasicChest", 2.133333444595337 }
-			pcall(function() PurchaseRemote:InvokeServer(unpack(args)) end)
-			Notify("Purchased Basic Chest!", Theme.success)
+			while AutoPickEnabled do
+				if ChoiceRemote then
+					-- Sends empty string to pick randomly (per user request)
+					local args = { "" }
+					ChoiceRemote:FireServer(unpack(args))
+				end
+				task.wait(1) -- Check every second
+			end
 		end)
+	else
+		Notify("Auto Pick Disabled", Theme.danger)
 	end
-
-	task.wait(1) -- Cooldown
-	chestDebounce = false
 end)
 
--- Group 3: Survival
+-- Group 2: Survival
 CreateSection(MainTab, "SURVIVAL")
 
 CreateToggle(MainTab, "God Mode", "Constant Heal + Def", false, function(value)
@@ -525,7 +527,7 @@ CreateToggle(MainTab, "God Mode", "Constant Heal + Def", false, function(value)
 	Notify(GodModeEnabled and "God Mode Enabled" or "God Mode Disabled", GodModeEnabled and Theme.success or Theme.danger)
 end)
 
--- Group 4: Stats
+-- Group 3: Stats
 CreateSection(MainTab, "STATS")
 
 CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", function(updateStyle)
@@ -580,7 +582,7 @@ CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function
 	end
 end)
 
--- Group 5: Misc
+-- Group 4: Misc
 CreateSection(MainTab, "MISC")
 
 CreateToggle(MainTab, "Pickup Range [Beta]", "Extends item pickup reach", false, function(value)
@@ -608,7 +610,7 @@ end)
 
 -- // 3. INFO SECTION //
 
-CreateInfoLabel(InfoTab, "Version", "Alpha v3.1")
+CreateInfoLabel(InfoTab, "Version", "Alpha v3.2")
 CreateInfoLabel(InfoTab, "Credits", "Neutral (Logic), LumaCore (UI)")
 
 -- // DRAGGABLE LOGIC //
@@ -683,15 +685,15 @@ end
 -- // MOBILE TOGGLE //
 local ToggleIcon = Instance.new("ImageButton")
 ToggleIcon.Name = "ToggleIcon"
-ToggleIcon.Size = UDim2.new(0, 45, 0, 45)
-ToggleIcon.Position = UDim2.new(0, 10, 0.5, -22)
+ToggleIcon.Size = UDim2.new(0, 50, 0, 50) -- [UPDATE] Larger Button
+ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = Theme.base
 ToggleIcon.Image = "rbxassetid://13475878297" 
 ToggleIcon.Visible = true 
 ToggleIcon.ZIndex = 1000 
 ToggleIcon.Parent = gui
 
-local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 10); tc.Parent = ToggleIcon
+local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 12); tc.Parent = ToggleIcon
 local ts = Instance.new("UIStroke"); ts.Color = Theme.stroke; ts.Thickness = 1.5; ts.Parent = ToggleIcon
 
 ToggleIcon.MouseButton1Click:Connect(ToggleUI)
@@ -745,4 +747,4 @@ local function PlayIntro()
 end
 
 PlayIntro()
-print("Loot Hero [Alpha] - v3.1 (Complete)")
+print("Loot Hero [Alpha] - v3.2 (Mobile Optimized)")
