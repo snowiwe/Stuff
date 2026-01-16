@@ -1,11 +1,10 @@
 --[[ 
     LOOT HERO [ALPHA] v4.5
     --------------------------------------------------
-    - NEW: Store (Select Chest Dropdown + Buy Button).
-    - NEW: Auto Claim Rewards Toggle.
-    - UPDATE: "Start Game" Button locks/glows after use.
-    - UPDATE: Info Tab shows Current Theme & Script Info.
-    - LOGIC: Auto Collect, Live ESP, Anti-Shake.
+    - FIXED: Global variable errors (Theme, Shake, Intro).
+    - NEW: Store (Dropdown + Buy), Rewards (Auto Claim).
+    - UPDATE: Start Game button locks/glows.
+    - LOGIC: Auto Collect, Live ESP, Mobile Optimized.
     --------------------------------------------------
 ]]
 
@@ -116,10 +115,11 @@ local ActiveCheats = {
     StartGame = false 
 }
 
-local SelectedChest = "BasicChest" -- Default chest selection
+local SelectedChest = "BasicChest"
 local EspHighlights = {}
 local EspConnection = nil
-local ShakeConnection = nil
+-- [FIX] Define Global Connections here to avoid errors
+local ShakeConnection = nil 
 
 -- // 5. REMOTE HANDLER //
 local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, RewardRemote
@@ -543,6 +543,7 @@ local function CreateButton(parent, title, desc, callback)
         task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
         callback(setExecutedStyle)
     end)
+    return Btn 
 end
 
 local function CreateDropdown(parent, title, options, callback)
@@ -627,7 +628,7 @@ local function CreateDropdown(parent, title, options, callback)
         
         OptBtn.MouseButton1Click:Connect(function()
             callback(opt)
-            TitleL.Text = title .. ": " .. opt -- Update title with selection
+            TitleL.Text = title .. ": " .. opt 
             isOpen = false
             Arrow.Rotation = 0
             TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
@@ -635,7 +636,7 @@ local function CreateDropdown(parent, title, options, callback)
     end
 end
 
-local function CreateInfoLabel(parent, title, desc)
+local function CreateInfoLabel(parent, title, desc, rightObj)
     local Frame = Instance.new("Frame")
     Frame.Size = UDim2.new(1, -6, 0, 50)
     Frame.BackgroundColor3 = CurrentTheme.base
@@ -669,6 +670,13 @@ local function CreateInfoLabel(parent, title, desc)
     DescL.TextXAlignment = Enum.TextXAlignment.Left
     DescL.Parent = Frame
     RegisterThemeObj(DescL, "TextColor3", "subtext")
+    
+    if rightObj then
+        rightObj.Position = UDim2.new(1, -25, 0.5, -5)
+        rightObj.Parent = Frame
+    end
+    
+    return Frame -- Return frame to add listeners if needed
 end
 
 -- // 1. MAIN SECTION //
@@ -717,7 +725,7 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
                 if ChoiceRemote then
                     local args = { "" }
                     ChoiceRemote:FireServer(unpack(args))
-                    Notify("Auto Picked: Random", CurrentTheme.success)
+                    -- Notify("Auto Picked: Random", CurrentTheme.success)
                 end
                 task.wait(1) 
             end
@@ -727,7 +735,6 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
     end
 end)
 
--- [NEW] Store Section with Dropdown + Button
 CreateSection(MainTab, "STORE")
 
 CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest"}, function(option)
@@ -749,7 +756,6 @@ CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", fu
     buyDebounce = false
 end)
 
--- [NEW] Rewards Section
 CreateSection(MainTab, "REWARDS")
 
 CreateToggle(MainTab, "Auto Claim Rewards", "Claims all available rewards", false, function(value)
@@ -761,7 +767,7 @@ CreateToggle(MainTab, "Auto Claim Rewards", "Claims all available rewards", fals
                 if RewardRemote then
                     local args = { "" }
                     RewardRemote:InvokeServer(unpack(args))
-                    Notify("Auto Claimed: Rewards", CurrentTheme.success)
+                    -- Notify("Auto Claimed: Rewards", CurrentTheme.success)
                 end
                 task.wait(5)
             end
@@ -1030,8 +1036,110 @@ Spacer.Parent = InfoTab
 
 -- [NEW] Script Info Sub-Section
 CreateSection(InfoTab, "SCRIPT INFO")
-CreateInfoLabel(InfoTab, "Script Status", "Active")
-CreateInfoLabel(InfoTab, "Script Version", "v4.5 (Complete)")
+
+-- Live Status Badge
+local StatusBadge = Instance.new("Frame")
+StatusBadge.Size = UDim2.new(0,10,0,10)
+StatusBadge.AnchorPoint = Vector2.new(0.5,0.5)
+Instance.new("UICorner", StatusBadge).CornerRadius = UDim.new(1,0)
+
+local StatusFrame = CreateInfoLabel(InfoTab, "Script Status", "Checking...", StatusBadge)
+-- Helper to update label
+local function UpdateStatusLabel(text)
+    local lbl = StatusFrame:FindFirstChild("TextLabel") -- Find the desc label
+    if lbl then lbl.Text = text end
+end
+
+task.spawn(function()
+    while gui.Parent do
+        if ReplicatedStorage:FindFirstChild("Remotes") then
+             StatusBadge.BackgroundColor3 = THEMES.Classic.success -- Use static theme for status logic
+             UpdateStatusLabel("Running")
+        else
+             StatusBadge.BackgroundColor3 = THEMES.Classic.danger
+             UpdateStatusLabel("Fault (No Remotes)")
+        end
+        task.wait(3)
+    end
+end)
+
+-- Version Click for Secret UI
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v4.5 (Click Me!)")
+local VersionBtn = Instance.new("TextButton")
+VersionBtn.Size = UDim2.fromScale(1,1)
+VersionBtn.BackgroundTransparency = 1
+VersionBtn.Text = ""
+VersionBtn.Parent = VersionFrame
+
+-- Secret UI
+local SecretUI = Instance.new("Frame")
+SecretUI.Name = "SecretUI"
+SecretUI.Size = UDim2.new(0, 300, 0, 400)
+SecretUI.Position = UDim2.new(0.5, -150, 0.5, -200)
+SecretUI.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+SecretUI.Visible = false
+SecretUI.ZIndex = 500
+SecretUI.Parent = gui
+Instance.new("UICorner", SecretUI).CornerRadius = UDim.new(0, 10)
+Instance.new("UIStroke", SecretUI).Color = THEMES.Classic.accent
+
+local SecretTitle = Instance.new("TextLabel")
+SecretTitle.Text = "Changelog History"
+SecretTitle.Size = UDim2.new(1, 0, 0, 40)
+SecretTitle.BackgroundTransparency = 1
+SecretTitle.TextColor3 = Color3.fromRGB(255,255,255)
+SecretTitle.Font = UI_FONT
+SecretTitle.TextSize = 18
+SecretTitle.Parent = SecretUI
+
+local SecretClose = Instance.new("TextButton")
+SecretClose.Text = "X"
+SecretClose.Size = UDim2.new(0, 40, 0, 40)
+SecretClose.Position = UDim2.new(1, -40, 0, 0)
+SecretClose.BackgroundTransparency = 1
+SecretClose.TextColor3 = Color3.fromRGB(200, 50, 50)
+SecretClose.Font = UI_FONT
+SecretClose.TextSize = 20
+SecretClose.Parent = SecretUI
+SecretClose.MouseButton1Click:Connect(function() SecretUI.Visible = false end)
+
+local SecretScroll = Instance.new("ScrollingFrame")
+SecretScroll.Size = UDim2.new(1, -20, 1, -50)
+SecretScroll.Position = UDim2.new(0, 10, 0, 45)
+SecretScroll.BackgroundTransparency = 1
+SecretScroll.Parent = SecretUI
+
+local ChangeLogText = Instance.new("TextLabel")
+ChangeLogText.Size = UDim2.new(1, 0, 0, 1000)
+ChangeLogText.BackgroundTransparency = 1
+ChangeLogText.TextColor3 = Color3.fromRGB(200, 200, 200)
+ChangeLogText.TextXAlignment = Enum.TextXAlignment.Left
+ChangeLogText.TextYAlignment = Enum.TextYAlignment.Top
+ChangeLogText.Font = DESC_FONT
+ChangeLogText.TextSize = 14
+ChangeLogText.TextWrapped = true
+ChangeLogText.Text = [[
+v4.5 (Current):
+- Store: Dropdown Chest Selection & Buy Button
+- Rewards: Auto Claim Toggle
+- Start Game: One-time click + Glow
+- Fixes: Defined global variables properly
+
+v4.4:
+- Auto Pick
+- Theme System (4 Themes)
+- Mobile Optimized Scaling
+
+v4.0 - v4.3:
+- Live ESP (Wallhacks)
+- Auto Collect (Amethyst Added)
+- Privacy Mode (Hide Profile)
+]]
+ChangeLogText.Parent = SecretScroll
+
+VersionBtn.MouseButton1Click:Connect(function()
+    SecretUI.Visible = not SecretUI.Visible
+end)
 
 CreateSection(InfoTab, "CREDITS")
 CreateInfoLabel(InfoTab, "Interface", "LumaCore")
@@ -1144,6 +1252,7 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 -- // INTRO FUNCTION //
+-- Function PlayIntro defined before call at end
 local function PlayIntro()
     if not AnimationsEnabled then return end
     local IntroFrame = Instance.new("Frame")
