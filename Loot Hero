@@ -1,9 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v3.8
+    LOOT HERO [ALPHA] v3.9
     --------------------------------------------------
-    - UPDATE: Added "USER PROFILE" Sub-section in Info.
-    - PREVIOUS: Game Settings, Mobile Fixes, No Shake.
-    - LOGIC: Auto Collect, Auto Pick, Start Game.
+    - UPDATE: Removed "Game Settings" (Music/SFX/FreeCam).
+    - RETAINED: Profile/ID in Info, Mobile Fixes, Auto Collect.
+    - LOGIC: Safe Remote Loading, Smart Buttons.
     --------------------------------------------------
 ]]
 
@@ -76,18 +76,11 @@ local ActiveCheats = {
     InfLuck = false
 }
 
-local GameConfig = {
-    ButtonText = true,
-    Music = 0.5,
-    Sfx = 0.5,
-    FreeCamera = false
-}
-
 local EspHighlights = {}
 local ShakeConnection = nil
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, UpdateRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
 task.spawn(function()
     pcall(function()
         Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -97,22 +90,14 @@ task.spawn(function()
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
             PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
-            UpdateRemote = Remotes:WaitForChild("Update", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
 end)
 
-local function PushGameSettings()
-    if UpdateRemote then
-        local args = { GameConfig }
-        UpdateRemote:FireServer(unpack(args))
-    end
-end
-
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v3_8"
+gui.Name = "LootHero_v3_9"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -542,9 +527,11 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
     end
 end)
 
--- [HIDDEN] Store
--- CreateSection(MainTab, "STORE")
--- CreateButton(MainTab, "Basic Chest", "Comming soon...", function() Notify("Feature in development", Theme.warning) end)
+CreateSection(MainTab, "STORE")
+
+CreateButton(MainTab, "Basic Chest", "Comming soon...", function(updateStyle)
+    Notify("Feature in development", Theme.warning)
+end)
 
 CreateSection(MainTab, "SURVIVAL")
 
@@ -611,32 +598,6 @@ CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function
 end)
 
 -- // 2. SETTINGS SECTION //
-
-CreateSection(SettingsTab, "GAME SETTINGS")
-
-CreateToggle(SettingsTab, "Show Button Text", "Toggle in-game text", true, function(value)
-    GameConfig.ButtonText = value
-    PushGameSettings()
-    Notify(value and "Text Shown" or "Text Hidden", value and Theme.success or Theme.danger)
-end)
-
-CreateToggle(SettingsTab, "Free Camera", "Toggle freecam", false, function(value)
-    GameConfig.FreeCamera = value
-    PushGameSettings()
-    Notify(value and "Freecam Enabled" or "Freecam Disabled", value and Theme.success or Theme.danger)
-end)
-
-CreateToggle(SettingsTab, "Music", "Mute/Unmute Music", true, function(value)
-    GameConfig.Music = value and 0.5 or 0
-    PushGameSettings()
-    Notify(value and "Music On" or "Music Muted", value and Theme.success or Theme.danger)
-end)
-
-CreateToggle(SettingsTab, "SFX", "Mute/Unmute SFX", true, function(value)
-    GameConfig.Sfx = value and 0.5 or 0
-    PushGameSettings()
-    Notify(value and "SFX On" or "SFX Muted", value and Theme.success or Theme.danger)
-end)
 
 CreateSection(SettingsTab, "PERFORMANCE")
 
@@ -728,7 +689,6 @@ end)
 
 -- // 3. INFO SECTION //
 
--- [NEW] User Profile Sub-Section
 CreateSection(InfoTab, "USER PROFILE")
 
 local ProfileFrame = Instance.new("Frame")
@@ -777,10 +737,6 @@ local Spacer = Instance.new("Frame")
 Spacer.Size = UDim2.new(1,0,0,10)
 Spacer.BackgroundTransparency = 1
 Spacer.Parent = InfoTab
-
--- [HIDDEN] Leaderboard
--- CreateSection(InfoTab, "LEADERBOARD")
--- CreateInfoLabel(InfoTab, "Placement", "(Coming Soon)")
 
 CreateSection(InfoTab, "CREDITS")
 CreateInfoLabel(InfoTab, "Interface", "LumaCore")
@@ -861,7 +817,7 @@ ToggleIcon.Name = "ToggleIcon"
 ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = Theme.base
-ToggleIcon.Image = "rbxassetid://13475878297" -- Menu Icon
+ToggleIcon.Image = "rbxassetid://13475878297" 
 ToggleIcon.Visible = true 
 ToggleIcon.ZIndex = 1000 
 ToggleIcon.Parent = gui
@@ -938,4 +894,4 @@ local function PlayIntro()
 end
 
 PlayIntro()
-print("Loot Hero [Alpha] - v3.8 (Profile Added)")
+print("Loot Hero [Alpha] - v3.9 (Game Settings Removed)")
