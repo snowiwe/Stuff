@@ -1,10 +1,11 @@
 --[[ 
-    LOOT HERO [ALPHA] v4.3
+    LOOT HERO [ALPHA] v4.5
     --------------------------------------------------
-    - UPDATE: Scrollbars are now invisible (Clean look).
-    - UPDATE: Auto Pick now notifies "Random" on trigger.
-    - UPDATE: Renamed "Default" theme to "Classic Blue".
-    - LOGIC: Auto Collect, Live ESP, No Camera Shake.
+    - NEW: Store (Select Chest Dropdown + Buy Button).
+    - NEW: Auto Claim Rewards Toggle.
+    - UPDATE: "Start Game" Button locks/glows after use.
+    - UPDATE: Info Tab shows Current Theme & Script Info.
+    - LOGIC: Auto Collect, Live ESP, Anti-Shake.
     --------------------------------------------------
 ]]
 
@@ -30,12 +31,12 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.55, 0) or UDim2.new(0, 260, 0, 450)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.60, 0) or UDim2.new(0, 260, 0, 520)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
 local THEMES = {
-    Classic = { -- [UPDATE] Renamed from Default
+    Classic = {
         name = "Classic Blue",
         mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(92,110,200)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40,50,125)) },
         accent = Color3.fromRGB(105,160,255),
@@ -97,6 +98,7 @@ local DESC_FONT = Enum.Font.SourceSans
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
+local AutoClaimEnabled = false
 local EspEnabled = false
 local NoShakeEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
@@ -114,12 +116,13 @@ local ActiveCheats = {
     StartGame = false 
 }
 
+local SelectedChest = "BasicChest" -- Default chest selection
 local EspHighlights = {}
 local EspConnection = nil
 local ShakeConnection = nil
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, RewardRemote
 task.spawn(function()
     pcall(function()
         Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -129,6 +132,7 @@ task.spawn(function()
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
             PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
+            RewardRemote = Remotes:WaitForChild("Reward", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
@@ -136,7 +140,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v4_3"
+gui.Name = "LootHero_v4_5"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -369,12 +373,13 @@ local function CreateTab(name)
     local Page = Instance.new("ScrollingFrame")
     Page.Size = UDim2.new(1, 0, 1, 0)
     Page.BackgroundTransparency = 1
-    Page.ScrollBarThickness = 0 -- [UPDATE] Invisible Scrollbar
+    Page.ScrollBarThickness = 0 
     Page.ScrollingEnabled = true 
     Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
     Page.CanvasSize = UDim2.new(0,0,0,0)
     Page.Visible = false
     Page.Parent = PageContainer
+    RegisterThemeObj(Page, "ScrollBarImageColor3", "subtext")
     
     local pLayout = Instance.new("UIListLayout")
     pLayout.Padding = UDim.new(0, 8)
@@ -622,6 +627,7 @@ local function CreateDropdown(parent, title, options, callback)
         
         OptBtn.MouseButton1Click:Connect(function()
             callback(opt)
+            TitleL.Text = title .. ": " .. opt -- Update title with selection
             isOpen = false
             Arrow.Rotation = 0
             TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
@@ -711,13 +717,57 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
                 if ChoiceRemote then
                     local args = { "" }
                     ChoiceRemote:FireServer(unpack(args))
-                    Notify("Auto Picked: Random", CurrentTheme.success) -- [UPDATE] Added Notif
+                    Notify("Auto Picked: Random", CurrentTheme.success)
                 end
                 task.wait(1) 
             end
         end)
     else
         Notify("Auto Pick Disabled", CurrentTheme.danger)
+    end
+end)
+
+-- [NEW] Store Section with Dropdown + Button
+CreateSection(MainTab, "STORE")
+
+CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest"}, function(option)
+    SelectedChest = option
+end)
+
+local buyDebounce = false
+CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", function()
+    if buyDebounce then return end
+    buyDebounce = true
+    
+    if PurchaseRemote then
+        local args = { SelectedChest, 2.133333444595337 }
+        PurchaseRemote:InvokeServer(unpack(args))
+        Notify("Bought: "..SelectedChest, CurrentTheme.success)
+    end
+    
+    task.wait(1)
+    buyDebounce = false
+end)
+
+-- [NEW] Rewards Section
+CreateSection(MainTab, "REWARDS")
+
+CreateToggle(MainTab, "Auto Claim Rewards", "Claims all available rewards", false, function(value)
+    AutoClaimEnabled = value
+    if AutoClaimEnabled then
+        Notify("Auto Claim Enabled", CurrentTheme.success)
+        task.spawn(function()
+            while AutoClaimEnabled do
+                if RewardRemote then
+                    local args = { "" }
+                    RewardRemote:InvokeServer(unpack(args))
+                    Notify("Auto Claimed: Rewards", CurrentTheme.success)
+                end
+                task.wait(5)
+            end
+        end)
+    else
+        Notify("Auto Claim Disabled", CurrentTheme.danger)
     end
 end)
 
@@ -862,13 +912,13 @@ end)
 
 CreateToggle(SettingsTab, "Draggable UI", "Allows dragging the window", true, function(value)
     DraggableEnabled = value
-    Notify(value and "Dragging Enabled" or "Dragging Disabled", value and CurrentTheme.success or CurrentTheme.danger)
+    Notify(value and "Dragging Enabled" or "Dragging Disabled", CurrentTheme.success)
 end)
 
 if isMobile then
     CreateToggle(SettingsTab, "Draggable Button", "Move the toggle button", false, function(value)
         MobileBtnDraggable = value
-        Notify(value and "Button Dragging Enabled" or "Button Dragging Disabled", value and CurrentTheme.success or CurrentTheme.danger)
+        Notify(value and "Button Dragging Enabled" or "Button Dragging Disabled", CurrentTheme.success)
     end)
 end
 
@@ -889,6 +939,7 @@ destroyBtn = CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", f
         GodModeEnabled = false
         AutoCollectEnabled = false
         AutoPickEnabled = false
+        AutoClaimEnabled = false
         if ShakeConnection then ShakeConnection:Disconnect() end
         if EspConnection then EspConnection:Disconnect() end
         for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
@@ -977,9 +1028,10 @@ Spacer.Size = UDim2.new(1,0,0,10)
 Spacer.BackgroundTransparency = 1
 Spacer.Parent = InfoTab
 
+-- [NEW] Script Info Sub-Section
 CreateSection(InfoTab, "SCRIPT INFO")
 CreateInfoLabel(InfoTab, "Script Status", "Active")
-CreateInfoLabel(InfoTab, "Script Version", "v4.3 (Clean Update)")
+CreateInfoLabel(InfoTab, "Script Version", "v4.5 (Complete)")
 
 CreateSection(InfoTab, "CREDITS")
 CreateInfoLabel(InfoTab, "Interface", "LumaCore")
@@ -1139,4 +1191,4 @@ local function PlayIntro()
 end
 
 PlayIntro()
-print("Loot Hero [Alpha] - v4.3 (Clean Scroll & Updates)")
+print("Loot Hero [Alpha] - v4.5 (Complete)")
