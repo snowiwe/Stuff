@@ -1,10 +1,11 @@
 --[[ 
-    LOOT HERO [ALPHA] v4.5
+    LOOT HERO [ALPHA] v4.8
     --------------------------------------------------
-    - FIXED: Global variable errors (Theme, Shake, Intro).
-    - NEW: Store (Dropdown + Buy), Rewards (Auto Claim).
-    - UPDATE: Start Game button locks/glows.
-    - LOGIC: Auto Collect, Live ESP, Mobile Optimized.
+    - FIXED: All global variable errors (Theme, Shake).
+    - FIXED: Start Game button glow persists through theme changes.
+    - NEW: Server ID & Version in Profile.
+    - REMOVED: Auto Claim & Camera Shake.
+    - LOGIC: Auto Pick, Auto Collect, Store Dropdown.
     --------------------------------------------------
 ]]
 
@@ -30,7 +31,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.60, 0) or UDim2.new(0, 260, 0, 520)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 550) -- Increased height for new profile info
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -97,9 +98,7 @@ local DESC_FONT = Enum.Font.SourceSans
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
-local AutoClaimEnabled = false
 local EspEnabled = false
-local NoShakeEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
 local AnimationsEnabled = ANIMATIONS_DEFAULT
@@ -118,11 +117,9 @@ local ActiveCheats = {
 local SelectedChest = "BasicChest"
 local EspHighlights = {}
 local EspConnection = nil
--- [FIX] Define Global Connections here to avoid errors
-local ShakeConnection = nil 
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, RewardRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
 task.spawn(function()
     pcall(function()
         Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -132,7 +129,6 @@ task.spawn(function()
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
             PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
-            RewardRemote = Remotes:WaitForChild("Reward", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
@@ -140,7 +136,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v4_5"
+gui.Name = "LootHero_v4_8"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -158,6 +154,7 @@ local ThemeableObjects = {
 }
 
 local ThemeLabelRef = nil 
+local StartGameBtnRef = nil -- Reference to force color on theme update
 
 local function RegisterThemeObj(obj, prop, key)
     if not obj then return end
@@ -184,18 +181,71 @@ local function UpdateTheme(themeName)
     for _, item in ipairs(ThemeableObjects.Gradients) do item[1][item[2]] = CurrentTheme[item[3]] end
     for _, item in ipairs(ThemeableObjects.Images) do item[1][item[2]] = CurrentTheme[item[3]] end
     
-    if ThemeLabelRef then
-        ThemeLabelRef.Text = "Theme: " .. CurrentTheme.name
+    if ThemeLabelRef then ThemeLabelRef.Text = "Theme: " .. CurrentTheme.name end
+    
+    -- [FIX] Maintain Start Game Glow
+    if ActiveCheats.StartGame and StartGameBtnRef then
+        local s = StartGameBtnRef:FindFirstChild("UIStroke")
+        local t = StartGameBtnRef:FindFirstChild("TextLabel")
+        if s then s.Color = CurrentTheme.success end
+        if t then t.TextColor3 = CurrentTheme.success end
     end
 end
 
--- // 8. ANIMATION HELPERS //
+-- // 8. ANIMATION & INTRO //
 local function doTween(obj, props, time)
     if not AnimationsEnabled then
         for k,v in pairs(props) do obj[k] = v end
         return
     end
     TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+end
+
+-- [FIXED] PlayIntro defined early
+local function PlayIntro()
+    if not AnimationsEnabled then return end
+    local IntroFrame = Instance.new("Frame")
+    IntroFrame.Size = UDim2.fromScale(1,1)
+    IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    IntroFrame.ZIndex = 500
+    IntroFrame.Parent = gui
+    
+    local BarBG = Instance.new("Frame")
+    BarBG.Size = UDim2.new(0, 200, 0, 6)
+    BarBG.Position = UDim2.fromScale(0.5, 0.55)
+    BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+    BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    BarBG.Parent = IntroFrame
+    Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
+    
+    local BarFill = Instance.new("Frame")
+    BarFill.Size = UDim2.new(0, 0, 1, 0)
+    BarFill.BackgroundColor3 = CurrentTheme.accent
+    BarFill.Parent = BarBG
+    Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
+    
+    local Logo = Instance.new("TextLabel")
+    Logo.Text = "Loot Hero"
+    Logo.Font = Enum.Font.GothamBlack
+    Logo.TextSize = 32
+    Logo.TextColor3 = CurrentTheme.text
+    Logo.Position = UDim2.fromScale(0.5, 0.45)
+    Logo.AnchorPoint = Vector2.new(0.5, 0.5)
+    Logo.BackgroundTransparency = 1
+    Logo.TextTransparency = 1
+    Logo.Parent = IntroFrame
+    
+    TweenService:Create(Logo, TweenInfo.new(1), {TextTransparency = 0}):Play()
+    TweenService:Create(BarFill, TweenInfo.new(1.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1,0,1,0)}):Play()
+    
+    task.wait(1.8)
+    TweenService:Create(IntroFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(Logo, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    TweenService:Create(BarBG, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(BarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    
+    task.wait(0.5)
+    IntroFrame:Destroy()
 end
 
 -- // 9. NOTIFICATION SYSTEM //
@@ -414,6 +464,20 @@ end
 local MainTab = CreateTab("Main")
 local SettingsTab = CreateTab("Settings")
 local InfoTab = CreateTab("Info")
+
+-- [NEW] Integrated Secret Changelog Page
+local ChangelogPage = Instance.new("ScrollingFrame")
+ChangelogPage.Size = UDim2.new(1, 0, 1, 0)
+ChangelogPage.BackgroundTransparency = 1
+ChangelogPage.ScrollBarThickness = 0
+ChangelogPage.ScrollingEnabled = true
+ChangelogPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ChangelogPage.Visible = false
+ChangelogPage.Parent = PageContainer
+Instance.new("UIListLayout", ChangelogPage).SortOrder = Enum.SortOrder.LayoutOrder
+Instance.new("UIPadding", ChangelogPage).PaddingTop = UDim.new(0,5)
+
+Pages["Changelog"] = {Btn = nil, Page = ChangelogPage}
 
 Pages["Main"].Page.Visible = true
 Pages["Main"].Btn.TextColor3 = CurrentTheme.text
@@ -683,7 +747,8 @@ end
 
 CreateSection(MainTab, "GAME LOOP")
 
-CreateButton(MainTab, "Start Game", "Begins the match instantly", function(updateStyle)
+-- [FIXED] Start Game Button with Locking Glow
+StartGameBtnRef = CreateButton(MainTab, "Start Game", "Begins the match instantly", function(updateStyle)
     if ActiveCheats.StartGame then
         Notify("Game Already Started!", CurrentTheme.warning)
         return
@@ -754,27 +819,6 @@ CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", fu
     
     task.wait(1)
     buyDebounce = false
-end)
-
-CreateSection(MainTab, "REWARDS")
-
-CreateToggle(MainTab, "Auto Claim Rewards", "Claims all available rewards", false, function(value)
-    AutoClaimEnabled = value
-    if AutoClaimEnabled then
-        Notify("Auto Claim Enabled", CurrentTheme.success)
-        task.spawn(function()
-            while AutoClaimEnabled do
-                if RewardRemote then
-                    local args = { "" }
-                    RewardRemote:InvokeServer(unpack(args))
-                    -- Notify("Auto Claimed: Rewards", CurrentTheme.success)
-                end
-                task.wait(5)
-            end
-        end)
-    else
-        Notify("Auto Claim Disabled", CurrentTheme.danger)
-    end
 end)
 
 CreateSection(MainTab, "SURVIVAL")
@@ -854,24 +898,6 @@ CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false
     end
 end)
 
-CreateToggle(SettingsTab, "No Camera Shake", "Disables Bobbing/Recoil", false, function(value)
-    NoShakeEnabled = value
-    if NoShakeEnabled then
-        Notify("Camera Locked (Steady)", CurrentTheme.success)
-        if ShakeConnection then ShakeConnection:Disconnect() end
-        ShakeConnection = RunService.RenderStepped:Connect(function()
-            if player.Character and player.Character:FindFirstChild("Humanoid") then
-                player.Character.Humanoid.CameraOffset = Vector3.new(0, 0, 0)
-                local root = player.Character:FindFirstChild("HumanoidRootPart")
-                if root then root.Velocity = Vector3.new(root.Velocity.X, math.max(root.Velocity.Y, -50), root.Velocity.Z) end
-            end
-        end)
-    else
-        Notify("Camera Shake Enabled", CurrentTheme.danger)
-        if ShakeConnection then ShakeConnection:Disconnect() end
-    end
-end)
-
 CreateToggle(SettingsTab, "ESP", "Highlight Players/Enemies", false, function(value)
     EspEnabled = value
     if EspEnabled then
@@ -945,8 +971,6 @@ destroyBtn = CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", f
         GodModeEnabled = false
         AutoCollectEnabled = false
         AutoPickEnabled = false
-        AutoClaimEnabled = false
-        if ShakeConnection then ShakeConnection:Disconnect() end
         if EspConnection then EspConnection:Disconnect() end
         for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
         gui:Destroy()
@@ -958,7 +982,7 @@ end)
 CreateSection(InfoTab, "USER PROFILE")
 
 local ProfileFrame = Instance.new("Frame")
-ProfileFrame.Size = UDim2.new(1, -10, 0, 70)
+ProfileFrame.Size = UDim2.new(1, -10, 0, 95) -- [UPDATE] Taller for ID/Version
 ProfileFrame.BackgroundColor3 = CurrentTheme.base
 ProfileFrame.Parent = InfoTab
 Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
@@ -969,7 +993,7 @@ RegisterThemeObj(ProfileFrame:FindFirstChild("UIStroke"), "Color", "stroke")
 local Avatar = Instance.new("ImageLabel")
 Avatar.Name = "Avatar"
 Avatar.Size = UDim2.new(0, 50, 0, 50)
-Avatar.Position = UDim2.new(0, 10, 0.5, -25)
+Avatar.Position = UDim2.new(0, 10, 0, 10)
 Avatar.BackgroundColor3 = CurrentTheme.accent
 Avatar.Parent = ProfileFrame
 Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
@@ -978,8 +1002,8 @@ RegisterThemeObj(Avatar, "BackgroundColor3", "accent")
 local NameL = Instance.new("TextLabel")
 NameL.Name = "NameL"
 NameL.Text = "Loading..."
-NameL.Size = UDim2.new(1, -70, 0, 20)
-NameL.Position = UDim2.new(0, 70, 0, 8)
+NameL.Size = UDim2.new(1, -70, 0, 18)
+NameL.Position = UDim2.new(0, 70, 0, 10)
 NameL.BackgroundTransparency = 1
 NameL.TextColor3 = CurrentTheme.text
 NameL.Font = UI_FONT
@@ -1001,10 +1025,36 @@ IDL.TextXAlignment = Enum.TextXAlignment.Left
 IDL.Parent = ProfileFrame
 RegisterThemeObj(IDL, "TextColor3", "subtext")
 
+local ServerIDL = Instance.new("TextLabel")
+ServerIDL.Name = "ServerIDL"
+ServerIDL.Text = "Server: ..."
+ServerIDL.Size = UDim2.new(1, -70, 0, 15)
+ServerIDL.Position = UDim2.new(0, 70, 0, 44)
+ServerIDL.BackgroundTransparency = 1
+ServerIDL.TextColor3 = CurrentTheme.subtext
+ServerIDL.Font = DESC_FONT
+ServerIDL.TextSize = 12
+ServerIDL.TextXAlignment = Enum.TextXAlignment.Left
+ServerIDL.Parent = ProfileFrame
+RegisterThemeObj(ServerIDL, "TextColor3", "subtext")
+
+local GameVerL = Instance.new("TextLabel")
+GameVerL.Name = "GameVerL"
+GameVerL.Text = "Game Ver: ..."
+GameVerL.Size = UDim2.new(1, -70, 0, 15)
+GameVerL.Position = UDim2.new(0, 70, 0, 60)
+GameVerL.BackgroundTransparency = 1
+GameVerL.TextColor3 = CurrentTheme.subtext
+GameVerL.Font = DESC_FONT
+GameVerL.TextSize = 12
+GameVerL.TextXAlignment = Enum.TextXAlignment.Left
+GameVerL.Parent = ProfileFrame
+RegisterThemeObj(GameVerL, "TextColor3", "subtext")
+
 ThemeLabelRef = Instance.new("TextLabel")
 ThemeLabelRef.Text = "Theme: Classic Blue"
 ThemeLabelRef.Size = UDim2.new(1, -70, 0, 15)
-ThemeLabelRef.Position = UDim2.new(0, 70, 0, 46)
+ThemeLabelRef.Position = UDim2.new(0, 70, 0, 76)
 ThemeLabelRef.BackgroundTransparency = 1
 ThemeLabelRef.TextColor3 = CurrentTheme.accent
 ThemeLabelRef.Font = DESC_FONT
@@ -1018,6 +1068,8 @@ _G.UpdateProfileInfo = function()
         Avatar.Image = "rbxassetid://0"
         NameL.Text = "Hidden User"
         IDL.Text = "ID: Hidden"
+        ServerIDL.Text = "Server: Hidden"
+        GameVerL.Text = "Game Ver: Hidden"
     else
         task.spawn(function()
             local content = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
@@ -1025,6 +1077,8 @@ _G.UpdateProfileInfo = function()
         end)
         NameL.Text = player.DisplayName
         IDL.Text = "ID: " .. player.UserId
+        ServerIDL.Text = "Server: " .. game.JobId
+        GameVerL.Text = "Game Ver: " .. game.PlaceVersion
     end
 end
 _G.UpdateProfileInfo()
@@ -1042,103 +1096,97 @@ local StatusBadge = Instance.new("Frame")
 StatusBadge.Size = UDim2.new(0,10,0,10)
 StatusBadge.AnchorPoint = Vector2.new(0.5,0.5)
 Instance.new("UICorner", StatusBadge).CornerRadius = UDim.new(1,0)
+Instance.new("UIStroke", StatusBadge).Thickness = 1
+Instance.new("UIStroke", StatusBadge).Color = CurrentTheme.stroke
 
 local StatusFrame = CreateInfoLabel(InfoTab, "Script Status", "Checking...", StatusBadge)
--- Helper to update label
 local function UpdateStatusLabel(text)
-    local lbl = StatusFrame:FindFirstChild("TextLabel") -- Find the desc label
+    local lbl = StatusFrame:FindFirstChild("TextLabel") 
     if lbl then lbl.Text = text end
 end
 
 task.spawn(function()
     while gui.Parent do
+        -- [FIXED] Proper reference to theme table
         if ReplicatedStorage:FindFirstChild("Remotes") then
-             StatusBadge.BackgroundColor3 = THEMES.Classic.success -- Use static theme for status logic
+             StatusBadge.BackgroundColor3 = THEMES.Classic.success 
              UpdateStatusLabel("Running")
         else
-             StatusBadge.BackgroundColor3 = THEMES.Classic.danger
+             StatusBadge.BackgroundColor3 = THEMES.Classic.danger 
              UpdateStatusLabel("Fault (No Remotes)")
         end
         task.wait(3)
     end
 end)
 
--- Version Click for Secret UI
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v4.5 (Click Me!)")
+-- Version Click for Secret UI (Clean Text)
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v4.8")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
 VersionBtn.Text = ""
 VersionBtn.Parent = VersionFrame
 
--- Secret UI
-local SecretUI = Instance.new("Frame")
-SecretUI.Name = "SecretUI"
-SecretUI.Size = UDim2.new(0, 300, 0, 400)
-SecretUI.Position = UDim2.new(0.5, -150, 0.5, -200)
-SecretUI.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-SecretUI.Visible = false
-SecretUI.ZIndex = 500
-SecretUI.Parent = gui
-Instance.new("UICorner", SecretUI).CornerRadius = UDim.new(0, 10)
-Instance.new("UIStroke", SecretUI).Color = THEMES.Classic.accent
+-- [NEW] Integrated Secret Changelog Page
+local ChangelogTitle = Instance.new("TextLabel")
+ChangelogTitle.Text = "Changelog"
+ChangelogTitle.Size = UDim2.new(1, -10, 0, 24)
+ChangelogTitle.BackgroundTransparency = 1
+ChangelogTitle.TextColor3 = CurrentTheme.accent
+ChangelogTitle.Font = UI_FONT
+ChangelogTitle.TextSize = 14
+ChangelogTitle.Parent = ChangelogPage
+RegisterThemeObj(ChangelogTitle, "TextColor3", "accent")
 
-local SecretTitle = Instance.new("TextLabel")
-SecretTitle.Text = "Changelog History"
-SecretTitle.Size = UDim2.new(1, 0, 0, 40)
-SecretTitle.BackgroundTransparency = 1
-SecretTitle.TextColor3 = Color3.fromRGB(255,255,255)
-SecretTitle.Font = UI_FONT
-SecretTitle.TextSize = 18
-SecretTitle.Parent = SecretUI
+local ChangelogText = Instance.new("TextLabel")
+ChangelogText.Size = UDim2.new(1, -10, 0, 500)
+ChangelogText.BackgroundTransparency = 1
+ChangelogText.TextColor3 = CurrentTheme.text
+ChangelogText.Font = DESC_FONT
+ChangelogText.TextSize = 13
+ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
+ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
+ChangelogText.TextWrapped = true
+ChangelogText.Text = [[
+v4.8 (Current):
+- Added Server ID & Game Version
+- Fixed Start Game Glow Persistence
+- Fixed Global Variable Errors
+- Removed Auto Claim & Camera Shake
 
-local SecretClose = Instance.new("TextButton")
-SecretClose.Text = "X"
-SecretClose.Size = UDim2.new(0, 40, 0, 40)
-SecretClose.Position = UDim2.new(1, -40, 0, 0)
-SecretClose.BackgroundTransparency = 1
-SecretClose.TextColor3 = Color3.fromRGB(200, 50, 50)
-SecretClose.Font = UI_FONT
-SecretClose.TextSize = 20
-SecretClose.Parent = SecretUI
-SecretClose.MouseButton1Click:Connect(function() SecretUI.Visible = false end)
+v4.7:
+- Integrated Changelog Page
+- Improved Status Badge
 
-local SecretScroll = Instance.new("ScrollingFrame")
-SecretScroll.Size = UDim2.new(1, -20, 1, -50)
-SecretScroll.Position = UDim2.new(0, 10, 0, 45)
-SecretScroll.BackgroundTransparency = 1
-SecretScroll.Parent = SecretUI
+v4.5 - v4.6:
+- Store (Dropdown + Buy)
+- Live Status Logic
+- Auto Pick Updates
 
-local ChangeLogText = Instance.new("TextLabel")
-ChangeLogText.Size = UDim2.new(1, 0, 0, 1000)
-ChangeLogText.BackgroundTransparency = 1
-ChangeLogText.TextColor3 = Color3.fromRGB(200, 200, 200)
-ChangeLogText.TextXAlignment = Enum.TextXAlignment.Left
-ChangeLogText.TextYAlignment = Enum.TextYAlignment.Top
-ChangeLogText.Font = DESC_FONT
-ChangeLogText.TextSize = 14
-ChangeLogText.TextWrapped = true
-ChangeLogText.Text = [[
-v4.5 (Current):
-- Store: Dropdown Chest Selection & Buy Button
-- Rewards: Auto Claim Toggle
-- Start Game: One-time click + Glow
-- Fixes: Defined global variables properly
-
-v4.4:
-- Auto Pick
-- Theme System (4 Themes)
-- Mobile Optimized Scaling
-
-v4.0 - v4.3:
+v4.0 - v4.4:
+- Themes System
 - Live ESP (Wallhacks)
-- Auto Collect (Amethyst Added)
-- Privacy Mode (Hide Profile)
+- Mobile Optimization
 ]]
-ChangeLogText.Parent = SecretScroll
+ChangelogText.Parent = ChangelogPage
+RegisterThemeObj(ChangelogText, "TextColor3", "text")
+
+local BackBtn = CreateButton(ChangelogPage, "Back to Info", "Return to main view", function()
+    ChangelogPage.Visible = false
+    Pages["Info"].Page.Visible = true
+    doTween(Pages["Info"].Btn, {TextColor3 = CurrentTheme.text, BackgroundColor3 = CurrentTheme.banner})
+end)
 
 VersionBtn.MouseButton1Click:Connect(function()
-    SecretUI.Visible = not SecretUI.Visible
+    -- Hide all pages
+    for n, data in pairs(Pages) do
+        data.Page.Visible = false
+        if data.Btn then
+            doTween(data.Btn, {TextColor3 = CurrentTheme.subtext, BackgroundColor3 = CurrentTheme.base})
+        end
+    end
+    -- Show secret page
+    ChangelogPage.Visible = true
 end)
 
 CreateSection(InfoTab, "CREDITS")
@@ -1251,53 +1299,5 @@ ToggleIcon.InputChanged:Connect(function(input)
     end
 end)
 
--- // INTRO FUNCTION //
--- Function PlayIntro defined before call at end
-local function PlayIntro()
-    if not AnimationsEnabled then return end
-    local IntroFrame = Instance.new("Frame")
-    IntroFrame.Size = UDim2.fromScale(1,1)
-    IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-    IntroFrame.ZIndex = 500
-    IntroFrame.Parent = gui
-    
-    local BarBG = Instance.new("Frame")
-    BarBG.Size = UDim2.new(0, 200, 0, 6)
-    BarBG.Position = UDim2.fromScale(0.5, 0.55)
-    BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
-    BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-    BarBG.Parent = IntroFrame
-    Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
-    
-    local BarFill = Instance.new("Frame")
-    BarFill.Size = UDim2.new(0, 0, 1, 0)
-    BarFill.BackgroundColor3 = CurrentTheme.accent
-    BarFill.Parent = BarBG
-    Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
-    
-    local Logo = Instance.new("TextLabel")
-    Logo.Text = "Loot Hero"
-    Logo.Font = Enum.Font.GothamBlack
-    Logo.TextSize = 32
-    Logo.TextColor3 = CurrentTheme.text
-    Logo.Position = UDim2.fromScale(0.5, 0.45)
-    Logo.AnchorPoint = Vector2.new(0.5, 0.5)
-    Logo.BackgroundTransparency = 1
-    Logo.TextTransparency = 1
-    Logo.Parent = IntroFrame
-    
-    TweenService:Create(Logo, TweenInfo.new(1), {TextTransparency = 0}):Play()
-    TweenService:Create(BarFill, TweenInfo.new(1.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1,0,1,0)}):Play()
-    
-    task.wait(1.8)
-    TweenService:Create(IntroFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(Logo, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
-    TweenService:Create(BarBG, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    TweenService:Create(BarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
-    
-    task.wait(0.5)
-    IntroFrame:Destroy()
-end
-
 PlayIntro()
-print("Loot Hero [Alpha] - v4.5 (Complete)")
+print("Loot Hero [Alpha] - v4.8 (Stable & Expanded Profile)")
