@@ -1,11 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v4.8
+    LOOT HERO [ALPHA] v5.0
     --------------------------------------------------
-    - FIXED: All global variable errors (Theme, Shake).
-    - FIXED: Start Game button glow persists through theme changes.
-    - NEW: Server ID & Version in Profile.
-    - REMOVED: Auto Claim & Camera Shake.
-    - LOGIC: Auto Pick, Auto Collect, Store Dropdown.
+    - NEW: "Shield" Toggle Icon (Fits Hero theme).
+    - FIXED: Icon visibility and contrast.
+    - PREVIOUS: Server ID, Store, Rewards, Profile.
     --------------------------------------------------
 ]]
 
@@ -31,7 +29,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 550) -- Increased height for new profile info
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 550)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -119,7 +117,7 @@ local EspHighlights = {}
 local EspConnection = nil
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, RewardRemote
 task.spawn(function()
     pcall(function()
         Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -129,6 +127,7 @@ task.spawn(function()
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
             PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
+            RewardRemote = Remotes:WaitForChild("Reward", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
@@ -136,7 +135,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v4_8"
+gui.Name = "LootHero_v5_0"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -154,7 +153,7 @@ local ThemeableObjects = {
 }
 
 local ThemeLabelRef = nil 
-local StartGameBtnRef = nil -- Reference to force color on theme update
+local StartGameBtnRef = nil 
 
 local function RegisterThemeObj(obj, prop, key)
     if not obj then return end
@@ -183,7 +182,6 @@ local function UpdateTheme(themeName)
     
     if ThemeLabelRef then ThemeLabelRef.Text = "Theme: " .. CurrentTheme.name end
     
-    -- [FIX] Maintain Start Game Glow
     if ActiveCheats.StartGame and StartGameBtnRef then
         local s = StartGameBtnRef:FindFirstChild("UIStroke")
         local t = StartGameBtnRef:FindFirstChild("TextLabel")
@@ -201,7 +199,6 @@ local function doTween(obj, props, time)
     TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
--- [FIXED] PlayIntro defined early
 local function PlayIntro()
     if not AnimationsEnabled then return end
     local IntroFrame = Instance.new("Frame")
@@ -1120,7 +1117,7 @@ task.spawn(function()
 end)
 
 -- Version Click for Secret UI (Clean Text)
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v4.8")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.0")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1148,11 +1145,17 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v4.8 (Current):
+v5.0 (Current):
+- New "Shield" Toggle Icon
 - Added Server ID & Game Version
 - Fixed Start Game Glow Persistence
-- Fixed Global Variable Errors
 - Removed Auto Claim & Camera Shake
+
+v4.9:
+- Icon Visibility Fix
+
+v4.8:
+- Stability Update & Error Fixes
 
 v4.7:
 - Integrated Changelog Page
@@ -1162,11 +1165,6 @@ v4.5 - v4.6:
 - Store (Dropdown + Buy)
 - Live Status Logic
 - Auto Pick Updates
-
-v4.0 - v4.4:
-- Themes System
-- Live ESP (Wallhacks)
-- Mobile Optimization
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1268,11 +1266,14 @@ ToggleIcon.Name = "ToggleIcon"
 ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = CurrentTheme.base
-ToggleIcon.Image = "rbxassetid://13475878297" 
+-- [FIX] High Contrast Shield Icon + Theme Text Color
+ToggleIcon.Image = "rbxassetid://3944676352" -- Shield Icon
+ToggleIcon.ImageColor3 = CurrentTheme.text 
 ToggleIcon.Visible = true 
 ToggleIcon.ZIndex = 1000 
 ToggleIcon.Parent = gui
 RegisterThemeObj(ToggleIcon, "BackgroundColor3", "base")
+RegisterThemeObj(ToggleIcon, "ImageColor3", "text") -- Ensure icon color updates
 
 local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 12); tc.Parent = ToggleIcon
 local ts = Instance.new("UIStroke"); ts.Color = CurrentTheme.stroke; ts.Thickness = 1.5; ts.Parent = ToggleIcon
@@ -1300,4 +1301,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v4.8 (Stable & Expanded Profile)")
+print("Loot Hero [Alpha] - v5.0 (Final Stable)")
