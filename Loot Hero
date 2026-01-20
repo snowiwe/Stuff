@@ -1,11 +1,11 @@
 --[[ 
-    LOOT HERO [ALPHA] v5.2
+    LOOT HERO [ALPHA] v5.3
     --------------------------------------------------
-    - NEW: "Quit Game" Button (Danger Zone).
-    - NEW: "Disable Animations" Toggle.
-    - NEW: "Show Memory" in Monitoring.
-    - UPDATE: Themed FPS/Ping/Memory Overlay.
-    - UPDATE: Smooth Header Animations for Changelog.
+    - NEW: Button Cooldown Animations (Countdown).
+    - NEW: "Active" State (Checkmarks) for one-time buttons.
+    - NEW: Tap Counter for Danger Zone (Confirm 1/2).
+    - NEW: "Disable Particles" Setting.
+    - UPDATE: Reordered Danger Zone (Quit at bottom).
     - LOGIC: Auto Collect, Store, Live ESP.
     --------------------------------------------------
 ]]
@@ -19,7 +19,7 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local MarketplaceService = game:GetService("MarketplaceService")
-local Stats = game:GetService("Stats") -- [NEW] For Memory
+local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
@@ -30,11 +30,11 @@ local SCALE_FACTOR = isMobile and 1.2 or 1.0
 
 local DRAGGABLE_DEFAULT = true
 local NOTIFICATIONS_DEFAULT = true
-local ANIMATIONS_DEFAULT = true -- Default True
+local ANIMATIONS_DEFAULT = true 
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 580)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 600)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -112,7 +112,7 @@ local Minimized = true
 
 local MonitorFPS = false
 local MonitorPing = false
-local MonitorMem = false -- [NEW]
+local MonitorMem = false 
 
 local ActiveCheats = { 
     InfHealth = false, 
@@ -145,7 +145,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v5_2"
+gui.Name = "LootHero_v5_3"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -163,7 +163,7 @@ local ThemeableObjects = {
 }
 
 local ThemeLabelRef = nil 
-local StartGameBtnRef = nil 
+local LockedButtons = {} -- Store references to completed buttons
 
 local function RegisterThemeObj(obj, prop, key)
     if not obj then return end
@@ -192,9 +192,10 @@ local function UpdateTheme(themeName)
     
     if ThemeLabelRef then ThemeLabelRef.Text = "Theme: " .. CurrentTheme.name end
     
-    if ActiveCheats.StartGame and StartGameBtnRef then
-        local s = StartGameBtnRef:FindFirstChild("UIStroke")
-        local t = StartGameBtnRef:FindFirstChild("TextLabel")
+    -- [FIX] Ensure locked buttons stay green
+    for _, btn in pairs(LockedButtons) do
+        local s = btn:FindFirstChild("UIStroke")
+        local t = btn:FindFirstChild("TextLabel") -- Title
         if s then s.Color = CurrentTheme.success end
         if t then t.TextColor3 = CurrentTheme.success end
     end
@@ -299,11 +300,11 @@ local function Notify(text, color)
     end)
 end
 
--- // 10. MONITOR OVERLAY (THEMED) //
+-- // 10. MONITOR OVERLAY //
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 100, 0, 0) -- Auto resize
+MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
 MonitorUI.Position = UDim2.new(1, -110, 0, 10) 
-MonitorUI.BackgroundColor3 = CurrentTheme.base -- [NEW] Themed BG
+MonitorUI.BackgroundColor3 = CurrentTheme.base 
 MonitorUI.BackgroundTransparency = 0.2
 MonitorUI.Visible = false
 MonitorUI.Parent = gui
@@ -415,16 +416,15 @@ TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundTransparency = 1
 TopBar.Parent = MainFrame
 
--- [UPDATE] Header Elements: Arrow & Title
 local BackArrowBtn = Instance.new("ImageButton")
 BackArrowBtn.Name = "BackArrow"
 BackArrowBtn.Size = UDim2.new(0, 24, 0, 24)
-BackArrowBtn.Position = UDim2.new(0, 10, 0.5, 0) -- Left side
+BackArrowBtn.Position = UDim2.new(0, 10, 0.5, 0) 
 BackArrowBtn.AnchorPoint = Vector2.new(0, 0.5)
 BackArrowBtn.BackgroundTransparency = 1
-BackArrowBtn.Image = "rbxassetid://6031094670" -- Arrow Left
+BackArrowBtn.Image = "rbxassetid://6031094670" 
 BackArrowBtn.ImageColor3 = CurrentTheme.text
-BackArrowBtn.ImageTransparency = 1 -- Hidden by default
+BackArrowBtn.ImageTransparency = 1
 BackArrowBtn.Visible = false
 BackArrowBtn.Parent = TopBar
 RegisterThemeObj(BackArrowBtn, "ImageColor3", "text")
@@ -653,6 +653,7 @@ local function CreateToggle(parent, title, desc, default, callback)
     end)
 end
 
+-- [UPDATED] Button Logic with Active/Lock State
 local function CreateButton(parent, title, desc, callback)
     local Btn = Instance.new("TextButton")
     Btn.Size = UDim2.new(1, -6, 0, 50)
@@ -667,6 +668,7 @@ local function CreateButton(parent, title, desc, callback)
     RegisterThemeObj(s, "Color", "stroke")
     
     local TitleL = Instance.new("TextLabel")
+    TitleL.Name = "TitleL"
     TitleL.Text = title
     TitleL.Size = UDim2.new(1, -10, 0, 20)
     TitleL.Position = UDim2.new(0, 12, 0, 6)
@@ -702,12 +704,25 @@ local function CreateButton(parent, title, desc, callback)
     local function setExecutedStyle()
         doTween(s, {Color = CurrentTheme.success}, 0.5)
         doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
+        TitleL.Text = title .. "  ✓" -- Add checkmark
+        table.insert(LockedButtons, Btn) -- Track for theme updates
+    end
+    
+    local function setDangerStyle()
+        doTween(s, {Color = CurrentTheme.danger}, 0.5)
+        doTween(TitleL, {TextColor3 = CurrentTheme.danger}, 0.5)
+    end
+    
+    local function resetStyle()
+        doTween(s, {Color = CurrentTheme.stroke}, 0.5)
+        doTween(TitleL, {TextColor3 = CurrentTheme.text}, 0.5)
     end
     
     Btn.MouseButton1Click:Connect(function()
         doTween(Btn, {Size = UDim2.new(1, -12, 0, 48)}, 0.1)
         task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
-        callback(setExecutedStyle)
+        -- Pass styles: Success, Danger, Reset, Label Ref
+        callback(setExecutedStyle, setDangerStyle, resetStyle, TitleL)
     end)
     return Btn 
 end
@@ -849,18 +864,14 @@ end
 
 CreateSection(MainTab, "GAME LOOP")
 
--- [FIXED] Start Game Button with Locking Glow
-StartGameBtnRef = CreateButton(MainTab, "Start Game", "Begins the match instantly", function(updateStyle)
-    if ActiveCheats.StartGame then
-        Notify("Game Already Started!", CurrentTheme.warning)
-        return
-    end
+CreateButton(MainTab, "Start Game", "Begins the match instantly", function(success, danger, reset, label)
+    if ActiveCheats.StartGame then return end
     
     if StartRemote then
         StartRemote:FireServer()
         Notify("Game Started!", CurrentTheme.success)
         ActiveCheats.StartGame = true
-        updateStyle()
+        success() -- Lock Green with Checkmark
     end
 end)
 
@@ -907,8 +918,9 @@ CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChes
     SelectedChest = option
 end)
 
+-- [NEW] Cooldown Logic
 local buyDebounce = false
-CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", function()
+CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", function(success, danger, reset, label)
     if buyDebounce then return end
     buyDebounce = true
     
@@ -916,10 +928,40 @@ CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", fu
         local args = { SelectedChest, 2.133333444595337 }
         PurchaseRemote:InvokeServer(unpack(args))
         Notify("Bought: "..SelectedChest, CurrentTheme.success)
+        
+        -- Animation
+        local originalText = label.Text
+        label.TextColor3 = CurrentTheme.warning
+        
+        for i = 10, 1, -1 do
+            label.Text = "Cooldown ("..(i/10).."s)"
+            task.wait(0.1)
+        end
+        
+        label.Text = originalText
+        label.TextColor3 = CurrentTheme.text
     end
-    
-    task.wait(1)
     buyDebounce = false
+end)
+
+CreateSection(MainTab, "REWARDS")
+
+CreateToggle(MainTab, "Auto Claim Rewards", "Claims all available rewards", false, function(value)
+    AutoClaimEnabled = value
+    if AutoClaimEnabled then
+        Notify("Auto Claim Enabled", CurrentTheme.success)
+        task.spawn(function()
+            while AutoClaimEnabled do
+                if RewardRemote then
+                    local args = { "" }
+                    RewardRemote:InvokeServer(unpack(args))
+                end
+                task.wait(5)
+            end
+        end)
+    else
+        Notify("Auto Claim Disabled", CurrentTheme.danger)
+    end
 end)
 
 CreateSection(MainTab, "SURVIVAL")
@@ -934,7 +976,7 @@ end)
 
 CreateSection(MainTab, "STATS")
 
-CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", function(updateStyle)
+CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", function(success, danger, reset)
     if ChoiceRemote then
         if ActiveCheats.InfHealth then
             Notify("Health Already Added!", CurrentTheme.warning)
@@ -942,12 +984,12 @@ CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", functi
             ActiveCheats.InfHealth = true
             for i = 1, 1000 do ChoiceRemote:FireServer("Tower") end
             Notify("Added Infinite Health!", CurrentTheme.success)
-            updateStyle()
+            success()
         end
     end
 end)
 
-CreateButton(MainTab, "Inf Damage", "Spams Giant 100x (Must be Lvl 2+)", function(updateStyle)
+CreateButton(MainTab, "Inf Damage", "Spams Giant 100x (Must be Lvl 2+)", function(success, danger, reset)
     if ChoiceRemote then
         if ActiveCheats.InfDamage then
             Notify("Damage Already Added!", CurrentTheme.warning)
@@ -955,12 +997,12 @@ CreateButton(MainTab, "Inf Damage", "Spams Giant 100x (Must be Lvl 2+)", functio
             ActiveCheats.InfDamage = true
             for i = 1, 100 do ChoiceRemote:FireServer("Giant") end
             Notify("Added Infinite Damage!", CurrentTheme.success)
-            updateStyle()
+            success()
         end
     end
 end)
 
-CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x (Must be Lvl 2+)", function(updateStyle)
+CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x (Must be Lvl 2+)", function(success, danger, reset)
     if ChoiceRemote then
         if ActiveCheats.InfSpeed then
             Notify("Speed Already Added!", CurrentTheme.warning)
@@ -968,12 +1010,12 @@ CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x (Must be Lvl 2+)",
             ActiveCheats.InfSpeed = true
             for i = 1, 100 do ChoiceRemote:FireServer("Trident") end
             Notify("Added Attack Speed!", CurrentTheme.success)
-            updateStyle()
+            success()
         end
     end
 end)
 
-CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function(updateStyle)
+CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function(success, danger, reset)
     if ChoiceRemote then
         if ActiveCheats.InfLuck then
             Notify("Luck Already Added!", CurrentTheme.warning)
@@ -981,7 +1023,7 @@ CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function
             ActiveCheats.InfLuck = true
             for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
             Notify("Added Infinite Luck!", CurrentTheme.success)
-            updateStyle()
+            success()
         end
     end
 end)
@@ -1011,6 +1053,16 @@ CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false
     else
         Notify("Low Performance Mode Off", CurrentTheme.danger)
     end
+end)
+
+-- [NEW] Disable Particles
+CreateToggle(SettingsTab, "Disable Particles", "Removes particles for FPS", false, function(value)
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") then
+            v.Enabled = not value
+        end
+    end
+    Notify(value and "Particles Disabled" or "Particles Enabled", value and CurrentTheme.success or CurrentTheme.danger)
 end)
 
 CreateToggle(SettingsTab, "ESP", "Highlight Players/Enemies", false, function(value)
@@ -1057,7 +1109,6 @@ CreateToggle(SettingsTab, "Hide User Profile", "Shows 'Unknown' in Info", true, 
     if _G.UpdateProfileInfo then _G.UpdateProfileInfo() end 
 end)
 
--- [NEW] Disable Animations Toggle
 CreateToggle(SettingsTab, "Disable Animations", "Makes UI instant", false, function(value)
     AnimationsEnabled = not value
 end)
@@ -1080,24 +1131,18 @@ end)
 
 CreateSection(SettingsTab, "DANGER ZONE")
 
--- [NEW] Quit Game
-local quitConfirm = false
-CreateButton(SettingsTab, "Quit Game", "Click twice to confirm", function()
-    if not quitConfirm then
-        quitConfirm = true
-        Notify("Are you sure? Click again.", CurrentTheme.warning)
-        task.delay(3, function() quitConfirm = false end)
-    else
-        game:Shutdown()
-    end
-end)
-
+-- [NEW] Destroy UI (Tap Counter)
 local destroyConfirm = false
-CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", function()
+CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(success, danger, reset, label)
     if not destroyConfirm then
         destroyConfirm = true
-        Notify("Are you sure? Click again.", CurrentTheme.warning)
-        task.delay(3, function() destroyConfirm = false end)
+        danger() -- Turn Red
+        label.Text = "Confirm (1/2)"
+        task.delay(3, function() 
+            destroyConfirm = false 
+            reset()
+            label.Text = "Destroy UI"
+        end)
     else
         GodModeEnabled = false
         AutoCollectEnabled = false
@@ -1106,6 +1151,23 @@ CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", function()
         if EspConnection then EspConnection:Disconnect() end
         for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
         gui:Destroy()
+    end
+end)
+
+-- [NEW] Quit Game (Tap Counter + Below Destroy)
+local quitConfirm = false
+CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success, danger, reset, label)
+    if not quitConfirm then
+        quitConfirm = true
+        danger() -- Turn Red
+        label.Text = "Confirm (1/2)"
+        task.delay(3, function() 
+            quitConfirm = false 
+            reset()
+            label.Text = "Quit Game"
+        end)
+    else
+        game:Shutdown()
     end
 end)
 
@@ -1258,15 +1320,13 @@ task.spawn(function()
     end
 end)
 
--- Version Click for Secret UI (Clean Text)
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.2")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.3")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
 VersionBtn.Text = ""
 VersionBtn.Parent = VersionFrame
 
--- [NEW] Integrated Secret Changelog Page
 local ChangelogTitle = Instance.new("TextLabel")
 ChangelogTitle.Text = "Changelog"
 ChangelogTitle.Size = UDim2.new(1, -10, 0, 24)
@@ -1274,11 +1334,10 @@ ChangelogTitle.BackgroundTransparency = 1
 ChangelogTitle.TextColor3 = CurrentTheme.accent
 ChangelogTitle.Font = UI_FONT
 ChangelogTitle.TextSize = 16
-ChangelogTitle.TextXAlignment = Enum.TextXAlignment.Center -- Centered Title
+ChangelogTitle.TextXAlignment = Enum.TextXAlignment.Center 
 ChangelogTitle.Parent = ChangelogPage
 RegisterThemeObj(ChangelogTitle, "TextColor3", "accent")
 
--- [NEW] Header Back Arrow (Left of Header)
 local HeaderBackBtn = Instance.new("ImageButton")
 HeaderBackBtn.Name = "HeaderBack"
 HeaderBackBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -1293,12 +1352,9 @@ HeaderBackBtn.Parent = TopBar
 RegisterThemeObj(HeaderBackBtn, "ImageColor3", "text")
 
 HeaderBackBtn.MouseButton1Click:Connect(function()
-    -- Go Back
     ChangelogPage.Visible = false
     Pages["Info"].Page.Visible = true
     doTween(Pages["Info"].Btn, {TextColor3 = CurrentTheme.text, BackgroundColor3 = CurrentTheme.banner})
-    
-    -- Animate Title Back to Center
     doTween(TitleLabel, {Position = UDim2.new(0.5, 0, 0.5, 0)}) 
     doTween(HeaderBackBtn, {ImageTransparency = 1}, 0.2)
     task.wait(0.2)
@@ -1308,7 +1364,7 @@ end)
 
 local ChangelogText = Instance.new("TextLabel")
 ChangelogText.Size = UDim2.new(1, -10, 0, 500)
-ChangelogText.Position = UDim2.new(0, 5, 0, 30) -- Offset below header
+ChangelogText.Position = UDim2.new(0, 5, 0, 30) 
 ChangelogText.BackgroundTransparency = 1
 ChangelogText.TextColor3 = CurrentTheme.text
 ChangelogText.Font = DESC_FONT
@@ -1317,43 +1373,37 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v5.2 (Current):
-- Added Quit Game (Danger Zone)
-- Added "Show Memory" & "Disable Animations"
+v5.3 (Current):
+- Added Button Countdown Animations
+- Added Tap Counter to Danger Zone
+- Added "Disable Particles" Setting
+- Reordered Danger Zone (Destroy First)
+- Smart Lock for One-Time Buttons
+
+v5.2:
 - Smooth Header Animations for Changelog
+- Added Quit Game
 - Updated Status Badge (Square)
 
 v5.1:
-- Monitoring Overlay (FPS/Ping)
+- Monitoring Overlay (FPS/Ping/Mem)
 - Game Last Updated Date
-
-v5.0:
-- New Shield Icon
-- Final Stability fixes
-
-v4.8:
-- Added Server ID & Game Version
-- Fixed Start Game Glow Persistence
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
 
 VersionBtn.MouseButton1Click:Connect(function()
-    -- Hide all pages
     for n, data in pairs(Pages) do
         data.Page.Visible = false
         if data.Btn then
             doTween(data.Btn, {TextColor3 = CurrentTheme.subtext, BackgroundColor3 = CurrentTheme.base})
         end
     end
-    -- Show secret page
     ChangelogPage.Visible = true
-    
-    -- Animate Header
     TitleLabel.Text = "Changelog"
-    doTween(TitleLabel, {Position = UDim2.new(0.5, 15, 0.5, 0)}) -- Slide title right
+    doTween(TitleLabel, {Position = UDim2.new(0.5, 15, 0.5, 0)}) 
     HeaderBackBtn.Visible = true
-    doTween(HeaderBackBtn, {ImageTransparency = 0}, 0.3) -- Fade arrow in
+    doTween(HeaderBackBtn, {ImageTransparency = 0}, 0.3) 
 end)
 
 CreateSection(InfoTab, "CREDITS")
@@ -1435,14 +1485,13 @@ ToggleIcon.Name = "ToggleIcon"
 ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = CurrentTheme.base
--- [FIX] High Contrast Shield Icon + Theme Text Color
 ToggleIcon.Image = "rbxassetid://3944676352" -- Shield Icon
 ToggleIcon.ImageColor3 = CurrentTheme.text 
 ToggleIcon.Visible = true 
 ToggleIcon.ZIndex = 1000 
 ToggleIcon.Parent = gui
 RegisterThemeObj(ToggleIcon, "BackgroundColor3", "base")
-RegisterThemeObj(ToggleIcon, "ImageColor3", "text") -- Ensure icon color updates
+RegisterThemeObj(ToggleIcon, "ImageColor3", "text") 
 
 local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 12); tc.Parent = ToggleIcon
 local ts = Instance.new("UIStroke"); ts.Color = CurrentTheme.stroke; ts.Thickness = 1.5; ts.Parent = ToggleIcon
@@ -1470,4 +1519,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v5.2 (Final Polish)")
+print("Loot Hero [Alpha] - v5.3 (Final UI Polish)")
