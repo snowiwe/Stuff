@@ -1,10 +1,11 @@
 --[[ 
-    LOOT HERO [ALPHA] v5.4
+    LOOT HERO [ALPHA] v5.2
     --------------------------------------------------
-    - NEW: Joyful, Full-Screen Elastic Intro.
-    - NEW: Bouncy animations for Header Buttons.
-    - UPDATE: Changelog Title is now the Main Header.
-    - REMOVED: Rewards Section.
+    - NEW: "Quit Game" Button (Danger Zone).
+    - NEW: "Disable Animations" Toggle.
+    - NEW: "Show Memory" in Monitoring.
+    - UPDATE: Themed FPS/Ping/Memory Overlay.
+    - UPDATE: Smooth Header Animations for Changelog.
     - LOGIC: Auto Collect, Store, Live ESP.
     --------------------------------------------------
 ]]
@@ -18,7 +19,7 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local MarketplaceService = game:GetService("MarketplaceService")
-local Stats = game:GetService("Stats")
+local Stats = game:GetService("Stats") -- [NEW] For Memory
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
@@ -29,7 +30,7 @@ local SCALE_FACTOR = isMobile and 1.2 or 1.0
 
 local DRAGGABLE_DEFAULT = true
 local NOTIFICATIONS_DEFAULT = true
-local ANIMATIONS_DEFAULT = true 
+local ANIMATIONS_DEFAULT = true -- Default True
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
@@ -100,6 +101,7 @@ local DESC_FONT = Enum.Font.SourceSans
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
+local AutoClaimEnabled = false
 local EspEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
@@ -110,7 +112,7 @@ local Minimized = true
 
 local MonitorFPS = false
 local MonitorPing = false
-local MonitorMem = false 
+local MonitorMem = false -- [NEW]
 
 local ActiveCheats = { 
     InfHealth = false, 
@@ -125,7 +127,7 @@ local EspHighlights = {}
 local EspConnection = nil
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, RewardRemote
 task.spawn(function()
     pcall(function()
         Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
@@ -135,6 +137,7 @@ task.spawn(function()
             MoneyRemote = Remotes:WaitForChild("Money", 3)
             StartRemote = Remotes:WaitForChild("Start", 3)
             PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
+            RewardRemote = Remotes:WaitForChild("Reward", 3)
         end
     end)
     if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
@@ -142,12 +145,11 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v5_4"
+gui.Name = "LootHero_v5_2"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.IgnoreGuiInset = true -- [NEW] Full Screen for Intro
 
 if SCALE_FACTOR ~= 1 then
     local scaler = Instance.new("UIScale")
@@ -198,38 +200,25 @@ local function UpdateTheme(themeName)
     end
 end
 
--- // 8. ANIMATION UTILS //
-local function doTween(obj, props, time, style)
+-- // 8. ANIMATION & INTRO //
+local function doTween(obj, props, time)
     if not AnimationsEnabled then
         for k,v in pairs(props) do obj[k] = v end
         return
     end
-    TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+    TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
-local function PlayJoyfulClick(btn)
-    if not AnimationsEnabled then return end
-    -- Initial Shrink
-    local originalSize = btn.Size
-    local smallSize = UDim2.new(originalSize.X.Scale, originalSize.X.Offset * 0.8, originalSize.Y.Scale, originalSize.Y.Offset * 0.8)
-    TweenService:Create(btn, TweenInfo.new(0.1), {Size = smallSize}):Play()
-    -- Bouncy Expand
-    task.delay(0.1, function()
-        TweenService:Create(btn, TweenInfo.new(0.4, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = originalSize}):Play()
-    end)
-end
-
--- [NEW] Updated Intro
 local function PlayIntro()
     if not AnimationsEnabled then return end
     local IntroFrame = Instance.new("Frame")
-    IntroFrame.Size = UDim2.fromScale(1,1) -- Full Screen
+    IntroFrame.Size = UDim2.fromScale(1,1)
     IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     IntroFrame.ZIndex = 500
     IntroFrame.Parent = gui
     
     local BarBG = Instance.new("Frame")
-    BarBG.Size = UDim2.new(0, 220, 0, 8)
+    BarBG.Size = UDim2.new(0, 200, 0, 6)
     BarBG.Position = UDim2.fromScale(0.5, 0.55)
     BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
     BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
@@ -245,7 +234,7 @@ local function PlayIntro()
     local Logo = Instance.new("TextLabel")
     Logo.Text = "Loot Hero"
     Logo.Font = Enum.Font.GothamBlack
-    Logo.TextSize = 42 -- Bigger
+    Logo.TextSize = 32
     Logo.TextColor3 = CurrentTheme.text
     Logo.Position = UDim2.fromScale(0.5, 0.45)
     Logo.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -253,24 +242,16 @@ local function PlayIntro()
     Logo.TextTransparency = 1
     Logo.Parent = IntroFrame
     
-    -- Animation Sequence
-    -- 1. Logo Pops In (Elastic)
-    Logo.TextTransparency = 0
-    Logo.UIScale.Scale = 0
-    local scale = Instance.new("UIScale", Logo)
-    TweenService:Create(scale, TweenInfo.new(0.8, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    TweenService:Create(Logo, TweenInfo.new(1), {TextTransparency = 0}):Play()
+    TweenService:Create(BarFill, TweenInfo.new(1.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = UDim2.new(1,0,1,0)}):Play()
+    
+    task.wait(1.8)
+    TweenService:Create(IntroFrame, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(Logo, TweenInfo.new(0.5), {TextTransparency = 1}):Play()
+    TweenService:Create(BarBG, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(BarFill, TweenInfo.new(0.5), {BackgroundTransparency = 1}):Play()
     
     task.wait(0.5)
-    
-    -- 2. Bar Fills
-    TweenService:Create(BarFill, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(1,0,1,0)}):Play()
-    
-    task.wait(1.5)
-    
-    -- 3. Slide Up (Joyful Exit)
-    TweenService:Create(IntroFrame, TweenInfo.new(0.6, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0,0,-1,0)}):Play()
-    
-    task.wait(0.6)
     IntroFrame:Destroy()
 end
 
@@ -318,11 +299,11 @@ local function Notify(text, color)
     end)
 end
 
--- // 10. MONITOR OVERLAY //
+-- // 10. MONITOR OVERLAY (THEMED) //
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
+MonitorUI.Size = UDim2.new(0, 100, 0, 0) -- Auto resize
 MonitorUI.Position = UDim2.new(1, -110, 0, 10) 
-MonitorUI.BackgroundColor3 = CurrentTheme.base 
+MonitorUI.BackgroundColor3 = CurrentTheme.base -- [NEW] Themed BG
 MonitorUI.BackgroundTransparency = 0.2
 MonitorUI.Visible = false
 MonitorUI.Parent = gui
@@ -434,16 +415,16 @@ TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundTransparency = 1
 TopBar.Parent = MainFrame
 
--- [UPDATE] Centered Title, Back Arrow to Left
+-- [UPDATE] Header Elements: Arrow & Title
 local BackArrowBtn = Instance.new("ImageButton")
 BackArrowBtn.Name = "BackArrow"
 BackArrowBtn.Size = UDim2.new(0, 24, 0, 24)
-BackArrowBtn.Position = UDim2.new(0, 15, 0.5, 0) 
+BackArrowBtn.Position = UDim2.new(0, 10, 0.5, 0) -- Left side
 BackArrowBtn.AnchorPoint = Vector2.new(0, 0.5)
 BackArrowBtn.BackgroundTransparency = 1
-BackArrowBtn.Image = "rbxassetid://6031094670" -- Arrow
+BackArrowBtn.Image = "rbxassetid://6031094670" -- Arrow Left
 BackArrowBtn.ImageColor3 = CurrentTheme.text
-BackArrowBtn.ImageTransparency = 1 -- Hidden initially
+BackArrowBtn.ImageTransparency = 1 -- Hidden by default
 BackArrowBtn.Visible = false
 BackArrowBtn.Parent = TopBar
 RegisterThemeObj(BackArrowBtn, "ImageColor3", "text")
@@ -454,7 +435,7 @@ TitleLabel.Font = UI_FONT
 TitleLabel.TextSize = 18
 TitleLabel.TextColor3 = CurrentTheme.text
 TitleLabel.Size = UDim2.new(1, -100, 1, 0)
-TitleLabel.Position = UDim2.new(0.5, 0, 0.5, 0) -- Perfectly centered
+TitleLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
 TitleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.BackgroundTransparency = 1
@@ -472,21 +453,6 @@ MinBtn.Position = UDim2.new(1, -50, 0, 0)
 MinBtn.BackgroundTransparency = 1
 MinBtn.Parent = TopBar
 RegisterThemeObj(MinBtn, "TextColor3", "subtext")
-
--- Joyful Clicks
-MinBtn.MouseButton1Click:Connect(function()
-    PlayJoyfulClick(MinBtn)
-    Minimized = not Minimized
-    MinBtn.Text = Minimized and "+" or "-"
-    
-    if Minimized then
-        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = CLOSED_SIZE}):Play()
-        ContentArea.Visible = false
-    else
-        ContentArea.Visible = true
-        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = OPEN_SIZE}):Play()
-    end
-end)
 
 -- // CONTENT AREA //
 local ContentArea = Instance.new("Frame")
@@ -515,6 +481,20 @@ PageContainer.Size = UDim2.new(1, -10, 1, -45)
 PageContainer.Position = UDim2.new(0, 5, 0, 40)
 PageContainer.BackgroundTransparency = 1
 PageContainer.Parent = ContentArea
+
+-- // MINIMIZE LOGIC //
+MinBtn.MouseButton1Click:Connect(function()
+    Minimized = not Minimized
+    MinBtn.Text = Minimized and "+" or "-"
+    
+    if Minimized then
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = CLOSED_SIZE}):Play()
+        ContentArea.Visible = false
+    else
+        ContentArea.Visible = true
+        TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = OPEN_SIZE}):Play()
+    end
+end)
 
 -- // TAB LOGIC //
 local Pages = {}
@@ -722,23 +702,12 @@ local function CreateButton(parent, title, desc, callback)
     local function setExecutedStyle()
         doTween(s, {Color = CurrentTheme.success}, 0.5)
         doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
-        TitleL.Text = title .. "  ✓"
-    end
-    
-    local function setDangerStyle()
-        doTween(s, {Color = CurrentTheme.danger}, 0.5)
-        doTween(TitleL, {TextColor3 = CurrentTheme.danger}, 0.5)
-    end
-    
-    local function resetStyle()
-        doTween(s, {Color = CurrentTheme.stroke}, 0.5)
-        doTween(TitleL, {TextColor3 = CurrentTheme.text}, 0.5)
     end
     
     Btn.MouseButton1Click:Connect(function()
         doTween(Btn, {Size = UDim2.new(1, -12, 0, 48)}, 0.1)
         task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
-        callback(setExecutedStyle, setDangerStyle, resetStyle, TitleL)
+        callback(setExecutedStyle)
     end)
     return Btn 
 end
@@ -881,7 +850,7 @@ end
 CreateSection(MainTab, "GAME LOOP")
 
 -- [FIXED] Start Game Button with Locking Glow
-StartGameBtnRef = CreateButton(MainTab, "Start Game", "Begins the match instantly", function(success, danger, reset, label)
+StartGameBtnRef = CreateButton(MainTab, "Start Game", "Begins the match instantly", function(updateStyle)
     if ActiveCheats.StartGame then
         Notify("Game Already Started!", CurrentTheme.warning)
         return
@@ -891,7 +860,7 @@ StartGameBtnRef = CreateButton(MainTab, "Start Game", "Begins the match instantl
         StartRemote:FireServer()
         Notify("Game Started!", CurrentTheme.success)
         ActiveCheats.StartGame = true
-        success() -- Lock Green with Checkmark
+        updateStyle()
     end
 end)
 
@@ -939,7 +908,7 @@ CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChes
 end)
 
 local buyDebounce = false
-CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", function(success, danger, reset, label)
+CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", function()
     if buyDebounce then return end
     buyDebounce = true
     
@@ -947,19 +916,9 @@ CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest (1s CD)", fu
         local args = { SelectedChest, 2.133333444595337 }
         PurchaseRemote:InvokeServer(unpack(args))
         Notify("Bought: "..SelectedChest, CurrentTheme.success)
-        
-        -- Animation
-        local originalText = label.Text
-        label.TextColor3 = CurrentTheme.warning
-        
-        for i = 10, 1, -1 do
-            label.Text = "Cooldown ("..(i/10).."s)"
-            task.wait(0.1)
-        end
-        
-        label.Text = originalText
-        label.TextColor3 = CurrentTheme.text
     end
+    
+    task.wait(1)
     buyDebounce = false
 end)
 
@@ -975,7 +934,7 @@ end)
 
 CreateSection(MainTab, "STATS")
 
-CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", function(success, danger, reset)
+CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", function(updateStyle)
     if ChoiceRemote then
         if ActiveCheats.InfHealth then
             Notify("Health Already Added!", CurrentTheme.warning)
@@ -983,12 +942,12 @@ CreateButton(MainTab, "Inf Health", "Spams Tower 1000x (Must be Lvl 2+)", functi
             ActiveCheats.InfHealth = true
             for i = 1, 1000 do ChoiceRemote:FireServer("Tower") end
             Notify("Added Infinite Health!", CurrentTheme.success)
-            success()
+            updateStyle()
         end
     end
 end)
 
-CreateButton(MainTab, "Inf Damage", "Spams Giant 100x (Must be Lvl 2+)", function(success, danger, reset)
+CreateButton(MainTab, "Inf Damage", "Spams Giant 100x (Must be Lvl 2+)", function(updateStyle)
     if ChoiceRemote then
         if ActiveCheats.InfDamage then
             Notify("Damage Already Added!", CurrentTheme.warning)
@@ -996,12 +955,12 @@ CreateButton(MainTab, "Inf Damage", "Spams Giant 100x (Must be Lvl 2+)", functio
             ActiveCheats.InfDamage = true
             for i = 1, 100 do ChoiceRemote:FireServer("Giant") end
             Notify("Added Infinite Damage!", CurrentTheme.success)
-            success()
+            updateStyle()
         end
     end
 end)
 
-CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x (Must be Lvl 2+)", function(success, danger, reset)
+CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x (Must be Lvl 2+)", function(updateStyle)
     if ChoiceRemote then
         if ActiveCheats.InfSpeed then
             Notify("Speed Already Added!", CurrentTheme.warning)
@@ -1009,12 +968,12 @@ CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x (Must be Lvl 2+)",
             ActiveCheats.InfSpeed = true
             for i = 1, 100 do ChoiceRemote:FireServer("Trident") end
             Notify("Added Attack Speed!", CurrentTheme.success)
-            success()
+            updateStyle()
         end
     end
 end)
 
-CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function(success, danger, reset)
+CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function(updateStyle)
     if ChoiceRemote then
         if ActiveCheats.InfLuck then
             Notify("Luck Already Added!", CurrentTheme.warning)
@@ -1022,7 +981,7 @@ CreateButton(MainTab, "Inf Luck", "Spams Spades 100x (Must be Lvl 2+)", function
             ActiveCheats.InfLuck = true
             for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
             Notify("Added Infinite Luck!", CurrentTheme.success)
-            success()
+            updateStyle()
         end
     end
 end)
@@ -1052,16 +1011,6 @@ CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false
     else
         Notify("Low Performance Mode Off", CurrentTheme.danger)
     end
-end)
-
--- [NEW] Disable Particles
-CreateToggle(SettingsTab, "Disable Particles", "Removes particles for FPS", false, function(value)
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") then
-            v.Enabled = not value
-        end
-    end
-    Notify(value and "Particles Disabled" or "Particles Enabled", value and CurrentTheme.success or CurrentTheme.danger)
 end)
 
 CreateToggle(SettingsTab, "ESP", "Highlight Players/Enemies", false, function(value)
@@ -1108,6 +1057,7 @@ CreateToggle(SettingsTab, "Hide User Profile", "Shows 'Unknown' in Info", true, 
     if _G.UpdateProfileInfo then _G.UpdateProfileInfo() end 
 end)
 
+-- [NEW] Disable Animations Toggle
 CreateToggle(SettingsTab, "Disable Animations", "Makes UI instant", false, function(value)
     AnimationsEnabled = not value
 end)
@@ -1130,18 +1080,24 @@ end)
 
 CreateSection(SettingsTab, "DANGER ZONE")
 
--- [NEW] Destroy UI (Tap Counter)
+-- [NEW] Quit Game
+local quitConfirm = false
+CreateButton(SettingsTab, "Quit Game", "Click twice to confirm", function()
+    if not quitConfirm then
+        quitConfirm = true
+        Notify("Are you sure? Click again.", CurrentTheme.warning)
+        task.delay(3, function() quitConfirm = false end)
+    else
+        game:Shutdown()
+    end
+end)
+
 local destroyConfirm = false
-CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(success, danger, reset, label)
+CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", function()
     if not destroyConfirm then
         destroyConfirm = true
-        danger() -- Turn Red
-        label.Text = "Confirm (1/2)"
-        task.delay(3, function() 
-            destroyConfirm = false 
-            reset()
-            label.Text = "Destroy UI"
-        end)
+        Notify("Are you sure? Click again.", CurrentTheme.warning)
+        task.delay(3, function() destroyConfirm = false end)
     else
         GodModeEnabled = false
         AutoCollectEnabled = false
@@ -1150,23 +1106,6 @@ CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(su
         if EspConnection then EspConnection:Disconnect() end
         for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
         gui:Destroy()
-    end
-end)
-
--- [NEW] Quit Game (Tap Counter + Below Destroy)
-local quitConfirm = false
-CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success, danger, reset, label)
-    if not quitConfirm then
-        quitConfirm = true
-        danger() -- Turn Red
-        label.Text = "Confirm (1/2)"
-        task.delay(3, function() 
-            quitConfirm = false 
-            reset()
-            label.Text = "Quit Game"
-        end)
-    else
-        game:Shutdown()
     end
 end)
 
@@ -1320,7 +1259,7 @@ task.spawn(function()
 end)
 
 -- Version Click for Secret UI (Clean Text)
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.4")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.2")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1339,7 +1278,7 @@ ChangelogTitle.TextXAlignment = Enum.TextXAlignment.Center -- Centered Title
 ChangelogTitle.Parent = ChangelogPage
 RegisterThemeObj(ChangelogTitle, "TextColor3", "accent")
 
--- [NEW] Header Back Arrow Logic
+-- [NEW] Header Back Arrow (Left of Header)
 local HeaderBackBtn = Instance.new("ImageButton")
 HeaderBackBtn.Name = "HeaderBack"
 HeaderBackBtn.Size = UDim2.new(0, 24, 0, 24)
@@ -1354,7 +1293,6 @@ HeaderBackBtn.Parent = TopBar
 RegisterThemeObj(HeaderBackBtn, "ImageColor3", "text")
 
 HeaderBackBtn.MouseButton1Click:Connect(function()
-    PlayJoyfulClick(HeaderBackBtn) -- Joyful Click
     -- Go Back
     ChangelogPage.Visible = false
     Pages["Info"].Page.Visible = true
@@ -1370,7 +1308,7 @@ end)
 
 local ChangelogText = Instance.new("TextLabel")
 ChangelogText.Size = UDim2.new(1, -10, 0, 500)
-ChangelogText.Position = UDim2.new(0, 5, 0, 30) 
+ChangelogText.Position = UDim2.new(0, 5, 0, 30) -- Offset below header
 ChangelogText.BackgroundTransparency = 1
 ChangelogText.TextColor3 = CurrentTheme.text
 ChangelogText.Font = DESC_FONT
@@ -1379,25 +1317,23 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v5.4 (Current):
-- Joyful Full-Screen Intro
-- Joyful Button Animations (Bouncy)
-- Changelog Header Animation
-- Cleaned up Rewards
-
-v5.3:
-- Button Countdown Animations
-- Danger Zone Tap Counter
-- Disable Particles Setting
-
-v5.2:
-- Smooth Header Animations
-- Added Quit Game
+v5.2 (Current):
+- Added Quit Game (Danger Zone)
+- Added "Show Memory" & "Disable Animations"
+- Smooth Header Animations for Changelog
 - Updated Status Badge (Square)
 
 v5.1:
-- Monitoring Overlay (FPS/Ping/Mem)
+- Monitoring Overlay (FPS/Ping)
 - Game Last Updated Date
+
+v5.0:
+- New Shield Icon
+- Final Stability fixes
+
+v4.8:
+- Added Server ID & Game Version
+- Fixed Start Game Glow Persistence
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1506,7 +1442,7 @@ ToggleIcon.Visible = true
 ToggleIcon.ZIndex = 1000 
 ToggleIcon.Parent = gui
 RegisterThemeObj(ToggleIcon, "BackgroundColor3", "base")
-RegisterThemeObj(ToggleIcon, "ImageColor3", "text") 
+RegisterThemeObj(ToggleIcon, "ImageColor3", "text") -- Ensure icon color updates
 
 local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 12); tc.Parent = ToggleIcon
 local ts = Instance.new("UIStroke"); ts.Color = CurrentTheme.stroke; ts.Thickness = 1.5; ts.Parent = ToggleIcon
@@ -1534,4 +1470,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v5.4 (Joyful Update)")
+print("Loot Hero [Alpha] - v5.2 (Final Polish)")
