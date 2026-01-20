@@ -1,9 +1,11 @@
 --[[ 
-    LOOT HERO [ALPHA] v5.0
+    LOOT HERO [ALPHA] v5.1
     --------------------------------------------------
-    - NEW: "Shield" Toggle Icon (Fits Hero theme).
-    - FIXED: Icon visibility and contrast.
-    - PREVIOUS: Server ID, Store, Rewards, Profile.
+    - NEW: FPS & Ping Monitoring Overlay.
+    - UPDATE: Changelog UI (Back Arrow + Centered Title).
+    - UPDATE: Main Title Centered & Square Status Badge.
+    - NEW: "Game Updated" Date in Profile.
+    - LOGIC: Auto Collect, Store, Live ESP.
     --------------------------------------------------
 ]]
 
@@ -15,6 +17,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local MarketplaceService = game:GetService("MarketplaceService") -- [NEW] For Game Info
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
@@ -29,7 +32,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 550)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 580) -- Taller for extra info
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -96,6 +99,7 @@ local DESC_FONT = Enum.Font.SourceSans
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
+local AutoClaimEnabled = false
 local EspEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
@@ -103,6 +107,9 @@ local AnimationsEnabled = ANIMATIONS_DEFAULT
 local MobileBtnDraggable = MOBILE_BTN_DRAG_DEFAULT
 local HideProfileEnabled = HIDE_PROFILE_DEFAULT
 local Minimized = true 
+
+local MonitorFPS = false
+local MonitorPing = false
 
 local ActiveCheats = { 
     InfHealth = false, 
@@ -135,7 +142,7 @@ end)
 
 -- // 6. UI SETUP //
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v5_0"
+gui.Name = "LootHero_v5_1"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -289,7 +296,51 @@ local function Notify(text, color)
     end)
 end
 
--- // 10. MAIN FRAME //
+-- // 10. MONITOR OVERLAY //
+local MonitorUI = Instance.new("Frame")
+MonitorUI.Size = UDim2.new(0, 150, 0, 50)
+MonitorUI.Position = UDim2.new(1, -160, 0, 10) -- Top Right
+MonitorUI.BackgroundTransparency = 1
+MonitorUI.Visible = false
+MonitorUI.Parent = gui
+
+local FpsLabel = Instance.new("TextLabel")
+FpsLabel.Size = UDim2.new(1, 0, 0, 20)
+FpsLabel.BackgroundTransparency = 1
+FpsLabel.TextColor3 = Color3.fromRGB(0, 255, 127)
+FpsLabel.Font = UI_FONT
+FpsLabel.TextStrokeTransparency = 0.5
+FpsLabel.TextSize = 16
+FpsLabel.TextXAlignment = Enum.TextXAlignment.Right
+FpsLabel.Text = "FPS: --"
+FpsLabel.Parent = MonitorUI
+
+local PingLabel = Instance.new("TextLabel")
+PingLabel.Size = UDim2.new(1, 0, 0, 20)
+PingLabel.Position = UDim2.new(0, 0, 0, 20)
+PingLabel.BackgroundTransparency = 1
+PingLabel.TextColor3 = Color3.fromRGB(255, 170, 0)
+PingLabel.Font = UI_FONT
+PingLabel.TextStrokeTransparency = 0.5
+PingLabel.TextSize = 16
+PingLabel.TextXAlignment = Enum.TextXAlignment.Right
+PingLabel.Text = "Ping: --"
+PingLabel.Parent = MonitorUI
+
+RunService.RenderStepped:Connect(function(dt)
+    if MonitorFPS then
+        local fps = math.floor(1/dt)
+        FpsLabel.Text = "FPS: " .. fps
+    end
+    if MonitorPing then
+        -- Approx ping logic
+        local ping = math.floor(Players.LocalPlayer:GetNetworkPing() * 1000) -- Requires modern Roblox API
+        PingLabel.Text = "Ping: " .. ping .. "ms"
+    end
+    MonitorUI.Visible = (MonitorFPS or MonitorPing)
+end)
+
+-- // 11. MAIN FRAME //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
 MainFrame.Size = CLOSED_SIZE 
@@ -325,14 +376,16 @@ TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundTransparency = 1
 TopBar.Parent = MainFrame
 
+-- [UPDATE] Centered Title
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Text = "Loot Hero [Alpha]"
 TitleLabel.Font = UI_FONT 
 TitleLabel.TextSize = 18
 TitleLabel.TextColor3 = CurrentTheme.text
-TitleLabel.Size = UDim2.new(1, -50, 1, 0)
-TitleLabel.Position = UDim2.new(0, 15, 0, 0)
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Size = UDim2.new(1, -100, 1, 0) -- Subtract space for buttons
+TitleLabel.Position = UDim2.new(0.5, 0, 0.5, 0) -- Center Anchor
+TitleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center -- Center Text
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Parent = TopBar
 RegisterThemeObj(TitleLabel, "TextColor3", "text")
@@ -884,6 +937,16 @@ end)
 
 -- // 2. SETTINGS SECTION //
 
+CreateSection(SettingsTab, "MONITORING")
+
+CreateToggle(SettingsTab, "Show FPS", "Toggles FPS Counter", false, function(value)
+    MonitorFPS = value
+end)
+
+CreateToggle(SettingsTab, "Show Ping", "Toggles Ping Counter", false, function(value)
+    MonitorPing = value
+end)
+
 CreateSection(SettingsTab, "PERFORMANCE")
 
 CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false, function(value)
@@ -968,6 +1031,7 @@ destroyBtn = CreateButton(SettingsTab, "Destroy UI", "Click twice to confirm", f
         GodModeEnabled = false
         AutoCollectEnabled = false
         AutoPickEnabled = false
+        AutoClaimEnabled = false
         if EspConnection then EspConnection:Disconnect() end
         for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
         gui:Destroy()
@@ -979,7 +1043,7 @@ end)
 CreateSection(InfoTab, "USER PROFILE")
 
 local ProfileFrame = Instance.new("Frame")
-ProfileFrame.Size = UDim2.new(1, -10, 0, 95) -- [UPDATE] Taller for ID/Version
+ProfileFrame.Size = UDim2.new(1, -10, 0, 115) -- [UPDATE] Taller for ID/Version
 ProfileFrame.BackgroundColor3 = CurrentTheme.base
 ProfileFrame.Parent = InfoTab
 Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
@@ -1029,24 +1093,25 @@ ServerIDL.Size = UDim2.new(1, -70, 0, 15)
 ServerIDL.Position = UDim2.new(0, 70, 0, 44)
 ServerIDL.BackgroundTransparency = 1
 ServerIDL.TextColor3 = CurrentTheme.subtext
+ServerIDL.TextScaled = true -- [FIX] Fit Long IDs
 ServerIDL.Font = DESC_FONT
 ServerIDL.TextSize = 12
 ServerIDL.TextXAlignment = Enum.TextXAlignment.Left
 ServerIDL.Parent = ProfileFrame
 RegisterThemeObj(ServerIDL, "TextColor3", "subtext")
 
-local GameVerL = Instance.new("TextLabel")
-GameVerL.Name = "GameVerL"
-GameVerL.Text = "Game Ver: ..."
-GameVerL.Size = UDim2.new(1, -70, 0, 15)
-GameVerL.Position = UDim2.new(0, 70, 0, 60)
-GameVerL.BackgroundTransparency = 1
-GameVerL.TextColor3 = CurrentTheme.subtext
-GameVerL.Font = DESC_FONT
-GameVerL.TextSize = 12
-GameVerL.TextXAlignment = Enum.TextXAlignment.Left
-GameVerL.Parent = ProfileFrame
-RegisterThemeObj(GameVerL, "TextColor3", "subtext")
+local GameUpdatedL = Instance.new("TextLabel")
+GameUpdatedL.Name = "GameUpdatedL"
+GameUpdatedL.Text = "Updated: ..."
+GameUpdatedL.Size = UDim2.new(1, -70, 0, 15)
+GameUpdatedL.Position = UDim2.new(0, 70, 0, 60)
+GameUpdatedL.BackgroundTransparency = 1
+GameUpdatedL.TextColor3 = CurrentTheme.subtext
+GameUpdatedL.Font = DESC_FONT
+GameUpdatedL.TextSize = 12
+GameUpdatedL.TextXAlignment = Enum.TextXAlignment.Left
+GameUpdatedL.Parent = ProfileFrame
+RegisterThemeObj(GameUpdatedL, "TextColor3", "subtext")
 
 ThemeLabelRef = Instance.new("TextLabel")
 ThemeLabelRef.Text = "Theme: Classic Blue"
@@ -1066,7 +1131,7 @@ _G.UpdateProfileInfo = function()
         NameL.Text = "Hidden User"
         IDL.Text = "ID: Hidden"
         ServerIDL.Text = "Server: Hidden"
-        GameVerL.Text = "Game Ver: Hidden"
+        GameUpdatedL.Text = "Updated: Hidden"
     else
         task.spawn(function()
             local content = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
@@ -1075,7 +1140,16 @@ _G.UpdateProfileInfo = function()
         NameL.Text = player.DisplayName
         IDL.Text = "ID: " .. player.UserId
         ServerIDL.Text = "Server: " .. game.JobId
-        GameVerL.Text = "Game Ver: " .. game.PlaceVersion
+        
+        -- Get Last Update
+        task.spawn(function()
+            pcall(function()
+                local info = MarketplaceService:GetProductInfo(game.PlaceId)
+                -- ISO 8601 string formatting
+                local dateStr = string.sub(info.Updated, 1, 10) -- First 10 chars are YYYY-MM-DD
+                GameUpdatedL.Text = "Updated: " .. dateStr
+            end)
+        end)
     end
 end
 _G.UpdateProfileInfo()
@@ -1088,14 +1162,15 @@ Spacer.Parent = InfoTab
 -- [NEW] Script Info Sub-Section
 CreateSection(InfoTab, "SCRIPT INFO")
 
--- Live Status Badge
+-- Live Status Badge (Square)
 local StatusBadge = Instance.new("Frame")
 StatusBadge.Size = UDim2.new(0,10,0,10)
 StatusBadge.AnchorPoint = Vector2.new(0.5,0.5)
-Instance.new("UICorner", StatusBadge).CornerRadius = UDim.new(1,0)
+Instance.new("UICorner", StatusBadge).CornerRadius = UDim.new(0, 2) -- Slight round square
 Instance.new("UIStroke", StatusBadge).Thickness = 1
 Instance.new("UIStroke", StatusBadge).Color = CurrentTheme.stroke
 
+-- We need to pass the badge as a custom object to CreateInfoLabel
 local StatusFrame = CreateInfoLabel(InfoTab, "Script Status", "Checking...", StatusBadge)
 local function UpdateStatusLabel(text)
     local lbl = StatusFrame:FindFirstChild("TextLabel") 
@@ -1104,7 +1179,6 @@ end
 
 task.spawn(function()
     while gui.Parent do
-        -- [FIXED] Proper reference to theme table
         if ReplicatedStorage:FindFirstChild("Remotes") then
              StatusBadge.BackgroundColor3 = THEMES.Classic.success 
              UpdateStatusLabel("Running")
@@ -1117,7 +1191,7 @@ task.spawn(function()
 end)
 
 -- Version Click for Secret UI (Clean Text)
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.0")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v5.1")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1128,15 +1202,34 @@ VersionBtn.Parent = VersionFrame
 local ChangelogTitle = Instance.new("TextLabel")
 ChangelogTitle.Text = "Changelog"
 ChangelogTitle.Size = UDim2.new(1, -10, 0, 24)
+-- Title Centered with Back Arrow Logic done below
 ChangelogTitle.BackgroundTransparency = 1
 ChangelogTitle.TextColor3 = CurrentTheme.accent
 ChangelogTitle.Font = UI_FONT
-ChangelogTitle.TextSize = 14
+ChangelogTitle.TextSize = 16
+ChangelogTitle.TextXAlignment = Enum.TextXAlignment.Center -- Centered Title
 ChangelogTitle.Parent = ChangelogPage
 RegisterThemeObj(ChangelogTitle, "TextColor3", "accent")
 
+-- Back Arrow Button
+local BackArrow = Instance.new("ImageButton")
+BackArrow.Size = UDim2.new(0, 20, 0, 20)
+BackArrow.Position = UDim2.new(0, 5, 0, 2)
+BackArrow.BackgroundTransparency = 1
+BackArrow.Image = "rbxassetid://6031094670" -- Arrow Left
+BackArrow.ImageColor3 = CurrentTheme.text
+BackArrow.Parent = ChangelogPage
+RegisterThemeObj(BackArrow, "ImageColor3", "text")
+
+BackArrow.MouseButton1Click:Connect(function()
+    ChangelogPage.Visible = false
+    Pages["Info"].Page.Visible = true
+    doTween(Pages["Info"].Btn, {TextColor3 = CurrentTheme.text, BackgroundColor3 = CurrentTheme.banner})
+end)
+
 local ChangelogText = Instance.new("TextLabel")
 ChangelogText.Size = UDim2.new(1, -10, 0, 500)
+ChangelogText.Position = UDim2.new(0, 5, 0, 30) -- Offset below header
 ChangelogText.BackgroundTransparency = 1
 ChangelogText.TextColor3 = CurrentTheme.text
 ChangelogText.Font = DESC_FONT
@@ -1145,35 +1238,22 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v5.0 (Current):
-- New "Shield" Toggle Icon
-- Added Server ID & Game Version
-- Fixed Start Game Glow Persistence
-- Removed Auto Claim & Camera Shake
+v5.1 (Current):
+- Added Performance Monitor (FPS/Ping)
+- Integrated Changelog Header (Arrow/Title)
+- Added Game Last Updated Date
+- Fixed Server ID clipping
 
-v4.9:
-- Icon Visibility Fix
+v5.0:
+- New Shield Icon
+- Final Stability fixes
 
 v4.8:
-- Stability Update & Error Fixes
-
-v4.7:
-- Integrated Changelog Page
-- Improved Status Badge
-
-v4.5 - v4.6:
-- Store (Dropdown + Buy)
-- Live Status Logic
-- Auto Pick Updates
+- Added Server ID & Game Version
+- Fixed Start Game Glow Persistence
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
-
-local BackBtn = CreateButton(ChangelogPage, "Back to Info", "Return to main view", function()
-    ChangelogPage.Visible = false
-    Pages["Info"].Page.Visible = true
-    doTween(Pages["Info"].Btn, {TextColor3 = CurrentTheme.text, BackgroundColor3 = CurrentTheme.banner})
-end)
 
 VersionBtn.MouseButton1Click:Connect(function()
     -- Hide all pages
@@ -1301,4 +1381,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v5.0 (Final Stable)")
+print("Loot Hero [Alpha] - v5.1 (Monitoring & Polish)")
