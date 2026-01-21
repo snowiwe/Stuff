@@ -1,9 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v8.3 (RESTORED)
+    LOOT HERO [ALPHA] v8.6 (PARTY BETA)
     --------------------------------------------------
-    - REVERTED: Back to v8.3 as requested.
-    - FEATURES: Separated God Mode/Health, No Key.
-    - AUTO-OPEN: UI opens automatically after Intro.
+    - NEW: "Join Party" feature added to Main Tab.
+    - BETA: Tagged as [BETA] for testing.
+    - RETAINED: All v8.5 features (No Key, Layout Fix).
     --------------------------------------------------
 ]]
 
@@ -32,7 +32,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 640)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 680) -- Increased height for new section
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -132,7 +132,7 @@ local EspHighlights = {}
 local EspConnection = nil
 
 -- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, JoinRemote
 local RemotesActive = false
 task.spawn(function()
 	pcall(function()
@@ -143,6 +143,7 @@ task.spawn(function()
 			MoneyRemote = Remotes:WaitForChild("Money", 3)
 			StartRemote = Remotes:WaitForChild("Start", 3)
 			PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
+			JoinRemote = Remotes:WaitForChild("Join", 3) -- [NEW] Join Remote
 			RemotesActive = true
 		end
 	end)
@@ -150,12 +151,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v8_3") then
-	PlayerGui.LootHero_v8_3:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v8_6") then
+	PlayerGui.LootHero_v8_6:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v8_3"
+gui.Name = "LootHero_v8_6"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -682,6 +683,55 @@ local function CreateSection(parent, text)
 	return Label
 end
 
+-- [NEW] Custom Input Builder for Party
+local function CreateInput(parent, placeholder, btnText, callback)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -6, 0, 50)
+	Frame.BackgroundColor3 = CurrentTheme.base
+	Frame.Parent = parent
+	RegisterThemeObj(Frame, "BackgroundColor3", "base")
+
+	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
+	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Frame
+	RegisterThemeObj(s, "Color", "stroke")
+
+	local Input = Instance.new("TextBox")
+	Input.Size = UDim2.new(0.65, 0, 0, 30)
+	Input.Position = UDim2.new(0, 10, 0.5, 0)
+	Input.AnchorPoint = Vector2.new(0, 0.5)
+	Input.BackgroundColor3 = Color3.fromRGB(30, 30, 35) -- Slightly darker for input
+	Input.Text = ""
+	Input.PlaceholderText = placeholder
+	Input.TextColor3 = CurrentTheme.text
+	Input.Font = DESC_FONT
+	Input.TextSize = 14
+	Input.Parent = Frame
+	Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 6)
+	RegisterThemeObj(Input, "TextColor3", "text")
+
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.new(0.3, -15, 0, 30)
+	Btn.Position = UDim2.new(1, -10, 0.5, 0)
+	Btn.AnchorPoint = Vector2.new(1, 0.5)
+	Btn.BackgroundColor3 = CurrentTheme.banner
+	Btn.Text = btnText
+	Btn.TextColor3 = CurrentTheme.text
+	Btn.Font = UI_FONT
+	Btn.TextSize = 12
+	Btn.Parent = Frame
+	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+	RegisterThemeObj(Btn, "BackgroundColor3", "banner")
+	RegisterThemeObj(Btn, "TextColor3", "text")
+
+	Btn.MouseButton1Click:Connect(function()
+		doTween(Btn, {Size = UDim2.new(0.28, -15, 0, 28)}, 0.1)
+		task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(0.3, -15, 0, 30)}, 0.1) end)
+		callback(Input.Text, Input)
+	end)
+
+	return Frame
+end
+
 local function CreateToggle(parent, title, desc, default, callback)
 	local Frame = Instance.new("TextButton")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
@@ -721,14 +771,14 @@ local function CreateToggle(parent, title, desc, default, callback)
 
 	local Indicator = Instance.new("Frame")
 	Indicator.Size = UDim2.new(0, 20, 0, 20)
-	Indicator.Position = UDim2.new(1, -30, 0.5, -10)
+	Indicator.Position = UDim2.new(1, -60, 0.5, -10) -- LEFT
 	Indicator.BackgroundColor3 = default and CurrentTheme.success or CurrentTheme.danger
 	Indicator.Parent = Frame
 	Instance.new("UICorner", Indicator).CornerRadius = UDim.new(0, 6)
 
 	local BadgeContainer = Instance.new("Frame")
 	BadgeContainer.Size = UDim2.new(0, 60, 1, 0) 
-	BadgeContainer.Position = UDim2.new(1, -40, 0.5, 0) 
+	BadgeContainer.Position = UDim2.new(1, -5, 0.5, 0) -- RIGHT
 	BadgeContainer.AnchorPoint = Vector2.new(1, 0.5) 
 	BadgeContainer.BackgroundTransparency = 1
 	BadgeContainer.Parent = Frame
@@ -1047,6 +1097,31 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
 	else
 		AutoPickEnabled = false
 		Notify("Auto Pick Disabled", CurrentTheme.danger)
+	end
+end)
+
+-- [NEW] MULTIPLAYER BETA SECTION
+local mpLabel = CreateSection(MainTab, "MULTIPLAYER")
+local betaTag = Instance.new("TextLabel")
+betaTag.Text = "[BETA]"
+betaTag.Font = UI_FONT
+betaTag.TextSize = 12
+betaTag.TextColor3 = CurrentTheme.accent
+betaTag.BackgroundTransparency = 1
+betaTag.Size = UDim2.new(0, 50, 1, 0)
+betaTag.Position = UDim2.new(0, 85, 0, 0) 
+betaTag.TextXAlignment = Enum.TextXAlignment.Left
+betaTag.Parent = mpLabel
+RegisterThemeObj(betaTag, "TextColor3", "accent")
+
+CreateInput(MainTab, "Username to join...", "Join", function(text, box)
+	if text == "" then Notify("Please enter a username!", CurrentTheme.danger); return end
+	if JoinRemote then
+		JoinRemote:InvokeServer(text)
+		Notify("Joining " .. text .. "...", CurrentTheme.success)
+		box.Text = "" 
+	else
+		Notify("Error: Join Remote not found!", THEMES.Classic.danger)
 	end
 end)
 
@@ -1484,7 +1559,6 @@ _G.UpdateProfileInfo = function()
 		IDL.Text = "ID: " .. player.UserId
 		ServerIDL.Text = "Server: " .. game.JobId
 
-		-- [FIXED] SAFE API CALL (NO WARNING)
 		task.spawn(function()
 			pcall(function()
 				local info = MarketplaceService:GetProductInfoAsync(game.PlaceId)
@@ -1533,7 +1607,7 @@ task.spawn(function()
 	end
 end)
 
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v8.5")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v8.3")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1572,15 +1646,14 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v8.5 (Fixed & Clean):
-- FIXED: Global Scope Errors
-- FIXED: Deprecated API
-- NEW: Mobile Settings Section
-- LAYOUT: Reordered Stats
+v8.3 (Separated Health):
+- UPDATE: Max HP separated from God Mode
+- RESTORED: Max HP Toggle
+- POLISH: Larger Warning Text
 
-v8.3:
-- Separated Max HP
-- Stable Build
+v7.6:
+- No Key System
+- Auto-Open
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1720,4 +1793,4 @@ task.delay(3.5, function()
 	ToggleUI(true) -- Force open on load
 end)
 
-print("Loot Hero [Alpha] - v8.5 (Fixed & Re-Layout)")
+print("Loot Hero [Alpha] - v8.3 (Health Separated)")
