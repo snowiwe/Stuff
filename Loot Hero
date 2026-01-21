@@ -1,10 +1,10 @@
 --[[ 
-    LOOT HERO [ALPHA] v8.8 (LIVE PARTY LIST)
+    LOOT HERO [ALPHA] v8.9 (FIXED)
     --------------------------------------------------
+    - FIXED: Buttons no longer stack multiple tick marks.
     - NEW: Live Player Dropdown (Auto-updates).
     - UPDATE: Replaced manual typing with selection.
     - LOGIC: Handles Player Join/Leave events smoothly.
-    - RETAINED: All v8.7 features (God Mode, etc).
     --------------------------------------------------
 ]]
 
@@ -965,6 +965,14 @@ local function CreateButton(parent, title, desc, callback)
 	local function setExecutedStyle()
 		doTween(s, {Color = CurrentTheme.success}, 0.5)
 		doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
+
+		-- // FIXED HERE: Remove previous badges before adding a new one
+		for _, child in ipairs(BadgeContainer:GetChildren()) do
+			if child:IsA("Frame") then
+				child:Destroy()
+			end
+		end
+
 		CreateBadge(BadgeContainer, "✓", CurrentTheme.success, 1)
 		table.insert(LockedButtons, Btn)
 	end
@@ -1908,4 +1916,4 @@ task.delay(3.5, function()
 	ToggleUI() -- Force open on load
 end)
 
-print("Loot Hero [Alpha] - v8.7 (Refined)")
+print("Loot Hero [Alpha] - v8.9 (Fixed)")
