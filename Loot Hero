@@ -1,9 +1,10 @@
 --[[ 
-    LOOT HERO [ALPHA] v8.7 (PARTY UPDATE)
+    LOOT HERO [ALPHA] v8.8 (LIVE PARTY LIST)
     --------------------------------------------------
-    - NEW: Multiplayer Section (Join Party).
-    - NEW: Added "(Be Careful)" warning text.
-    - BASE: Built on v8.3 (Stable, No Key).
+    - NEW: Live Player Dropdown (Auto-updates).
+    - UPDATE: Replaced manual typing with selection.
+    - LOGIC: Handles Player Join/Leave events smoothly.
+    - RETAINED: All v8.7 features (God Mode, etc).
     --------------------------------------------------
 ]]
 
@@ -32,7 +33,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 680) -- Taller for new section
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 700) -- Taller for dropdown
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -128,6 +129,7 @@ local ActiveCheats = {
 }
 
 local SelectedChest = "BasicChest"
+local SelectedPlayer = nil -- [NEW] Target Player for Party
 local EspHighlights = {}
 local EspConnection = nil
 
@@ -143,7 +145,7 @@ task.spawn(function()
 			MoneyRemote = Remotes:WaitForChild("Money", 3)
 			StartRemote = Remotes:WaitForChild("Start", 3)
 			PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
-			JoinRemote = Remotes:WaitForChild("Join", 3) -- [NEW] Join Remote
+			JoinRemote = Remotes:WaitForChild("Join", 3) 
 			RemotesActive = true
 		end
 	end)
@@ -151,12 +153,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v8_7") then
-	PlayerGui.LootHero_v8_7:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v8_8") then
+	PlayerGui.LootHero_v8_8:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v8_7"
+gui.Name = "LootHero_v8_8"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -683,11 +685,12 @@ local function CreateSection(parent, text)
 	return Label
 end
 
--- [NEW] CreateInput Builder
-local function CreateInput(parent, placeholder, btnText, callback)
+-- [NEW] CreatePlayerDropdown Builder (Live Player List)
+local function CreatePlayerDropdown(parent, callback)
 	local Frame = Instance.new("Frame")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
 	Frame.BackgroundColor3 = CurrentTheme.base
+	Frame.ClipsDescendants = true
 	Frame.Parent = parent
 	RegisterThemeObj(Frame, "BackgroundColor3", "base")
 
@@ -695,45 +698,124 @@ local function CreateInput(parent, placeholder, btnText, callback)
 	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Frame
 	RegisterThemeObj(s, "Color", "stroke")
 
-	-- TextBox
-	local Input = Instance.new("TextBox")
-	Input.Size = UDim2.new(0.65, 0, 0, 30)
-	Input.Position = UDim2.new(0, 10, 0.5, 0)
-	Input.AnchorPoint = Vector2.new(0, 0.5)
-	Input.BackgroundColor3 = Color3.fromRGB(30, 30, 35) -- Slightly darker
-	Input.Text = ""
-	Input.PlaceholderText = placeholder
-	Input.TextColor3 = CurrentTheme.text
-	Input.PlaceholderColor3 = CurrentTheme.subtext
-	Input.Font = DESC_FONT
-	Input.TextSize = 14
-	Input.Parent = Frame
-	Instance.new("UICorner", Input).CornerRadius = UDim.new(0, 6)
-	RegisterThemeObj(Input, "TextColor3", "text")
-	RegisterThemeObj(Input, "PlaceholderColor3", "subtext")
+	local ToggleBtn = Instance.new("TextButton")
+	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
+	ToggleBtn.BackgroundTransparency = 1
+	ToggleBtn.Text = ""
+	ToggleBtn.Parent = Frame
 
-	-- Button
-	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(0.3, -15, 0, 30)
-	Btn.Position = UDim2.new(1, -10, 0.5, 0)
-	Btn.AnchorPoint = Vector2.new(1, 0.5)
-	Btn.BackgroundColor3 = CurrentTheme.banner
-	Btn.Text = btnText
-	Btn.TextColor3 = CurrentTheme.text
-	Btn.Font = UI_FONT
-	Btn.TextSize = 12
-	Btn.Parent = Frame
-	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-	RegisterThemeObj(Btn, "BackgroundColor3", "banner")
-	RegisterThemeObj(Btn, "TextColor3", "text")
+	local TitleL = Instance.new("TextLabel")
+	TitleL.Text = "Select Player..."
+	TitleL.Size = UDim2.new(1, -40, 1, 0)
+	TitleL.Position = UDim2.new(0, 12, 0, 0)
+	TitleL.BackgroundTransparency = 1
+	TitleL.TextColor3 = CurrentTheme.text
+	TitleL.Font = UI_FONT
+	TitleL.TextSize = 14
+	TitleL.TextXAlignment = Enum.TextXAlignment.Left
+	TitleL.Parent = ToggleBtn
+	RegisterThemeObj(TitleL, "TextColor3", "text")
 
-	Btn.MouseButton1Click:Connect(function()
-		doTween(Btn, {Size = UDim2.new(0.28, -15, 0, 28)}, 0.1)
-		task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(0.3, -15, 0, 30)}, 0.1) end)
-		callback(Input.Text, Input)
+	local Arrow = Instance.new("ImageLabel")
+	Arrow.Image = "rbxassetid://6031091004"
+	Arrow.Size = UDim2.new(0, 20, 0, 20)
+	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
+	Arrow.BackgroundTransparency = 1
+	Arrow.ImageColor3 = CurrentTheme.subtext
+	Arrow.Parent = ToggleBtn
+	RegisterThemeObj(Arrow, "ImageColor3", "subtext")
+
+	local ListLayout = Instance.new("UIListLayout")
+	ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ListLayout.Padding = UDim.new(0, 5)
+	ListLayout.Parent = Frame
+
+	-- Using ScrollingFrame for players
+	local ItemContainer = Instance.new("ScrollingFrame")
+	ItemContainer.Size = UDim2.new(1, 0, 0, 0) -- H: 0 when closed
+	ItemContainer.BackgroundTransparency = 1
+	ItemContainer.LayoutOrder = 2
+	ItemContainer.Parent = Frame
+	ItemContainer.ScrollBarThickness = 2
+	RegisterThemeObj(ItemContainer, "ScrollBarImageColor3", "subtext")
+
+	local IList = Instance.new("UIListLayout")
+	IList.Padding = UDim.new(0, 5)
+	IList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	IList.Parent = ItemContainer
+
+	local isOpen = false
+
+	local function UpdateList()
+		-- Clear old buttons
+		for _, child in ipairs(ItemContainer:GetChildren()) do
+			if child:IsA("TextButton") then child:Destroy() end
+		end
+
+		local players = Players:GetPlayers()
+		local count = 0
+
+		for _, p in ipairs(players) do
+			if p ~= player then -- Don't add yourself
+				count = count + 1
+				local OptBtn = Instance.new("TextButton")
+				OptBtn.Size = UDim2.new(0.9, 0, 0, 30)
+				OptBtn.BackgroundColor3 = CurrentTheme.banner
+				OptBtn.Text = p.Name
+				OptBtn.TextColor3 = CurrentTheme.text
+				OptBtn.Font = DESC_FONT
+				OptBtn.TextSize = 12
+				OptBtn.Parent = ItemContainer
+				RegisterThemeObj(OptBtn, "BackgroundColor3", "banner")
+				RegisterThemeObj(OptBtn, "TextColor3", "text")
+				local oc = Instance.new("UICorner"); oc.CornerRadius = UDim.new(0, 6); oc.Parent = OptBtn
+
+				OptBtn.MouseButton1Click:Connect(function()
+					callback(p.Name)
+					TitleL.Text = "Player: " .. p.Name
+					isOpen = false
+					TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = 0}):Play()
+					TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
+				end)
+			end
+		end
+
+		-- Update Canvas Size
+		ItemContainer.CanvasSize = UDim2.new(0, 0, 0, count * 35)
+
+		-- If open, update frame height
+		if isOpen then
+			local listHeight = math.min(count * 35, 150) -- Max 150px height
+			TweenService:Create(ItemContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, listHeight)}):Play()
+			TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50 + listHeight + 10)}):Play()
+		end
+	end
+
+	ToggleBtn.MouseButton1Click:Connect(function()
+		isOpen = not isOpen
+		TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = isOpen and 180 or 0}):Play()
+
+		if isOpen then
+			UpdateList() -- Refresh list when opening
+		else
+			TweenService:Create(ItemContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
+			TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
+		end
 	end)
 
-	return Frame
+	-- Live Listeners
+	Players.PlayerAdded:Connect(function() if isOpen then UpdateList() end end)
+	Players.PlayerRemoving:Connect(function() if isOpen then UpdateList() end end)
+
+	-- [NEW] Leaver detection logic
+	Players.PlayerRemoving:Connect(function(removedPlayer)
+		if SelectedPlayer and removedPlayer.Name == SelectedPlayer then
+			SelectedPlayer = nil
+			TitleL.Text = "Select Player..."
+			callback(nil) -- Reset selection in main logic
+			Notify("Target Left: " .. removedPlayer.Name, CurrentTheme.danger)
+		end
+	end)
 end
 
 local function CreateToggle(parent, title, desc, default, callback)
@@ -775,14 +857,14 @@ local function CreateToggle(parent, title, desc, default, callback)
 
 	local Indicator = Instance.new("Frame")
 	Indicator.Size = UDim2.new(0, 20, 0, 20)
-	Indicator.Position = UDim2.new(1, -30, 0.5, -10)
+	Indicator.Position = UDim2.new(1, -60, 0.5, -10) -- LEFT
 	Indicator.BackgroundColor3 = default and CurrentTheme.success or CurrentTheme.danger
 	Indicator.Parent = Frame
 	Instance.new("UICorner", Indicator).CornerRadius = UDim.new(0, 6)
 
 	local BadgeContainer = Instance.new("Frame")
 	BadgeContainer.Size = UDim2.new(0, 60, 1, 0) 
-	BadgeContainer.Position = UDim2.new(1, -40, 0.5, 0) 
+	BadgeContainer.Position = UDim2.new(1, -5, 0.5, 0) -- RIGHT
 	BadgeContainer.AnchorPoint = Vector2.new(1, 0.5) 
 	BadgeContainer.BackgroundTransparency = 1
 	BadgeContainer.Parent = Frame
@@ -1056,6 +1138,7 @@ CreateButton(MainTab, "Start Game", "Begins the match instantly", function(succe
 	end
 end)
 
+-- [FIXED] Updated to 0.25s speed (Safer)
 CreateToggle(MainTab, "Auto Collect", "Collects Gold, Sapphire & Amethyst", false, function(value)
 	if value then
 		if not MoneyRemote then
@@ -1103,7 +1186,7 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
 	end
 end)
 
--- [NEW] MULTIPLAYER SECTION WITH BETA TAG
+-- [NEW] MULTIPLAYER BETA SECTION
 local mpLabel = CreateSection(MainTab, "MULTIPLAYER")
 local betaTag = Instance.new("TextLabel")
 betaTag.Text = "[BETA]"
@@ -1131,19 +1214,28 @@ warnMP.TextXAlignment = Enum.TextXAlignment.Left
 warnMP.Parent = mpLabel
 RegisterThemeObj(warnMP, "TextColor3", "warning")
 
--- Custom Input for Join Party
-CreateInput(MainTab, "Username to join...", "Join", function(text, box)
-	if text == "" then 
-		Notify("Please enter a username!", CurrentTheme.danger) 
-		return 
+-- [NEW] LIVE PLAYER DROPDOWN
+CreatePlayerDropdown(MainTab, function(username)
+	SelectedPlayer = username
+end)
+
+-- Join Button
+CreateButton(MainTab, "Join Party", "Joins Selected Player", function(success, danger, reset, label)
+	if not SelectedPlayer then
+		Notify("Please select a player first!", CurrentTheme.danger)
+		danger()
+		task.delay(1, reset)
+		return
 	end
 
 	if JoinRemote then
-		JoinRemote:InvokeServer(text)
-		Notify("Joining " .. text .. "...", CurrentTheme.success)
-		box.Text = "" -- Clear input after joining
+		JoinRemote:InvokeServer(SelectedPlayer)
+		Notify("Joining " .. SelectedPlayer .. "...", CurrentTheme.success)
+		success()
+		task.delay(2, reset) -- Reset button state after 2s
 	else
 		Notify("Error: Join Remote not found!", THEMES.Classic.danger)
+		danger()
 	end
 end)
 
@@ -1414,6 +1506,7 @@ CreateToggle(SettingsTab, "Draggable UI", "Allows dragging the window", true, fu
 end)
 
 if isMobile then
+	CreateSection(SettingsTab, "MOBILE EXCLUSIVE")
 	CreateToggle(SettingsTab, "Draggable Button", "Move the toggle button", false, function(value)
 		MobileBtnDraggable = value
 		Notify(value and "Button Dragging Enabled" or "Button Dragging Disabled", CurrentTheme.success)
@@ -1583,7 +1676,7 @@ _G.UpdateProfileInfo = function()
 		-- [FIXED] SAFE API CALL (NO WARNING)
 		task.spawn(function()
 			pcall(function()
-				local info = MarketplaceService:GetProductInfo(game.PlaceId)
+				local info = MarketplaceService:GetProductInfoAsync(game.PlaceId)
 				local dateStr = string.sub(info.Updated, 1, 10)
 				GameUpdatedL.Text = "Updated: " .. dateStr
 			end)
@@ -1629,7 +1722,7 @@ task.spawn(function()
 	end
 end)
 
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v8.7")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v8.8")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1668,8 +1761,8 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v8.7 (Party Beta):
-- NEW: Join Party feature added
+v8.8 (Party Beta):
+- NEW: Live Party List
 - UPDATE: [BETA] tag on Multiplayer
 - POLISH: Neater input UI
 
@@ -1815,4 +1908,4 @@ task.delay(3.5, function()
 	ToggleUI() -- Force open on load
 end)
 
-print("Loot Hero [Alpha] - v8.7 (Party Update)")
+print("Loot Hero [Alpha] - v8.7 (Refined)")
