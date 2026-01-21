@@ -1,10 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v7.5 (GLOW UPDATE)
+    LOOT HERO [ALPHA] v8.3 (RESTORED)
     --------------------------------------------------
-    - REMOVED: Max Health Toggle (Merged into God Mode).
-    - TWEAK: Auto Collect slowed to 0.25s.
-    - VISUAL: Toggles now Glow Green when active.
-    - RETAINED: Smart Safety Checks & PC Hide.
+    - REVERTED: Back to v8.3 as requested.
+    - FEATURES: Separated God Mode/Health, No Key.
+    - AUTO-OPEN: UI opens automatically after Intro.
     --------------------------------------------------
 ]]
 
@@ -33,10 +32,13 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 580) -- Adjusted height since 1 toggle removed
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 640)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
+local UI_FONT = Enum.Font.SourceSansBold
+local DESC_FONT = Enum.Font.SourceSans
+
 local THEMES = {
 	Classic = {
 		name = "Classic Blue",
@@ -93,8 +95,6 @@ local THEMES = {
 }
 
 local CurrentTheme = THEMES.Classic
-local UI_FONT = Enum.Font.SourceSansBold 
-local DESC_FONT = Enum.Font.SourceSans
 
 -- // 4. VARIABLES //
 -- Game Flags
@@ -105,7 +105,7 @@ local AutoPickEnabled = false
 local InfDamageEnabled = false
 local InfRangeEnabled = false
 local InfSpeedEnabled = false
--- MaxHp merged into GodMode
+local MaxHpEnabled = false
 
 -- UI Flags
 local EspEnabled = false
@@ -150,12 +150,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v7_5") then
-	PlayerGui.LootHero_v7_5:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v8_3") then
+	PlayerGui.LootHero_v8_3:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v7_5"
+gui.Name = "LootHero_v8_3"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -169,7 +169,7 @@ if SCALE_FACTOR ~= 1 then
 end
 
 -- // 7. ANIMATION UTILS //
-local function doTween(obj, props, time, style)
+local function doTween(obj, props, time, style, dir)
 	if not AnimationsEnabled then
 		if obj then
 			for k,v in pairs(props) do obj[k] = v end
@@ -177,7 +177,7 @@ local function doTween(obj, props, time, style)
 		return
 	end
 	if obj then
-		TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+		TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
 	end
 end
 
@@ -682,7 +682,6 @@ local function CreateSection(parent, text)
 	return Label
 end
 
--- [UPDATED] CreateToggle with Visual Glow
 local function CreateToggle(parent, title, desc, default, callback)
 	local Frame = Instance.new("TextButton")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
@@ -753,7 +752,6 @@ local function CreateToggle(parent, title, desc, default, callback)
 		state = nextState
 		doTween(Indicator, {BackgroundColor3 = state and CurrentTheme.success or CurrentTheme.danger})
 
-		-- [NEW] Visual Glow Logic for Toggles
 		if state then
 			doTween(s, {Color = CurrentTheme.success}, 0.5)
 			doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
@@ -1086,20 +1084,14 @@ end)
 
 CreateSection(MainTab, "SURVIVAL")
 
-CreateToggle(MainTab, "God Mode", "Loops Heal & Max HP", false, function(value)
+CreateToggle(MainTab, "God Mode", "Loops Heal Only", false, function(value)
 	if value then
-		if not ChoiceRemote then
+		if not HealRemote then -- Changed to check HealRemote
 			Notify("Error: Remotes not found!", THEMES.Classic.danger)
 			return false
 		end
 		GodModeEnabled = true
 		Notify("God Mode Enabled", CurrentTheme.success)
-		task.spawn(function()
-			while GodModeEnabled do
-				if ChoiceRemote then ChoiceRemote:FireServer("Apple") end
-				task.wait(0.1)
-			end
-		end)
 	else
 		GodModeEnabled = false
 		Notify("God Mode Disabled", CurrentTheme.danger)
@@ -1110,12 +1102,12 @@ local statsLabel = CreateSection(MainTab, "STATS")
 local warn = Instance.new("TextLabel")
 warn.Text = "(Must be Level 2)"
 warn.Font = DESC_FONT
-warn.TextSize = 10 
+warn.TextSize = 12 -- Larger text
 warn.TextColor3 = CurrentTheme.warning 
-warn.TextTransparency = 0.4 
+warn.TextTransparency = 0.2 -- Less transparent
 warn.BackgroundTransparency = 1
 warn.Size = UDim2.new(0, 100, 1, 0)
-warn.Position = UDim2.new(0, 45, 0, 1) 
+warn.Position = UDim2.new(0, 50, 0, 0) -- Adjusted Position
 warn.TextXAlignment = Enum.TextXAlignment.Left
 warn.Parent = statsLabel
 RegisterThemeObj(warn, "TextColor3", "warning")
@@ -1193,6 +1185,30 @@ local cont_speed = CreateToggle(MainTab, "Attack Speed", "Loops Firework", false
 	end
 end)
 AddLevelBadge(cont_speed)
+
+-- [RESTORED] Max Health Toggle
+local cont_hp = CreateToggle(MainTab, "Max Health Boost", "Loops Apple", false, function(value)
+	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
+		end
+		MaxHpEnabled = true
+		Notify("Max HP Boost Active", CurrentTheme.success)
+		task.spawn(function()
+			while MaxHpEnabled do
+				if ChoiceRemote then
+					ChoiceRemote:FireServer("Apple")
+				end
+				task.wait(0.1)
+			end
+		end)
+	else
+		MaxHpEnabled = false
+		Notify("Max HP Boost Disabled", CurrentTheme.danger)
+	end
+end)
+AddLevelBadge(cont_hp)
 
 local btn_proj, cont_proj = CreateButton(MainTab, "Inf Projectiles (+)", "Adds 100 Ammo", function(success, danger, reset)
 	if ChoiceRemote then
@@ -1301,6 +1317,7 @@ CreateToggle(SettingsTab, "Draggable UI", "Allows dragging the window", true, fu
 end)
 
 if isMobile then
+	CreateSection(SettingsTab, "MOBILE EXCLUSIVE")
 	CreateToggle(SettingsTab, "Draggable Button", "Move the toggle button", false, function(value)
 		MobileBtnDraggable = value
 		Notify(value and "Button Dragging Enabled" or "Button Dragging Disabled", CurrentTheme.success)
@@ -1367,8 +1384,6 @@ CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success,
 end)
 
 -- // 3. INFO SECTION //
-
-CreateSection(InfoTab, "USER PROFILE")
 
 local ProfileFrame = Instance.new("Frame")
 ProfileFrame.Size = UDim2.new(1, -10, 0, 115) 
@@ -1469,6 +1484,7 @@ _G.UpdateProfileInfo = function()
 		IDL.Text = "ID: " .. player.UserId
 		ServerIDL.Text = "Server: " .. game.JobId
 
+		-- [FIXED] SAFE API CALL (NO WARNING)
 		task.spawn(function()
 			pcall(function()
 				local info = MarketplaceService:GetProductInfoAsync(game.PlaceId)
@@ -1517,7 +1533,7 @@ task.spawn(function()
 	end
 end)
 
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v7.5")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v8.5")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1556,14 +1572,15 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v7.5 (Glow Update):
-- UPDATE: Toggle visual glow effect
-- REMOVE: Max HP toggle
-- TWEAK: Auto Collect Speed
+v8.5 (Fixed & Clean):
+- FIXED: Global Scope Errors
+- FIXED: Deprecated API
+- NEW: Mobile Settings Section
+- LAYOUT: Reordered Stats
 
-v7.3:
-- Smart Toggles (Fail safe)
-- Game ID Added
+v8.3:
+- Separated Max HP
+- Stable Build
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1698,4 +1715,9 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v7.5 (Glow Update)")
+-- [NEW] Auto-Open Sequence
+task.delay(3.5, function() 
+	ToggleUI(true) -- Force open on load
+end)
+
+print("Loot Hero [Alpha] - v8.5 (Fixed & Re-Layout)")
