@@ -1,9 +1,10 @@
 --[[ 
-    LOOT HERO [ALPHA] v7.3 (SMART TOGGLES)
+    LOOT HERO [ALPHA] v7.5 (GLOW UPDATE)
     --------------------------------------------------
-    - FIXED: Toggles stay OFF (Red) if remotes fail.
-    - NEW: Added "Game ID" to Script Info.
-    - RETAINED: All PC/Mobile features from v7.2.
+    - REMOVED: Max Health Toggle (Merged into God Mode).
+    - TWEAK: Auto Collect slowed to 0.25s.
+    - VISUAL: Toggles now Glow Green when active.
+    - RETAINED: Smart Safety Checks & PC Hide.
     --------------------------------------------------
 ]]
 
@@ -32,7 +33,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 620)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 580) -- Adjusted height since 1 toggle removed
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -104,7 +105,7 @@ local AutoPickEnabled = false
 local InfDamageEnabled = false
 local InfRangeEnabled = false
 local InfSpeedEnabled = false
-local MaxHpEnabled = false
+-- MaxHp merged into GodMode
 
 -- UI Flags
 local EspEnabled = false
@@ -149,12 +150,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v7_3") then
-	PlayerGui.LootHero_v7_3:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v7_5") then
+	PlayerGui.LootHero_v7_5:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v7_3"
+gui.Name = "LootHero_v7_5"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -681,6 +682,7 @@ local function CreateSection(parent, text)
 	return Label
 end
 
+-- [UPDATED] CreateToggle with Visual Glow
 local function CreateToggle(parent, title, desc, default, callback)
 	local Frame = Instance.new("TextButton")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
@@ -744,13 +746,21 @@ local function CreateToggle(parent, title, desc, default, callback)
 
 	Frame.MouseButton1Click:Connect(function()
 		local nextState = not state
-		-- [FIXED] Smart Toggle - If callback returns false, cancel toggle
 		local success = callback(nextState) 
 		if success == false then
 			return 
 		end
 		state = nextState
 		doTween(Indicator, {BackgroundColor3 = state and CurrentTheme.success or CurrentTheme.danger})
+
+		-- [NEW] Visual Glow Logic for Toggles
+		if state then
+			doTween(s, {Color = CurrentTheme.success}, 0.5)
+			doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
+		else
+			doTween(s, {Color = CurrentTheme.stroke}, 0.5)
+			doTween(TitleL, {TextColor3 = CurrentTheme.text}, 0.5)
+		end
 	end)
 
 	return BadgeContainer 
@@ -994,9 +1004,14 @@ CreateButton(MainTab, "Start Game", "Begins the match instantly", function(succe
 	end
 end)
 
+-- [FIXED] Updated to 0.25s speed (Safer)
 CreateToggle(MainTab, "Auto Collect", "Collects Gold, Sapphire & Amethyst", false, function(value)
-	AutoCollectEnabled = value
-	if AutoCollectEnabled then
+	if value then
+		if not MoneyRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
+		end
+		AutoCollectEnabled = true
 		Notify("Auto Collect Enabled", CurrentTheme.success)
 		task.spawn(function()
 			while AutoCollectEnabled do
@@ -1005,17 +1020,22 @@ CreateToggle(MainTab, "Auto Collect", "Collects Gold, Sapphire & Amethyst", fals
 					MoneyRemote:FireServer("Gold")
 					MoneyRemote:FireServer("Amethyst") 
 				end
-				task.wait(0.2) 
+				task.wait(0.25) -- Safe Speed
 			end
 		end)
 	else
+		AutoCollectEnabled = false
 		Notify("Auto Collect Disabled", CurrentTheme.danger)
 	end
 end)
 
 CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(value)
-	AutoPickEnabled = value
-	if AutoPickEnabled then
+	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
+		end
+		AutoPickEnabled = true
 		Notify("Auto Pick Enabled", CurrentTheme.success)
 		task.spawn(function()
 			while AutoPickEnabled do
@@ -1027,6 +1047,7 @@ CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(v
 			end
 		end)
 	else
+		AutoPickEnabled = false
 		Notify("Auto Pick Disabled", CurrentTheme.danger)
 	end
 end)
@@ -1066,8 +1087,12 @@ end)
 CreateSection(MainTab, "SURVIVAL")
 
 CreateToggle(MainTab, "God Mode", "Loops Heal & Max HP", false, function(value)
-	GodModeEnabled = value
 	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
+		end
+		GodModeEnabled = true
 		Notify("God Mode Enabled", CurrentTheme.success)
 		task.spawn(function()
 			while GodModeEnabled do
@@ -1076,6 +1101,7 @@ CreateToggle(MainTab, "God Mode", "Loops Heal & Max HP", false, function(value)
 			end
 		end)
 	else
+		GodModeEnabled = false
 		Notify("God Mode Disabled", CurrentTheme.danger)
 	end
 end)
@@ -1098,12 +1124,11 @@ local function AddLevelBadge(container)
 	return CreateBadge(container, "2+", CurrentTheme.banner, 2)
 end
 
--- [FIXED] Smart Toggles return false on failure
 local cont_dmg = CreateToggle(MainTab, "Inf Damage", "Loops Skull & Toxin", false, function(value)
 	if value then
 		if not ChoiceRemote then
 			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false -- Cancel toggle
+			return false 
 		end
 		InfDamageEnabled = true
 		Notify("Inf Damage Active", CurrentTheme.success)
@@ -1168,29 +1193,6 @@ local cont_speed = CreateToggle(MainTab, "Attack Speed", "Loops Firework", false
 	end
 end)
 AddLevelBadge(cont_speed)
-
-local cont_hp = CreateToggle(MainTab, "Max Health Boost", "Loops Apple", false, function(value)
-	if value then
-		if not ChoiceRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		MaxHpEnabled = true
-		Notify("Max HP Boost Active", CurrentTheme.success)
-		task.spawn(function()
-			while MaxHpEnabled do
-				if ChoiceRemote then
-					ChoiceRemote:FireServer("Apple")
-				end
-				task.wait(0.1)
-			end
-		end)
-	else
-		MaxHpEnabled = false
-		Notify("Max HP Boost Disabled", CurrentTheme.danger)
-	end
-end)
-AddLevelBadge(cont_hp)
 
 local btn_proj, cont_proj = CreateButton(MainTab, "Inf Projectiles (+)", "Adds 100 Ammo", function(success, danger, reset)
 	if ChoiceRemote then
@@ -1515,7 +1517,7 @@ task.spawn(function()
 	end
 end)
 
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v7.3")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v7.5")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1554,14 +1556,14 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v7.3 (Smart Update):
-- FIX: Toggles refuse to enable if remotes missing
-- NEW: Added Game ID info
-- POLISH: Status badge and toggle safety
+v7.5 (Glow Update):
+- UPDATE: Toggle visual glow effect
+- REMOVE: Max HP toggle
+- TWEAK: Auto Collect Speed
 
-v7.1:
-- God Mode Buff
-- Divine Chest
+v7.3:
+- Smart Toggles (Fail safe)
+- Game ID Added
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1696,4 +1698,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v7.3 (Smart Toggles)")
+print("Loot Hero [Alpha] - v7.5 (Glow Update)")
