@@ -1,9 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v8.9 (FIXED)
+    LOOT HERO [ALPHA] v9.2 (TOGGLE FIX)
     --------------------------------------------------
+    - FIXED: Toggles and badges now correctly aligned on the right.
     - FIXED: Buttons no longer stack multiple tick marks.
     - NEW: Live Player Dropdown (Auto-updates).
-    - UPDATE: Replaced manual typing with selection.
     - LOGIC: Handles Player Join/Leave events smoothly.
     --------------------------------------------------
 ]]
@@ -33,7 +33,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 700) -- Taller for dropdown
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 700) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -153,12 +153,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v8_8") then
-	PlayerGui.LootHero_v8_8:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v9_2") then
+	PlayerGui.LootHero_v9_2:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v8_8"
+gui.Name = "LootHero_v9_2"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -857,14 +857,14 @@ local function CreateToggle(parent, title, desc, default, callback)
 
 	local Indicator = Instance.new("Frame")
 	Indicator.Size = UDim2.new(0, 20, 0, 20)
-	Indicator.Position = UDim2.new(1, -60, 0.5, -10) -- LEFT
+	Indicator.Position = UDim2.new(1, -40, 0.5, -10) -- LEFT
 	Indicator.BackgroundColor3 = default and CurrentTheme.success or CurrentTheme.danger
 	Indicator.Parent = Frame
 	Instance.new("UICorner", Indicator).CornerRadius = UDim.new(0, 6)
 
 	local BadgeContainer = Instance.new("Frame")
 	BadgeContainer.Size = UDim2.new(0, 60, 1, 0) 
-	BadgeContainer.Position = UDim2.new(1, -5, 0.5, 0) -- RIGHT
+	BadgeContainer.Position = UDim2.new(1, -50, 0.5, 0) -- RIGHT
 	BadgeContainer.AnchorPoint = Vector2.new(1, 0.5) 
 	BadgeContainer.BackgroundTransparency = 1
 	BadgeContainer.Parent = Frame
@@ -1916,4 +1916,4 @@ task.delay(3.5, function()
 	ToggleUI() -- Force open on load
 end)
 
-print("Loot Hero [Alpha] - v8.9 (Fixed)")
+print("Loot Hero [Alpha] - v9.2 (Toggle Fix)")
