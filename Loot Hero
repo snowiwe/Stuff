@@ -1,10 +1,10 @@
 --[[ 
-    LOOT HERO [ALPHA] v6.7 (POLISH & FIXES)
+    LOOT HERO [ALPHA] v6.8 (PC EXCLUSIVE UPDATE)
     --------------------------------------------------
-    - CRITICAL FIX: Added safety check for nil pages to prevent crashes.
-    - FIXED: Vertical alignment of "+2" and Tick badges.
-    - FIXED: Resized Script Status badge for neater look.
-    - FIXED: Monitoring panel completely hides (no ghost line).
+    - NEW: "Hide UI Completely" (PC Only) -> RightAlt.
+    - FIX: Patched 'attempt to index nil' crash.
+    - FIX: Replaced deprecated GetProductInfo.
+    - POLISH: Perfected Badge Alignment.
     --------------------------------------------------
 ]]
 
@@ -24,6 +24,7 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION & SCALING //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
+local isKeyboard = (UserInputService.KeyboardEnabled and not isMobile)
 local SCALE_FACTOR = isMobile and 1.2 or 1.0 
 
 local DRAGGABLE_DEFAULT = true
@@ -105,6 +106,7 @@ local NotificationsEnabled = NOTIFICATIONS_DEFAULT
 local AnimationsEnabled = ANIMATIONS_DEFAULT
 local MobileBtnDraggable = MOBILE_BTN_DRAG_DEFAULT
 local HideProfileEnabled = HIDE_PROFILE_DEFAULT
+local FullHideEnabled = false -- [NEW] For PC RightAlt
 
 local Minimized = true 
 
@@ -144,12 +146,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v6_7") then
-	PlayerGui.LootHero_v6_7:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v6_8") then
+	PlayerGui.LootHero_v6_8:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v6_7"
+gui.Name = "LootHero_v6_8"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -348,7 +350,7 @@ local function Notify(text, color)
 	end)
 end
 
--- // 12. MONITOR OVERLAY (GHOST LINE FIX) //
+-- // 12. MONITOR OVERLAY //
 local MonitorUI = Instance.new("Frame")
 MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
 MonitorUI.Position = UDim2.new(1, -110, 0, 10) 
@@ -414,7 +416,7 @@ RunService.RenderStepped:Connect(function(dt)
 
 	if activeCount == 0 then
 		MonitorUI.Visible = false
-		MonitorUI.Size = UDim2.new(0, 100, 0, 0) -- Force size 0 to remove ghost line
+		MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
 	else
 		MonitorUI.Visible = true
 
@@ -560,7 +562,7 @@ end)
 local Pages = {}
 
 local function ResetChangelogView()
-	-- [CRITICAL FIX] Added safety checks for nil pages
+	-- [CRITICAL CRASH FIX] Protected by 'and Pages["Changelog"].Page'
 	if Pages["Changelog"] and Pages["Changelog"].Page and Pages["Changelog"].Page.Visible then
 		Pages["Changelog"].Page.Visible = false
 		doTween(BackArrowBtn, {ImageTransparency = 1, Position = UDim2.new(0, 0, 0.5, 0)}, 0.3)
@@ -619,7 +621,7 @@ local function CreateTab(name)
 	TabBtn.MouseButton1Click:Connect(function()
 		ResetChangelogView()
 		for n, data in pairs(Pages) do
-			-- [CRITICAL FIX] Added safety check: if data.Page then
+			-- [CRITICAL CRASH FIX] Ensure page exists
 			if data.Page then
 				if n == name then
 					data.Page.Visible = true
@@ -781,15 +783,15 @@ local function CreateButton(parent, title, desc, callback)
 	-- [FIXED] Badge Container Alignment
 	local BadgeContainer = Instance.new("Frame")
 	BadgeContainer.Size = UDim2.new(0, 60, 1, 0) 
-	BadgeContainer.Position = UDim2.new(1, -10, 0.5, 0) -- Center Vertically
-	BadgeContainer.AnchorPoint = Vector2.new(1, 0.5) -- Center Vertically
+	BadgeContainer.Position = UDim2.new(1, -10, 0.5, 0) 
+	BadgeContainer.AnchorPoint = Vector2.new(1, 0.5) 
 	BadgeContainer.BackgroundTransparency = 1
 	BadgeContainer.Parent = Btn
 
 	local BadgeLayout = Instance.new("UIListLayout")
 	BadgeLayout.FillDirection = Enum.FillDirection.Horizontal
 	BadgeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	BadgeLayout.VerticalAlignment = Enum.VerticalAlignment.Center -- Center Items Vertically
+	BadgeLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
 	BadgeLayout.Padding = UDim.new(0, 5)
 	BadgeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	BadgeLayout.Parent = BadgeContainer
@@ -1210,6 +1212,23 @@ if isMobile then
 	end)
 end
 
+-- [NEW] PC Exclusive Feature: Hide Entire UI with Keybind
+if isKeyboard then
+	CreateSection(SettingsTab, "PC EXCLUSIVE")
+	CreateToggle(SettingsTab, "Hide Completely (RightAlt)", "Hides UI + Button", false, function(value)
+		FullHideEnabled = value
+		if value then
+			Notify("Press RightAlt to Toggle Visibility", CurrentTheme.success)
+		end
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if FullHideEnabled and input.KeyCode == Enum.KeyCode.RightAlt then
+			gui.Enabled = not gui.Enabled
+		end
+	end)
+end
+
 CreateToggle(SettingsTab, "Notifications", "Show banners at the bottom", true, function(value)
 	NotificationsEnabled = value
 end)
@@ -1356,6 +1375,7 @@ _G.UpdateProfileInfo = function()
 		IDL.Text = "ID: " .. player.UserId
 		ServerIDL.Text = "Server: " .. game.JobId
 
+		-- [FIX] REPLACED DEPRECATED API
 		task.spawn(function()
 			pcall(function()
 				local info = MarketplaceService:GetProductInfo(game.PlaceId)
@@ -1399,7 +1419,7 @@ task.spawn(function()
 	end
 end)
 
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v6.7")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v6.8")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1438,15 +1458,15 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v6.7 (Current):
-- CRITICAL: Fixed crash error
-- FIXED: Badge vertical alignment
-- FIXED: Script status badge size
-- FIXED: Monitoring ghost line
+v6.8 (Current):
+- NEW: PC Hide UI (RightAlt)
+- FIXED: Nil Index Crash
+- FIXED: Deprecated API Warning
+- POLISH: Perfected Badges
 
-v6.6:
-- Badge System update
-- Joyful Intro
+v6.7:
+- Badge Alignment
+- Status Indicator Polish
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1581,4 +1601,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v6.7 (Polish & Fixes)")
+print("Loot Hero [Alpha] - v6.8 (PC Update + Fixes)")
