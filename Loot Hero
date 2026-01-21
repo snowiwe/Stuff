@@ -1,9 +1,9 @@
 --[[ 
-    LOOT HERO [ALPHA] v6.9 (LEVEL 2 INFO UPDATE)
+    LOOT HERO [ALPHA] v7.3 (SMART TOGGLES)
     --------------------------------------------------
-    - NEW: Added "(Must be Level 2)" text to Stats header.
-    - POLISH: Warning text creates contrast with header.
-    - RETAINED: All PC/Mobile features & Fixes from v6.8.
+    - FIXED: Toggles stay OFF (Red) if remotes fail.
+    - NEW: Added "Game ID" to Script Info.
+    - RETAINED: All PC/Mobile features from v7.2.
     --------------------------------------------------
 ]]
 
@@ -32,7 +32,7 @@ local ANIMATIONS_DEFAULT = true
 local MOBILE_BTN_DRAG_DEFAULT = false
 local HIDE_PROFILE_DEFAULT = true
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 580)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 620)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME & FONTS //
@@ -96,9 +96,17 @@ local UI_FONT = Enum.Font.SourceSansBold
 local DESC_FONT = Enum.Font.SourceSans
 
 -- // 4. VARIABLES //
+-- Game Flags
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
+-- New Stats Flags
+local InfDamageEnabled = false
+local InfRangeEnabled = false
+local InfSpeedEnabled = false
+local MaxHpEnabled = false
+
+-- UI Flags
 local EspEnabled = false
 local DraggableEnabled = DRAGGABLE_DEFAULT
 local NotificationsEnabled = NOTIFICATIONS_DEFAULT
@@ -115,10 +123,6 @@ local MonitorMem = false
 local MonitorRemotes = false
 
 local ActiveCheats = { 
-	InfHealth = false, 
-	InfDamage = false, 
-	InfSpeed = false, 
-	InfLuck = false,
 	StartGame = false 
 }
 
@@ -145,12 +149,12 @@ task.spawn(function()
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v6_9") then
-	PlayerGui.LootHero_v6_9:Destroy()
+if PlayerGui:FindFirstChild("LootHero_v7_3") then
+	PlayerGui.LootHero_v7_3:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v6_9"
+gui.Name = "LootHero_v7_3"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.Enabled = true
@@ -674,7 +678,7 @@ local function CreateSection(parent, text)
 	Label.TextXAlignment = Enum.TextXAlignment.Left
 	Label.Parent = parent
 	RegisterThemeObj(Label, "TextColor3", "accent")
-	return Label -- [NEW] Return label so we can parent children to it
+	return Label
 end
 
 local function CreateToggle(parent, title, desc, default, callback)
@@ -721,13 +725,35 @@ local function CreateToggle(parent, title, desc, default, callback)
 	Indicator.Parent = Frame
 	Instance.new("UICorner", Indicator).CornerRadius = UDim.new(0, 6)
 
+	local BadgeContainer = Instance.new("Frame")
+	BadgeContainer.Size = UDim2.new(0, 60, 1, 0) 
+	BadgeContainer.Position = UDim2.new(1, -40, 0.5, 0) 
+	BadgeContainer.AnchorPoint = Vector2.new(1, 0.5) 
+	BadgeContainer.BackgroundTransparency = 1
+	BadgeContainer.Parent = Frame
+
+	local BadgeLayout = Instance.new("UIListLayout")
+	BadgeLayout.FillDirection = Enum.FillDirection.Horizontal
+	BadgeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	BadgeLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
+	BadgeLayout.Padding = UDim.new(0, 5)
+	BadgeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	BadgeLayout.Parent = BadgeContainer
+
 	local state = default
 
 	Frame.MouseButton1Click:Connect(function()
-		state = not state
+		local nextState = not state
+		-- [FIXED] Smart Toggle - If callback returns false, cancel toggle
+		local success = callback(nextState) 
+		if success == false then
+			return 
+		end
+		state = nextState
 		doTween(Indicator, {BackgroundColor3 = state and CurrentTheme.success or CurrentTheme.danger})
-		callback(state)
 	end)
+
+	return BadgeContainer 
 end
 
 local function CreateButton(parent, title, desc, callback)
@@ -1007,7 +1033,7 @@ end)
 
 CreateSection(MainTab, "STORE")
 
-CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest"}, function(option)
+CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest", "DivineChest"}, function(option)
 	SelectedChest = option
 end)
 
@@ -1039,25 +1065,31 @@ end)
 
 CreateSection(MainTab, "SURVIVAL")
 
-CreateToggle(MainTab, "God Mode", "Constant Heal + Def", false, function(value)
+CreateToggle(MainTab, "God Mode", "Loops Heal & Max HP", false, function(value)
 	GodModeEnabled = value
-	if GodModeEnabled and ChoiceRemote then
-		task.spawn(function() for i = 1, 1000 do ChoiceRemote:FireServer("Tower") end end)
+	if value then
+		Notify("God Mode Enabled", CurrentTheme.success)
+		task.spawn(function()
+			while GodModeEnabled do
+				if ChoiceRemote then ChoiceRemote:FireServer("Apple") end
+				task.wait(0.1)
+			end
+		end)
+	else
+		Notify("God Mode Disabled", CurrentTheme.danger)
 	end
-	Notify(GodModeEnabled and "God Mode Enabled" or "God Mode Disabled", GodModeEnabled and CurrentTheme.success or CurrentTheme.danger)
 end)
 
--- [NEW] STATS SECTION HEADER with LEVEL 2 WARNING
 local statsLabel = CreateSection(MainTab, "STATS")
--- Create the warning text
 local warn = Instance.new("TextLabel")
 warn.Text = "(Must be Level 2)"
 warn.Font = DESC_FONT
-warn.TextSize = 11
-warn.TextColor3 = CurrentTheme.warning -- Use warning color
+warn.TextSize = 10 
+warn.TextColor3 = CurrentTheme.warning 
+warn.TextTransparency = 0.4 
 warn.BackgroundTransparency = 1
 warn.Size = UDim2.new(0, 100, 1, 0)
-warn.Position = UDim2.new(0, 45, 0, 0) -- Position right after "STATS"
+warn.Position = UDim2.new(0, 45, 0, 1) 
 warn.TextXAlignment = Enum.TextXAlignment.Left
 warn.Parent = statsLabel
 RegisterThemeObj(warn, "TextColor3", "warning")
@@ -1066,69 +1098,121 @@ local function AddLevelBadge(container)
 	return CreateBadge(container, "2+", CurrentTheme.banner, 2)
 end
 
-local btn1, cont1 = CreateButton(MainTab, "Inf Health", "Spams Tower 1000x", function(success, danger, reset)
-	if ChoiceRemote then
-		if ActiveCheats.InfHealth then
-			Notify("Health Already Added!", CurrentTheme.warning)
-		else
-			ActiveCheats.InfHealth = true
-			for i = 1, 1000 do ChoiceRemote:FireServer("Tower") end
-			Notify("Added Infinite Health!", CurrentTheme.success)
-			success()
+-- [FIXED] Smart Toggles return false on failure
+local cont_dmg = CreateToggle(MainTab, "Inf Damage", "Loops Skull & Toxin", false, function(value)
+	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false -- Cancel toggle
 		end
+		InfDamageEnabled = true
+		Notify("Inf Damage Active", CurrentTheme.success)
+		task.spawn(function()
+			while InfDamageEnabled do
+				if ChoiceRemote then
+					ChoiceRemote:FireServer("Skull")
+					ChoiceRemote:FireServer("Toxin")
+				end
+				task.wait(0.1)
+			end
+		end)
 	else
-		Notify("Error: Remotes not found!", THEMES.Classic.danger)
+		InfDamageEnabled = false
+		Notify("Inf Damage Disabled", CurrentTheme.danger)
 	end
 end)
-AddLevelBadge(cont1)
+AddLevelBadge(cont_dmg)
 
-local btn2, cont2 = CreateButton(MainTab, "Inf Damage", "Spams Giant 100x", function(success, danger, reset)
-	if ChoiceRemote then
-		if ActiveCheats.InfDamage then
-			Notify("Damage Already Added!", CurrentTheme.warning)
-		else
-			ActiveCheats.InfDamage = true
-			for i = 1, 100 do ChoiceRemote:FireServer("Giant") end
-			Notify("Added Infinite Damage!", CurrentTheme.success)
-			success()
+local cont_range = CreateToggle(MainTab, "Inf Range", "Loops Trident", false, function(value)
+	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
 		end
+		InfRangeEnabled = true
+		Notify("Inf Range Active", CurrentTheme.success)
+		task.spawn(function()
+			while InfRangeEnabled do
+				if ChoiceRemote then
+					ChoiceRemote:FireServer("Trident")
+				end
+				task.wait(0.1)
+			end
+		end)
 	else
-		Notify("Error: Remotes not found!", THEMES.Classic.danger)
+		InfRangeEnabled = false
+		Notify("Inf Range Disabled", CurrentTheme.danger)
 	end
 end)
-AddLevelBadge(cont2)
+AddLevelBadge(cont_range)
 
-local btn3, cont3 = CreateButton(MainTab, "Inf Attack Speed", "Spams Trident 100x", function(success, danger, reset)
-	if ChoiceRemote then
-		if ActiveCheats.InfSpeed then
-			Notify("Speed Already Added!", CurrentTheme.warning)
-		else
-			ActiveCheats.InfSpeed = true
-			for i = 1, 100 do ChoiceRemote:FireServer("Trident") end
-			Notify("Added Attack Speed!", CurrentTheme.success)
-			success()
+local cont_speed = CreateToggle(MainTab, "Attack Speed", "Loops Firework", false, function(value)
+	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
 		end
+		InfSpeedEnabled = true
+		Notify("Attack Speed Active", CurrentTheme.success)
+		task.spawn(function()
+			while InfSpeedEnabled do
+				if ChoiceRemote then
+					ChoiceRemote:FireServer("Firework")
+				end
+				task.wait(0.1)
+			end
+		end)
 	else
-		Notify("Error: Remotes not found!", THEMES.Classic.danger)
+		InfSpeedEnabled = false
+		Notify("Attack Speed Disabled", CurrentTheme.danger)
 	end
 end)
-AddLevelBadge(cont3)
+AddLevelBadge(cont_speed)
 
-local btn4, cont4 = CreateButton(MainTab, "Inf Luck", "Spams Spades 100x", function(success, danger, reset)
-	if ChoiceRemote then
-		if ActiveCheats.InfLuck then
-			Notify("Luck Already Added!", CurrentTheme.warning)
-		else
-			ActiveCheats.InfLuck = true
-			for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
-			Notify("Added Infinite Luck!", CurrentTheme.success)
-			success()
+local cont_hp = CreateToggle(MainTab, "Max Health Boost", "Loops Apple", false, function(value)
+	if value then
+		if not ChoiceRemote then
+			Notify("Error: Remotes not found!", THEMES.Classic.danger)
+			return false
 		end
+		MaxHpEnabled = true
+		Notify("Max HP Boost Active", CurrentTheme.success)
+		task.spawn(function()
+			while MaxHpEnabled do
+				if ChoiceRemote then
+					ChoiceRemote:FireServer("Apple")
+				end
+				task.wait(0.1)
+			end
+		end)
+	else
+		MaxHpEnabled = false
+		Notify("Max HP Boost Disabled", CurrentTheme.danger)
+	end
+end)
+AddLevelBadge(cont_hp)
+
+local btn_proj, cont_proj = CreateButton(MainTab, "Inf Projectiles (+)", "Adds 100 Ammo", function(success, danger, reset)
+	if ChoiceRemote then
+		for i = 1, 100 do ChoiceRemote:FireServer("Ammo") end
+		Notify("Added 100 Ammo!", CurrentTheme.success)
+		success()
 	else
 		Notify("Error: Remotes not found!", THEMES.Classic.danger)
 	end
 end)
-AddLevelBadge(cont4)
+AddLevelBadge(cont_proj)
+
+local btn_luck, cont_luck = CreateButton(MainTab, "Inf Luck", "Spams Spades 100x", function(success, danger, reset)
+	if ChoiceRemote then
+		for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
+		Notify("Added Infinite Luck!", CurrentTheme.success)
+		success()
+	else
+		Notify("Error: Remotes not found!", THEMES.Classic.danger)
+	end
+end)
+AddLevelBadge(cont_luck)
 
 -- // 2. SETTINGS SECTION //
 
@@ -1221,7 +1305,6 @@ if isMobile then
 	end)
 end
 
--- [NEW] PC Exclusive Feature: Hide Entire UI with Keybind
 if isKeyboard then
 	CreateSection(SettingsTab, "PC EXCLUSIVE")
 	CreateToggle(SettingsTab, "Hide Completely (RightAlt)", "Hides UI + Button", false, function(value)
@@ -1386,7 +1469,7 @@ _G.UpdateProfileInfo = function()
 
 		task.spawn(function()
 			pcall(function()
-				local info = MarketplaceService:GetProductInfo(game.PlaceId)
+				local info = MarketplaceService:GetProductInfoAsync(game.PlaceId)
 				local dateStr = string.sub(info.Updated, 1, 10)
 				GameUpdatedL.Text = "Updated: " .. dateStr
 			end)
@@ -1403,7 +1486,6 @@ Spacer.Parent = InfoTab
 -- [NEW] Script Info Sub-Section
 CreateSection(InfoTab, "SCRIPT INFO")
 
--- [FIXED] Resized Status Badge for neater look
 local StatusBadge = CreateBadge(nil, "", CurrentTheme.base)
 StatusBadge.Size = UDim2.new(0, 20, 0, 20) 
 StatusBadge.Parent = nil 
@@ -1413,6 +1495,12 @@ local function UpdateStatusLabel(text)
 	local lbl = StatusFrame:FindFirstChild("TextLabel") 
 	if lbl then lbl.Text = text end
 end
+
+-- [NEW] Added Game ID Info
+local GameIdBadge = CreateBadge(nil, "", CurrentTheme.base)
+GameIdBadge.Size = UDim2.new(0, 0, 0, 0) -- Hidden badge, just text
+GameIdBadge.Parent = nil 
+local GameIdFrame = CreateInfoLabel(InfoTab, "Game ID", tostring(game.PlaceId))
 
 task.spawn(function()
 	while gui.Parent do
@@ -1427,7 +1515,7 @@ task.spawn(function()
 	end
 end)
 
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v6.9")
+local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v7.3")
 local VersionBtn = Instance.new("TextButton")
 VersionBtn.Size = UDim2.fromScale(1,1)
 VersionBtn.BackgroundTransparency = 1
@@ -1466,14 +1554,14 @@ ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
 ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
 ChangelogText.TextWrapped = true
 ChangelogText.Text = [[
-v6.9 (Current):
-- NEW: Added Stats Info "(Must be Level 2)"
-- FIXED: Deprecated API Warning
-- FIXED: Monitoring Ghost Line
+v7.3 (Smart Update):
+- FIX: Toggles refuse to enable if remotes missing
+- NEW: Added Game ID info
+- POLISH: Status badge and toggle safety
 
-v6.8:
-- PC Exclusive Hide UI
-- Crash Fixes
+v7.1:
+- God Mode Buff
+- Divine Chest
 ]]
 ChangelogText.Parent = ChangelogPage
 RegisterThemeObj(ChangelogText, "TextColor3", "text")
@@ -1608,4 +1696,4 @@ ToggleIcon.InputChanged:Connect(function(input)
 end)
 
 PlayIntro()
-print("Loot Hero [Alpha] - v6.9 (Level 2 Info Added)")
+print("Loot Hero [Alpha] - v7.3 (Smart Toggles)")
