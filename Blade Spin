@@ -1,10 +1,9 @@
 --[[ 
-    BLADE SPIN [v11.1 - LAG FIXED]
+    BLADE SPIN [v14.0 - ROUND MANAGER]
     --------------------------------------------------
-    - LAG FIX: Optimized XP loop to prevent freezing.
-    - LOGIC: Uses "Smart Burst" (10x per frame).
-    - UI: Exact Loot Hero Framework (Classic Blue).
-    - SETTINGS: Tracers & Double-Tap Destruction.
+    - NEW: "Participate in Round" Toggle (Join/Leave).
+    - INFO: Added Script Version.
+    - BASE: v13.0 (Visual Polish + Buffed XP).
     --------------------------------------------------
 ]]
 
@@ -22,7 +21,7 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.55, 0) or UDim2.new(0, 260, 0, 460) 
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.6, 0) or UDim2.new(0, 260, 0, 500) -- Slightly taller for new section
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME //
@@ -46,36 +45,45 @@ local THEME = {
 -- // 4. VARIABLES //
 local AutoCoins = false
 local AutoXP = false
-local HideProfileEnabled = false 
+local HideProfileEnabled = true 
 local DraggableEnabled = true
 local Minimized = true 
 
 -- Visuals
 local EspTracersEnabled = false
 local TracerCache = {}
+local MAX_TRACER_DIST = 1500
 
 -- Performance Monitors
 local MonitorFPS = false
 local MonitorPing = false
 
--- // 5. REMOTE HANDLER //
+-- // 5. REMOTE HANDLERS //
+-- Handler for Farming (Coins/XP)
 local function GetEvent(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
-	
 	local Events = Holders:WaitForChild("Events", 2)
 	if not Events then return nil end
-	
 	return Events:WaitForChild(name, 2)
 end
 
+-- [NEW] Handler for Game State (Join/Leave Round)
+local function GetRemote(name)
+	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
+	if not Holders then return nil end
+	local Remotes = Holders:WaitForChild("Remotes", 2) -- Different Folder
+	if not Remotes then return nil end
+	return Remotes:WaitForChild(name, 2)
+end
+
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("BladeSpin_Diamond") then
-	PlayerGui.BladeSpin_Diamond:Destroy()
+if PlayerGui:FindFirstChild("BladeSpin_v14") then
+	PlayerGui.BladeSpin_v14:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "BladeSpin_Diamond"
+gui.Name = "BladeSpin_v14"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
@@ -85,10 +93,10 @@ local function doTween(obj, props, time, style, dir)
 	TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
 end
 
--- // 8. ANIMATED PERFORMANCE MONITOR //
+-- // 8. UPDATED PERFORMANCE MONITOR //
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
-MonitorUI.Position = UDim2.new(1, -110, 0, 10) 
+MonitorUI.Size = UDim2.new(0, 120, 0, 0) 
+MonitorUI.Position = UDim2.new(1, -130, 0, 10) 
 MonitorUI.BackgroundColor3 = THEME.base 
 MonitorUI.BackgroundTransparency = 0.2
 MonitorUI.Visible = false
@@ -111,11 +119,11 @@ local function CreateMonitorLabel(text)
 	Container.Parent = MonitorUI
 
 	local Lbl = Instance.new("TextLabel")
-	Lbl.Size = UDim2.new(1, 0, 0, 20)
+	Lbl.Size = UDim2.new(1, 0, 0, 24) 
 	Lbl.BackgroundTransparency = 1
 	Lbl.TextColor3 = THEME.text
-	Lbl.Font = DESC_FONT
-	Lbl.TextSize = 12
+	Lbl.Font = UI_FONT 
+	Lbl.TextSize = 15 
 	Lbl.Text = text
 	Lbl.TextTransparency = 1 
 	Lbl.Parent = Container
@@ -130,7 +138,7 @@ local function AnimateMonitor(container, label, enabled, content)
 	if enabled then
 		label.Text = content
 		if container.Size.Y.Offset == 0 then
-			doTween(container, {Size = UDim2.new(1, 0, 0, 20)}, 0.4, Enum.EasingStyle.Quart)
+			doTween(container, {Size = UDim2.new(1, 0, 0, 24)}, 0.4, Enum.EasingStyle.Quart)
 			doTween(label, {TextTransparency = 0}, 0.3)
 		end
 	else
@@ -146,18 +154,15 @@ RunService.RenderStepped:Connect(function(dt)
 
 	if activeCount == 0 then
 		MonitorUI.Visible = false
-		MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
+		MonitorUI.Size = UDim2.new(0, 120, 0, 0) 
 	else
 		MonitorUI.Visible = true
-		
 		local fpsVal = math.floor(1/dt)
 		AnimateMonitor(FpsCont, FpsLabel, MonitorFPS, "FPS: " .. fpsVal)
-
 		local pingVal = math.floor(player:GetNetworkPing() * 1000)
 		AnimateMonitor(PingCont, PingLabel, MonitorPing, "Ping: " .. pingVal .. "ms")
-
-		local targetH = (activeCount * 20) + 5 
-		doTween(MonitorUI, {Size = UDim2.new(0, 100, 0, targetH)}, 0.4, Enum.EasingStyle.Quart)
+		local targetH = (activeCount * 24) + 6 
+		doTween(MonitorUI, {Size = UDim2.new(0, 120, 0, targetH)}, 0.4, Enum.EasingStyle.Quart)
 	end
 end)
 
@@ -169,7 +174,7 @@ MainFrame.Position = UDim2.new(0.5, - (OPEN_SIZE.X.Offset/2), 0.4, 0)
 MainFrame.BackgroundColor3 = THEME.base 
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
-MainFrame.Visible = false -- Start Hidden
+MainFrame.Visible = false 
 MainFrame.Parent = gui
 
 local MainGrad = Instance.new("UIGradient")
@@ -280,7 +285,6 @@ local function CreateTab(name)
 			if data.Page then
 				if n == name then
 					data.Page.Visible = true
-					-- Slide Up Animation
 					data.Page.CanvasPosition = Vector2.new(0, 10) 
 					TweenService:Create(data.Page, TweenInfo.new(0.3), {CanvasPosition = Vector2.new(0,0)}):Play()
 					
@@ -373,6 +377,14 @@ local function CreateToggle(parent, title, desc, callback)
 	Instance.new("UICorner", Knob).CornerRadius = UDim.new(1,0)
 
 	local state = false
+	if title == "Hide Profile Info" then state = HideProfileEnabled end
+	if state then 
+		SwitchContainer.BackgroundColor3 = THEME.success
+		Knob.Position = UDim2.new(1, -20, 0.5, 0)
+		s.Color = THEME.success
+		TitleL.TextColor3 = THEME.success
+	end
+
 	Frame.MouseButton1Click:Connect(function()
 		state = not state
 		callback(state)
@@ -506,7 +518,6 @@ CreateToggle(MainTab, "Auto Coins", "Loops 100,000 Coins", function(val)
 	end
 end)
 
--- [LAG FIXED] OPTIMIZED XP LOOP
 CreateToggle(MainTab, "Auto XP (Buffed)", "Smart Burst (No Lag)", function(val)
 	AutoXP = val
 	if val then
@@ -514,15 +525,13 @@ CreateToggle(MainTab, "Auto XP (Buffed)", "Smart Burst (No Lag)", function(val)
 			local r = GetEvent("AddXP")
 			while AutoXP do
 				if r then 
-					-- Fires 10 times then waits 1 frame
-					-- 10 times * 60 FPS = 600 Fires/Sec (Very Fast, No Lag)
 					for i = 1, 10 do
-						if not AutoXP then break end -- Immediate Stop
+						if not AutoXP then break end
 						local args = { 100000 } 
 						r:FireServer(unpack(args))
 					end
 				end
-				task.wait() -- Critical yield to prevent freeze
+				task.wait() 
 			end
 		end)
 	end
@@ -548,11 +557,98 @@ CreateButton(MainTab, "Claim All Items", "Unlocks 16 Weapons Instantly", functio
 	end
 end)
 
--- // 12. SETTINGS TAB //
+-- [NEW] GAMEPLAY SECTION (ROUND MANAGER)
+CreateSection(MainTab, "GAMEPLAY & ROUNDS")
+
+CreateToggle(MainTab, "Participate in Round", "Auto Join (On) / Return (Off)", function(val)
+	local remote = GetRemote("SetInRound")
+	if remote then
+		-- Send True (Join) or False (Leave)
+		local args = { val }
+		remote:FireServer(unpack(args))
+	end
+end)
+
+-- // 12. INFO TAB //
+
+CreateSection(InfoTab, "USER PROFILE")
+
+local ProfileFrame = Instance.new("Frame")
+ProfileFrame.Size = UDim2.new(1, -6, 0, 115) 
+ProfileFrame.BackgroundColor3 = THEME.base
+ProfileFrame.Parent = InfoTab
+Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
+Instance.new("UIStroke", ProfileFrame).Color = THEME.stroke
+
+local Avatar = Instance.new("ImageLabel")
+Avatar.Name = "Avatar"
+Avatar.Size = UDim2.new(0, 50, 0, 50)
+Avatar.Position = UDim2.new(0, 15, 0, 15) 
+Avatar.BackgroundColor3 = THEME.accent
+Avatar.Parent = ProfileFrame
+Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
+
+local NameL = Instance.new("TextLabel")
+NameL.Name = "NameL"
+NameL.Text = "Loading..."
+NameL.Size = UDim2.new(1, -80, 0, 20)
+NameL.Position = UDim2.new(0, 75, 0, 15)
+NameL.BackgroundTransparency = 1
+NameL.TextColor3 = THEME.text
+NameL.Font = UI_FONT
+NameL.TextSize = 16
+NameL.TextXAlignment = Enum.TextXAlignment.Left
+NameL.Parent = ProfileFrame
+
+local IDL = Instance.new("TextLabel")
+IDL.Name = "IDL"
+IDL.Text = "ID: ..."
+IDL.Size = UDim2.new(1, -80, 0, 15)
+IDL.Position = UDim2.new(0, 75, 0, 38)
+IDL.BackgroundTransparency = 1
+IDL.TextColor3 = THEME.subtext
+IDL.Font = DESC_FONT
+IDL.TextSize = 13
+IDL.TextXAlignment = Enum.TextXAlignment.Left
+IDL.Parent = ProfileFrame
+
+local GameIDL = Instance.new("TextLabel")
+GameIDL.Text = "Game ID: " .. game.PlaceId
+GameIDL.Size = UDim2.new(1, -80, 0, 15)
+GameIDL.Position = UDim2.new(0, 75, 0, 55)
+GameIDL.BackgroundTransparency = 1
+GameIDL.TextColor3 = THEME.subtext
+GameIDL.Font = DESC_FONT
+GameIDL.TextSize = 13
+GameIDL.TextXAlignment = Enum.TextXAlignment.Left
+GameIDL.Parent = ProfileFrame
+
+local function UpdateProfileDisplay()
+	if HideProfileEnabled then
+		NameL.Text = "Hidden User"
+		IDL.Text = "ID: [HIDDEN]"
+		Avatar.Image = "rbxassetid://0"
+	else
+		NameL.Text = player.DisplayName
+		IDL.Text = "ID: " .. player.UserId
+		task.spawn(function()
+			Avatar.Image = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+		end)
+	end
+end
+
+UpdateProfileDisplay() 
+
+CreateSection(InfoTab, "INFORMATION")
+CreateInfoLabel(InfoTab, "Credits", "LumaCore UI")
+CreateInfoLabel(InfoTab, "Script Status", "Active")
+CreateInfoLabel(InfoTab, "Script Version", "v14.0") -- [NEW]
+
+-- // 13. SETTINGS TAB //
 
 CreateSection(SettingsTab, "VISUALS & PERFORMANCE")
 
--- Tracers with Cleanup
+-- Tracers
 local function UpdateTracers()
 	if not EspTracersEnabled then
 		for _, v in pairs(TracerCache) do 
@@ -564,45 +660,62 @@ local function UpdateTracers()
 		return
 	end
 
+	local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not myRoot then return end 
+
 	for _, p in pairs(Players:GetPlayers()) do
-		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-			local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-			if myRoot then
-				if not TracerCache[p] then
-					local att0 = Instance.new("Attachment", myRoot)
-					local att1 = Instance.new("Attachment", p.Character.HumanoidRootPart)
-					local beam = Instance.new("Beam", myRoot)
-					beam.Attachment0 = att0
-					beam.Attachment1 = att1
-					beam.Color = ColorSequence.new(Color3.fromRGB(255, 50, 50)) 
-					beam.FaceCamera = true
-					beam.Width0 = 0.1
-					beam.Width1 = 0.1
-					TracerCache[p] = {Beam = beam, A0 = att0, A1 = att1}
+		if p ~= player then
+			local char = p.Character
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			
+			if root then
+				local dist = (root.Position - myRoot.Position).Magnitude
+				if dist <= MAX_TRACER_DIST then
+					if not TracerCache[p] then
+						local att0 = Instance.new("Attachment", myRoot)
+						local att1 = Instance.new("Attachment", root)
+						local beam = Instance.new("Beam", myRoot)
+						beam.Attachment0 = att0
+						beam.Attachment1 = att1
+						beam.Color = ColorSequence.new(Color3.fromRGB(255, 30, 30)) 
+						beam.FaceCamera = true
+						beam.Width0 = 0.25 
+						beam.Width1 = 0.25
+						TracerCache[p] = {Beam = beam, A0 = att0, A1 = att1}
+					else
+						TracerCache[p].Beam.Enabled = true
+					end
+				else
+					if TracerCache[p] then TracerCache[p].Beam.Enabled = false end
 				end
-			end
-		else
-			if TracerCache[p] then
-				if TracerCache[p].Beam then TracerCache[p].Beam:Destroy() end
-				TracerCache[p] = nil
+			else
+				if TracerCache[p] then
+					if TracerCache[p].Beam then TracerCache[p].Beam:Destroy() end
+					TracerCache[p] = nil
+				end
 			end
 		end
 	end
 end
 
-CreateToggle(SettingsTab, "Player Tracers", "Show lines to players", function(val)
+CreateToggle(SettingsTab, "Player Tracers", "Show lines (Max 1500 studs)", function(val)
 	EspTracersEnabled = val
 	if val then
 		RunService:BindToRenderStep("EspTracers", Enum.RenderPriority.Camera.Value, UpdateTracers)
 	else
 		RunService:UnbindFromRenderStep("EspTracers")
-		UpdateTracers() -- Cleanup
+		UpdateTracers() 
 	end
 end)
 
 CreateToggle(SettingsTab, "Show Performance", "Toggle FPS/Ping Monitor", function(val)
 	MonitorFPS = val
 	MonitorPing = val
+end)
+
+CreateToggle(SettingsTab, "Hide Profile Info", "Masks Name/ID in Info Tab", function(val)
+	HideProfileEnabled = val
+	UpdateProfileDisplay()
 end)
 
 CreateSection(SettingsTab, "DANGER ZONE")
@@ -642,77 +755,6 @@ CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success,
 		game:Shutdown()
 	end
 end)
-
--- // 13. INFO TAB //
-
-CreateSection(InfoTab, "USER PROFILE")
-
-local ProfileFrame = Instance.new("Frame")
-ProfileFrame.Size = UDim2.new(1, -6, 0, 115) 
-ProfileFrame.BackgroundColor3 = THEME.base
-ProfileFrame.Parent = InfoTab
-Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
-Instance.new("UIStroke", ProfileFrame).Color = THEME.stroke
-
-local Avatar = Instance.new("ImageLabel")
-Avatar.Name = "Avatar"
-Avatar.Size = UDim2.new(0, 50, 0, 50)
-Avatar.Position = UDim2.new(0, 10, 0, 10)
-Avatar.BackgroundColor3 = THEME.accent
-Avatar.Parent = ProfileFrame
-Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
-
-local NameL = Instance.new("TextLabel")
-NameL.Name = "NameL"
-NameL.Text = "Loading..."
-NameL.Size = UDim2.new(1, -70, 0, 18)
-NameL.Position = UDim2.new(0, 70, 0, 10)
-NameL.BackgroundTransparency = 1
-NameL.TextColor3 = THEME.text
-NameL.Font = UI_FONT
-NameL.TextSize = 16
-NameL.TextXAlignment = Enum.TextXAlignment.Left
-NameL.Parent = ProfileFrame
-
-local IDL = Instance.new("TextLabel")
-IDL.Name = "IDL"
-IDL.Text = "ID: ..."
-IDL.Size = UDim2.new(1, -70, 0, 15)
-IDL.Position = UDim2.new(0, 70, 0, 28)
-IDL.BackgroundTransparency = 1
-IDL.TextColor3 = THEME.subtext
-IDL.Font = DESC_FONT
-IDL.TextSize = 12
-IDL.TextXAlignment = Enum.TextXAlignment.Left
-IDL.Parent = ProfileFrame
-
-local GameIDL = Instance.new("TextLabel")
-GameIDL.Text = "Game ID: " .. game.PlaceId
-GameIDL.Size = UDim2.new(1, -70, 0, 15)
-GameIDL.Position = UDim2.new(0, 70, 0, 44)
-GameIDL.BackgroundTransparency = 1
-GameIDL.TextColor3 = THEME.subtext
-GameIDL.Font = DESC_FONT
-GameIDL.TextSize = 12
-GameIDL.TextXAlignment = Enum.TextXAlignment.Left
-GameIDL.Parent = ProfileFrame
-
-if HideProfileEnabled then
-	Avatar.Image = "rbxassetid://0"
-	NameL.Text = "Hidden User"
-	IDL.Text = "ID: Hidden"
-else
-	task.spawn(function()
-		local content = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-		Avatar.Image = content
-	end)
-	NameL.Text = player.DisplayName
-	IDL.Text = "ID: " .. player.UserId
-end
-
-CreateSection(InfoTab, "INFORMATION")
-CreateInfoLabel(InfoTab, "Credits", "LumaCore UI")
-CreateInfoLabel(InfoTab, "Script Status", "Active")
 
 -- // 14. TOGGLE & MINIMIZE LOGIC //
 
@@ -857,4 +899,4 @@ local function PlayIntro()
 end
 
 PlayIntro() -- Joyful Intro Animation
-print("Blade Spin v11.1 (Lag Fixed) Loaded")
+print("Blade Spin v14.0 (Round Manager) Loaded")
