@@ -367,7 +367,7 @@ CreateToggle(MainTab, "Auto Coins", "Loops 100k Coins", function(val)
 		task.spawn(function()
 			while AutoCoins do
 				local r = GetRemote("AddCoins")
-				if r then r:FireServer(100000) end
+				if r then r:FireServer(10000000) end
 				task.wait(0.2)
 			end
 		end)
