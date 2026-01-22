@@ -1,10 +1,10 @@
 --[[ 
-    BLADE SPIN [v11.0 - BUFFED XP EDITION]
+    BLADE SPIN [v11.1 - LAG FIXED]
     --------------------------------------------------
-    - XP: Upgraded to "Burst Mode" (Fires 50x/loop).
-    - SAFETY: Stops instantly when toggle is disabled.
-    - ANIMATIONS: Slide Up/Down & Smooth Monitors.
+    - LAG FIX: Optimized XP loop to prevent freezing.
+    - LOGIC: Uses "Smart Burst" (10x per frame).
     - UI: Exact Loot Hero Framework (Classic Blue).
+    - SETTINGS: Tracers & Double-Tap Destruction.
     --------------------------------------------------
 ]]
 
@@ -62,10 +62,10 @@ local MonitorPing = false
 local function GetEvent(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
-
+	
 	local Events = Holders:WaitForChild("Events", 2)
 	if not Events then return nil end
-
+	
 	return Events:WaitForChild(name, 2)
 end
 
@@ -149,7 +149,7 @@ RunService.RenderStepped:Connect(function(dt)
 		MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
 	else
 		MonitorUI.Visible = true
-
+		
 		local fpsVal = math.floor(1/dt)
 		AnimateMonitor(FpsCont, FpsLabel, MonitorFPS, "FPS: " .. fpsVal)
 
@@ -283,7 +283,7 @@ local function CreateTab(name)
 					-- Slide Up Animation
 					data.Page.CanvasPosition = Vector2.new(0, 10) 
 					TweenService:Create(data.Page, TweenInfo.new(0.3), {CanvasPosition = Vector2.new(0,0)}):Play()
-
+					
 					doTween(data.Btn, {TextColor3 = THEME.text, BackgroundColor3 = THEME.banner})
 				else
 					data.Page.Visible = false
@@ -490,7 +490,7 @@ end
 
 CreateSection(MainTab, "AUTO FARM")
 
-CreateToggle(MainTab, "Auto Coins (100k)", "Loops 100,000 Coins", function(val)
+CreateToggle(MainTab, "Auto Coins", "Loops 100,000 Coins", function(val)
 	AutoCoins = val
 	if val then
 		task.spawn(function()
@@ -506,22 +506,23 @@ CreateToggle(MainTab, "Auto Coins (100k)", "Loops 100,000 Coins", function(val)
 	end
 end)
 
--- [UPDATED] BUFFED XP TOGGLE (Burst Mode with Disable Check)
-CreateToggle(MainTab, "Auto XP (Buffed)", "Spams 50x per loop (Fast)", function(val)
+-- [LAG FIXED] OPTIMIZED XP LOOP
+CreateToggle(MainTab, "Auto XP (Buffed)", "Smart Burst (No Lag)", function(val)
 	AutoXP = val
 	if val then
 		task.spawn(function()
 			local r = GetEvent("AddXP")
 			while AutoXP do
 				if r then 
-					-- Burst Loop: Simulates the massive list of code
-					for i = 1, 50 do
-						if not AutoXP then break end -- STOPS IMMEDIATELY IF DISABLED
+					-- Fires 10 times then waits 1 frame
+					-- 10 times * 60 FPS = 600 Fires/Sec (Very Fast, No Lag)
+					for i = 1, 10 do
+						if not AutoXP then break end -- Immediate Stop
 						local args = { 100000 } 
 						r:FireServer(unpack(args))
 					end
 				end
-				task.wait() -- Minimal wait to prevent crash
+				task.wait() -- Critical yield to prevent freeze
 			end
 		end)
 	end
@@ -856,4 +857,4 @@ local function PlayIntro()
 end
 
 PlayIntro() -- Joyful Intro Animation
-print("Blade Spin v11.0 (Buffed XP Edition) Loaded")
+print("Blade Spin v11.1 (Lag Fixed) Loaded")
