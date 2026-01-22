@@ -1,9 +1,10 @@
 --[[ 
-    BLADE SPIN [v14.0 - ROUND MANAGER]
+    BLADE SPIN [v15.0 - AUTO UPGRADES]
     --------------------------------------------------
-    - NEW: "Participate in Round" Toggle (Join/Leave).
-    - INFO: Added Script Version.
-    - BASE: v13.0 (Visual Polish + Buffed XP).
+    - NEW: Auto Upgrade Stat (Dropdown + Toggle).
+    - MAIN: 100k Loops, Item Unlocker, Round Joiner.
+    - VISUALS: FPS/Ping Monitor, Tracers.
+    - UI: Exact Loot Hero Framework.
     --------------------------------------------------
 ]]
 
@@ -21,7 +22,7 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.6, 0) or UDim2.new(0, 260, 0, 500) -- Slightly taller for new section
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 520) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME //
@@ -45,6 +46,9 @@ local THEME = {
 -- // 4. VARIABLES //
 local AutoCoins = false
 local AutoXP = false
+local AutoUpgrade = false
+local SelectedUpgradeStat = "AmountOfBlades" -- Default
+
 local HideProfileEnabled = true 
 local DraggableEnabled = true
 local Minimized = true 
@@ -59,7 +63,6 @@ local MonitorFPS = false
 local MonitorPing = false
 
 -- // 5. REMOTE HANDLERS //
--- Handler for Farming (Coins/XP)
 local function GetEvent(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
@@ -68,22 +71,21 @@ local function GetEvent(name)
 	return Events:WaitForChild(name, 2)
 end
 
--- [NEW] Handler for Game State (Join/Leave Round)
 local function GetRemote(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
-	local Remotes = Holders:WaitForChild("Remotes", 2) -- Different Folder
+	local Remotes = Holders:WaitForChild("Remotes", 2)
 	if not Remotes then return nil end
 	return Remotes:WaitForChild(name, 2)
 end
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("BladeSpin_v14") then
-	PlayerGui.BladeSpin_v14:Destroy()
+if PlayerGui:FindFirstChild("BladeSpin_v15") then
+	PlayerGui.BladeSpin_v15:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "BladeSpin_v14"
+gui.Name = "BladeSpin_v15"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
@@ -93,7 +95,7 @@ local function doTween(obj, props, time, style, dir)
 	TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
 end
 
--- // 8. UPDATED PERFORMANCE MONITOR //
+-- // 8. PERFORMANCE MONITOR //
 local MonitorUI = Instance.new("Frame")
 MonitorUI.Size = UDim2.new(0, 120, 0, 0) 
 MonitorUI.Position = UDim2.new(1, -130, 0, 10) 
@@ -322,6 +324,77 @@ local function CreateSection(parent, text)
 	return Label
 end
 
+-- [NEW] RE-ADDED DROPDOWN
+local function CreateDropdown(parent, title, options, callback)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -6, 0, 50)
+	Frame.BackgroundColor3 = THEME.base
+	Frame.ClipsDescendants = true
+	Frame.Parent = parent
+	Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+	Instance.new("UIStroke", Frame).Color = THEME.stroke
+
+	local ToggleBtn = Instance.new("TextButton")
+	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
+	ToggleBtn.BackgroundTransparency = 1
+	ToggleBtn.Text = ""
+	ToggleBtn.Parent = Frame
+
+	local TitleL = Instance.new("TextLabel")
+	TitleL.Text = title
+	TitleL.Size = UDim2.new(1, -40, 1, 0)
+	TitleL.Position = UDim2.new(0, 12, 0, 0)
+	TitleL.BackgroundTransparency = 1
+	TitleL.TextColor3 = THEME.text
+	TitleL.Font = UI_FONT
+	TitleL.TextSize = 14
+	TitleL.TextXAlignment = Enum.TextXAlignment.Left
+	TitleL.Parent = ToggleBtn
+
+	local Arrow = Instance.new("ImageLabel")
+	Arrow.Image = "rbxassetid://6031091004"
+	Arrow.Size = UDim2.new(0, 20, 0, 20)
+	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
+	Arrow.BackgroundTransparency = 1
+	Arrow.ImageColor3 = THEME.subtext
+	Arrow.Parent = ToggleBtn
+
+	local ListContainer = Instance.new("Frame")
+	ListContainer.Size = UDim2.new(1, 0, 0, 0)
+	ListContainer.Position = UDim2.new(0,0,0,50)
+	ListContainer.BackgroundTransparency = 1
+	ListContainer.Parent = Frame
+	local lLayout = Instance.new("UIListLayout"); lLayout.Parent = ListContainer; lLayout.Padding = UDim.new(0,5); lLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local isOpen = false
+	for _, opt in ipairs(options) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.9, 0, 0, 30)
+		btn.BackgroundColor3 = THEME.banner
+		btn.Text = opt
+		btn.TextColor3 = THEME.text
+		btn.Font = DESC_FONT
+		btn.TextSize = 12
+		btn.Parent = ListContainer
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+		
+		btn.MouseButton1Click:Connect(function()
+			callback(opt)
+			TitleL.Text = title .. ": " .. opt
+			isOpen = false
+			doTween(Frame, {Size = UDim2.new(1, -6, 0, 50)})
+			doTween(Arrow, {Rotation = 0})
+		end)
+	end
+
+	ToggleBtn.MouseButton1Click:Connect(function()
+		isOpen = not isOpen
+		doTween(Arrow, {Rotation = isOpen and 180 or 0})
+		local h = (#options * 35) + 55
+		doTween(Frame, {Size = UDim2.new(1, -6, 0, isOpen and h or 50)})
+	end)
+end
+
 local function CreateToggle(parent, title, desc, callback)
 	local Frame = Instance.new("TextButton")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
@@ -537,6 +610,45 @@ CreateToggle(MainTab, "Auto XP (Buffed)", "Smart Burst (No Lag)", function(val)
 	end
 end)
 
+-- [NEW] AUTO UPGRADES SECTION
+CreateSection(MainTab, "AUTO UPGRADES")
+
+CreateDropdown(MainTab, "Target Stat", {
+	"AmountOfBlades", 
+	"SpinSpeed", 
+	"Damage", 
+	"Health", 
+	"MovementSpeed"
+}, function(val)
+	SelectedUpgradeStat = val
+end)
+
+CreateToggle(MainTab, "Auto Upgrade", "Spams upgrade for selected stat", function(val)
+	AutoUpgrade = val
+	if val then
+		task.spawn(function()
+			local r = GetEvent("UpgradeStat")
+			while AutoUpgrade do
+				if r then
+					local args = { SelectedUpgradeStat }
+					r:FireServer(unpack(args))
+				end
+				task.wait(0.25) -- Fast but safe loop
+			end
+		end)
+	end
+end)
+
+CreateSection(MainTab, "GAMEPLAY & ROUNDS")
+
+CreateToggle(MainTab, "Participate in Round", "Auto Join (On) / Return (Off)", function(val)
+	local remote = GetRemote("SetInRound")
+	if remote then
+		local args = { val }
+		remote:FireServer(unpack(args))
+	end
+end)
+
 CreateSection(MainTab, "UNLOCKS")
 
 CreateButton(MainTab, "Claim All Items", "Unlocks 16 Weapons Instantly", function(success, fail)
@@ -554,18 +666,6 @@ CreateButton(MainTab, "Claim All Items", "Unlocks 16 Weapons Instantly", functio
 		success()
 	else
 		fail()
-	end
-end)
-
--- [NEW] GAMEPLAY SECTION (ROUND MANAGER)
-CreateSection(MainTab, "GAMEPLAY & ROUNDS")
-
-CreateToggle(MainTab, "Participate in Round", "Auto Join (On) / Return (Off)", function(val)
-	local remote = GetRemote("SetInRound")
-	if remote then
-		-- Send True (Join) or False (Leave)
-		local args = { val }
-		remote:FireServer(unpack(args))
 	end
 end)
 
@@ -642,7 +742,7 @@ UpdateProfileDisplay()
 CreateSection(InfoTab, "INFORMATION")
 CreateInfoLabel(InfoTab, "Credits", "LumaCore UI")
 CreateInfoLabel(InfoTab, "Script Status", "Active")
-CreateInfoLabel(InfoTab, "Script Version", "v14.0") -- [NEW]
+CreateInfoLabel(InfoTab, "Script Version", "v15.0")
 
 -- // 13. SETTINGS TAB //
 
@@ -899,4 +999,4 @@ local function PlayIntro()
 end
 
 PlayIntro() -- Joyful Intro Animation
-print("Blade Spin v14.0 (Round Manager) Loaded")
+print("Blade Spin v15.0 (Auto Upgrades) Loaded")
