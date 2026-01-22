@@ -1,10 +1,9 @@
 --[[ 
-    BLADE SPIN [v6.0 - 1M LOOP EDITION]
+    BLADE SPIN [v7.0 - SETTINGS RESTORED]
     --------------------------------------------------
-    - UI BASE: Loot Hero v9.4 (Exact File Match).
-    - TABS: Main Only (Settings/Info Removed).
-    - COINS/XP: Toggles that loop 1 Million amount.
-    - ITEMS: "Claim All" button included.
+    - MAIN: 1M Loops + Item Claimer.
+    - SETTINGS: Destroy UI & Quit Game (Double-Tap).
+    - BASE: Exact Loot Hero Framework.
     --------------------------------------------------
 ]]
 
@@ -14,15 +13,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.45, 0) or UDim2.new(0, 260, 0, 350) 
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.5, 0) or UDim2.new(0, 260, 0, 400) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
 -- // 3. THEME (Classic Blue) //
@@ -53,20 +51,20 @@ local Minimized = true
 local function GetEvent(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
-	
+
 	local Events = Holders:WaitForChild("Events", 2)
 	if not Events then return nil end
-	
+
 	return Events:WaitForChild(name, 2)
 end
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("BladeSpin_UI_v6") then
-	PlayerGui.BladeSpin_UI_v6:Destroy()
+if PlayerGui:FindFirstChild("BladeSpin_v7") then
+	PlayerGui.BladeSpin_v7:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "BladeSpin_UI_v6"
+gui.Name = "BladeSpin_v7"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
@@ -136,7 +134,7 @@ ContentArea.ClipsDescendants = true
 ContentArea.Visible = false 
 ContentArea.Parent = MainFrame
 
--- Tabs Container (Single Tab Mode)
+-- Tabs Container
 local TabContainer = Instance.new("Frame")
 TabContainer.Size = UDim2.new(1, 0, 0, 30)
 TabContainer.Position = UDim2.new(0, 0, 0, 5)
@@ -151,12 +149,14 @@ PageContainer.BackgroundTransparency = 1
 PageContainer.Parent = ContentArea
 
 -- // TAB LOGIC //
+local Pages = {}
+
 local function CreateTab(name)
 	local TabBtn = Instance.new("TextButton")
-	TabBtn.Size = UDim2.new(0, 200, 1, 0) -- Wide since it's the only one
-	TabBtn.BackgroundColor3 = THEME.banner
+	TabBtn.Size = UDim2.new(0, 75, 1, 0)
+	TabBtn.BackgroundColor3 = THEME.base
 	TabBtn.Text = name
-	TabBtn.TextColor3 = THEME.text
+	TabBtn.TextColor3 = THEME.subtext
 	TabBtn.Font = UI_FONT
 	TabBtn.TextSize = 13
 	TabBtn.AutoButtonColor = false
@@ -172,7 +172,7 @@ local function CreateTab(name)
 	Page.ScrollingEnabled = true 
 	Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
 	Page.CanvasSize = UDim2.new(0,0,0,0)
-	Page.Visible = true
+	Page.Visible = false
 	Page.Parent = PageContainer
 
 	local pLayout = Instance.new("UIListLayout")
@@ -186,10 +186,32 @@ local function CreateTab(name)
 	pPad.PaddingBottom = UDim.new(0,10)
 	pPad.Parent = Page
 
+	Pages[name] = {Btn = TabBtn, Page = Page}
+
+	TabBtn.MouseButton1Click:Connect(function()
+		for n, data in pairs(Pages) do
+			if data.Page then
+				if n == name then
+					data.Page.Visible = true
+					doTween(data.Page, {CanvasPosition = Vector2.new(0,0)}, 0.3)
+					if data.Btn then doTween(data.Btn, {TextColor3 = THEME.text, BackgroundColor3 = THEME.banner}) end
+				else
+					data.Page.Visible = false
+					if data.Btn then doTween(data.Btn, {TextColor3 = THEME.subtext, BackgroundColor3 = THEME.base}) end
+				end
+			end
+		end
+	end)
 	return Page
 end
 
-local MainTab = CreateTab("Main Menu")
+local MainTab = CreateTab("Main")
+local SettingsTab = CreateTab("Settings")
+local InfoTab = CreateTab("Info")
+
+Pages["Main"].Page.Visible = true
+Pages["Main"].Btn.TextColor3 = THEME.text
+Pages["Main"].Btn.BackgroundColor3 = THEME.banner
 
 -- // COMPONENT BUILDERS //
 
@@ -336,14 +358,46 @@ local function CreateButton(parent, title, desc, callback)
 		end)
 	end
 
+	-- Pass label reference so logic can update text
 	Btn.MouseButton1Click:Connect(function()
 		doTween(Btn, {Size = UDim2.new(1, -12, 0, 48)}, 0.1)
 		task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
-		callback(success, fail)
+		callback(success, fail, TitleL)
 	end)
 end
 
--- // 9. MAIN TAB CONTENT //
+local function CreateInfoLabel(parent, title, desc)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -6, 0, 50)
+	Frame.BackgroundColor3 = THEME.base
+	Frame.Parent = parent
+	Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+	Instance.new("UIStroke", Frame).Color = THEME.stroke
+
+	local TitleL = Instance.new("TextLabel")
+	TitleL.Text = title
+	TitleL.Size = UDim2.new(1, -20, 0, 20)
+	TitleL.Position = UDim2.new(0, 12, 0, 6)
+	TitleL.BackgroundTransparency = 1
+	TitleL.TextColor3 = THEME.text
+	TitleL.Font = UI_FONT
+	TitleL.TextSize = 14
+	TitleL.TextXAlignment = Enum.TextXAlignment.Left
+	TitleL.Parent = Frame
+
+	local DescL = Instance.new("TextLabel")
+	DescL.Text = desc
+	DescL.Size = UDim2.new(1, -20, 0, 15)
+	DescL.Position = UDim2.new(0, 12, 0, 26)
+	DescL.BackgroundTransparency = 1
+	DescL.TextColor3 = THEME.subtext
+	DescL.Font = DESC_FONT
+	DescL.TextSize = 11
+	DescL.TextXAlignment = Enum.TextXAlignment.Left
+	DescL.Parent = Frame
+end
+
+-- // 8. MAIN TAB CONTENT //
 
 CreateSection(MainTab, "AUTO FARM")
 
@@ -399,7 +453,100 @@ CreateButton(MainTab, "Claim All Items", "Unlocks 16 Weapons Instantly", functio
 	end
 end)
 
--- // 10. TOGGLE & MINIMIZE LOGIC //
+-- // 9. SETTINGS TAB CONTENT (RESTORED) //
+
+CreateSection(SettingsTab, "DANGER ZONE")
+
+local destroyConfirm = false
+CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(success, fail, label)
+	if not destroyConfirm then
+		destroyConfirm = true
+		fail() -- Turn red for warning
+		label.Text = "Confirm (Double Tap)"
+		task.delay(2, function()
+			destroyConfirm = false
+			label.Text = "Destroy UI"
+			label.TextColor3 = THEME.text
+		end)
+	else
+		gui:Destroy()
+	end
+end)
+
+local quitConfirm = false
+CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success, fail, label)
+	if not quitConfirm then
+		quitConfirm = true
+		fail()
+		label.Text = "Confirm (Double Tap)"
+		task.delay(2, function()
+			quitConfirm = false
+			label.Text = "Quit Game"
+			label.TextColor3 = THEME.text
+		end)
+	else
+		game:Shutdown()
+	end
+end)
+
+-- // 10. INFO TAB CONTENT //
+
+local ProfileFrame = Instance.new("Frame")
+ProfileFrame.Size = UDim2.new(1, -6, 0, 115) 
+ProfileFrame.BackgroundColor3 = THEME.base
+ProfileFrame.Parent = InfoTab
+Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
+Instance.new("UIStroke", ProfileFrame).Color = THEME.stroke
+
+local Avatar = Instance.new("ImageLabel")
+Avatar.Name = "Avatar"
+Avatar.Size = UDim2.new(0, 50, 0, 50)
+Avatar.Position = UDim2.new(0, 10, 0, 10)
+Avatar.BackgroundColor3 = THEME.accent
+Avatar.Parent = ProfileFrame
+Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
+
+local NameL = Instance.new("TextLabel")
+NameL.Name = "NameL"
+NameL.Text = "Loading..."
+NameL.Size = UDim2.new(1, -70, 0, 18)
+NameL.Position = UDim2.new(0, 70, 0, 10)
+NameL.BackgroundTransparency = 1
+NameL.TextColor3 = THEME.text
+NameL.Font = UI_FONT
+NameL.TextSize = 16
+NameL.TextXAlignment = Enum.TextXAlignment.Left
+NameL.Parent = ProfileFrame
+
+local IDL = Instance.new("TextLabel")
+IDL.Name = "IDL"
+IDL.Text = "ID: ..."
+IDL.Size = UDim2.new(1, -70, 0, 15)
+IDL.Position = UDim2.new(0, 70, 0, 28)
+IDL.BackgroundTransparency = 1
+IDL.TextColor3 = THEME.subtext
+IDL.Font = DESC_FONT
+IDL.TextSize = 12
+IDL.TextXAlignment = Enum.TextXAlignment.Left
+IDL.Parent = ProfileFrame
+
+if HideProfileEnabled then
+	Avatar.Image = "rbxassetid://0"
+	NameL.Text = "Hidden User"
+	IDL.Text = "ID: Hidden"
+else
+	task.spawn(function()
+		local content = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+		Avatar.Image = content
+	end)
+	NameL.Text = player.DisplayName
+	IDL.Text = "ID: " .. player.UserId
+end
+
+CreateInfoLabel(InfoTab, "Script Status", "Running")
+CreateInfoLabel(InfoTab, "Credits", "Blade Spin Optimized")
+
+-- // 11. TOGGLE & MINIMIZE LOGIC //
 
 local ToggleIcon = Instance.new("ImageButton")
 ToggleIcon.Name = "ToggleIcon"
@@ -465,12 +612,12 @@ ToggleIcon.InputChanged:Connect(function(input)
 	end
 end)
 
--- Entry Animation (Button Only)
+-- Entry Animation
 task.delay(0.5, function()
 	TweenService:Create(ToggleIcon, TweenInfo.new(1, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
 end)
 
--- // 11. DRAGGABLE LOGIC //
+-- // 12. DRAGGABLE HEADER //
 local dragging, dragInput, dragStart, startPos
 local function update(input)
 	local delta = input.Position - dragStart
@@ -479,9 +626,7 @@ end
 TopBar.InputBegan:Connect(function(input)
 	if not DraggableEnabled then return end
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
+		dragging = true; dragStart = input.Position; startPos = MainFrame.Position
 		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
 	end
 end)
@@ -494,4 +639,4 @@ UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then update(input) end
 end)
 
-print("Blade Spin v6.0 (1M Loops) Loaded")
+print("Blade Spin v7.0 (Double Tap Settings) Loaded")
