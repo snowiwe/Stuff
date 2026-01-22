@@ -1,9 +1,10 @@
 --[[ 
-    BLADE SPIN [v7.0 - SETTINGS RESTORED]
+    BLADE SPIN [v9.0 - ANIMATIONS & TRACERS]
     --------------------------------------------------
-    - MAIN: 1M Loops + Item Claimer.
-    - SETTINGS: Destroy UI & Quit Game (Double-Tap).
-    - BASE: Exact Loot Hero Framework.
+    - UI: Exact Loot Hero Framework.
+    - ANIMATIONS: Smooth Open/Close Bounce Effect.
+    - SETTINGS: Added "Player Tracers" (Lines Only).
+    - MAIN: 100k Loops & Item Unlocker.
     --------------------------------------------------
 ]]
 
@@ -18,10 +19,10 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
--- // 2. CONFIGURATION //
+-- // 2. CONFIGURATION & SCALING //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.5, 0) or UDim2.new(0, 260, 0, 400) 
-local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.5, 0) or UDim2.new(0, 260, 0, 420) 
+local CLOSED_SIZE = UDim2.new(0, 0, 0, 0) -- Starts at 0 for animation
 
 -- // 3. THEME (Classic Blue) //
 local UI_FONT = Enum.Font.SourceSansBold
@@ -44,8 +45,11 @@ local THEME = {
 -- // 4. VARIABLES //
 local AutoCoins = false
 local AutoXP = false
+local HideProfileEnabled = false 
 local DraggableEnabled = true
 local Minimized = true 
+local EspTracersEnabled = false
+local TracerCache = {}
 
 -- // 5. REMOTE HANDLER //
 local function GetEvent(name)
@@ -59,30 +63,84 @@ local function GetEvent(name)
 end
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("BladeSpin_v7") then
-	PlayerGui.BladeSpin_v7:Destroy()
+if PlayerGui:FindFirstChild("BladeSpin_Final") then
+	PlayerGui.BladeSpin_Final:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "BladeSpin_v7"
+gui.Name = "BladeSpin_Final"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
 
 -- // 7. ANIMATION UTILS //
-local function doTween(obj, props)
-	TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+local function doTween(obj, props, time, style, dir)
+	TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
 end
 
--- // 8. UI CONSTRUCTION //
+-- // 8. JOYFUL INTRO //
+local function PlayIntro()
+	local IntroFrame = Instance.new("Frame")
+	IntroFrame.Size = UDim2.fromScale(1,1) 
+	IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	IntroFrame.ZIndex = 500 
+	IntroFrame.Parent = gui
+
+	local BarBG = Instance.new("Frame")
+	BarBG.Size = UDim2.new(0, 0, 0, 8) 
+	BarBG.Position = UDim2.fromScale(0.5, 0.55)
+	BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+	BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	BarBG.ZIndex = 501
+	BarBG.Parent = IntroFrame
+	Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
+
+	local BarFill = Instance.new("Frame")
+	BarFill.Size = UDim2.new(0, 0, 1, 0)
+	BarFill.BackgroundColor3 = THEME.accent
+	BarFill.ZIndex = 502
+	BarFill.Parent = BarBG
+	Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
+
+	local Logo = Instance.new("TextLabel")
+	Logo.Text = "Blade Spin"
+	Logo.Font = Enum.Font.GothamBlack
+	Logo.TextSize = 42
+	Logo.TextColor3 = THEME.text
+	Logo.Position = UDim2.fromScale(0.5, 0.45)
+	Logo.AnchorPoint = Vector2.new(0.5, 0.5)
+	Logo.BackgroundTransparency = 1
+	Logo.ZIndex = 502
+	Logo.Parent = IntroFrame
+
+	Logo.Size = UDim2.new(0, 0, 0, 0)
+	TweenService:Create(Logo, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 200, 0, 50)}):Play()
+
+	task.wait(0.4)
+	TweenService:Create(BarBG, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 8)}):Play()
+	task.wait(0.2)
+	TweenService:Create(BarFill, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Size = UDim2.new(1,0,1,0)}):Play()
+	task.wait(1.0)
+
+	TweenService:Create(Logo, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
+	TweenService:Create(BarBG, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
+	TweenService:Create(IntroFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+
+	task.wait(0.5)
+	IntroFrame:Destroy()
+end
+
+-- // 9. MAIN FRAME //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
-MainFrame.Size = CLOSED_SIZE 
-MainFrame.Position = UDim2.new(0.5, - (OPEN_SIZE.X.Offset/2), 0.4, 0) 
+MainFrame.Size = UDim2.new(0,0,0,0) -- Start Closed for Animation
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0) 
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.BackgroundColor3 = THEME.base 
 MainFrame.BorderSizePixel = 0
+MainFrame.Active = true 
+MainFrame.Visible = false 
 MainFrame.ClipsDescendants = true
-MainFrame.Visible = false -- Start Hidden
 MainFrame.Parent = gui
 
 local MainGrad = Instance.new("UIGradient")
@@ -93,7 +151,7 @@ MainGrad.Parent = MainFrame
 local UICorner = Instance.new("UICorner"); UICorner.CornerRadius = UDim.new(0, 14); UICorner.Parent = MainFrame
 local UIStroke = Instance.new("UIStroke"); UIStroke.Thickness = 1.5; UIStroke.Color = THEME.stroke; UIStroke.Parent = MainFrame
 
--- Header
+-- // HEADER //
 local TopBar = Instance.new("Frame")
 TopBar.Name = "Header"
 TopBar.Size = UDim2.new(1, 0, 0, 40)
@@ -124,14 +182,13 @@ MinBtn.AnchorPoint = Vector2.new(0, 0.5)
 MinBtn.ZIndex = 10 
 MinBtn.Parent = TopBar
 
--- Content Area
+-- // CONTENT AREA //
 local ContentArea = Instance.new("Frame")
 ContentArea.Name = "ContentArea"
 ContentArea.Size = UDim2.new(1, 0, 1, -40)
 ContentArea.Position = UDim2.new(0, 0, 0, 40)
 ContentArea.BackgroundTransparency = 1
 ContentArea.ClipsDescendants = true
-ContentArea.Visible = false 
 ContentArea.Parent = MainFrame
 
 -- Tabs Container
@@ -358,7 +415,6 @@ local function CreateButton(parent, title, desc, callback)
 		end)
 	end
 
-	-- Pass label reference so logic can update text
 	Btn.MouseButton1Click:Connect(function()
 		doTween(Btn, {Size = UDim2.new(1, -12, 0, 48)}, 0.1)
 		task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
@@ -401,14 +457,14 @@ end
 
 CreateSection(MainTab, "AUTO FARM")
 
-CreateToggle(MainTab, "Auto Coins (1M)", "Loops 1 Million Coins", function(val)
+CreateToggle(MainTab, "Auto Coins (100k)", "Loops 100,000 Coins", function(val)
 	AutoCoins = val
 	if val then
 		task.spawn(function()
 			while AutoCoins do
 				local r = GetEvent("AddCoins")
 				if r then 
-					local args = { 1000000 } -- Fixed 1 Million
+					local args = { 100000 } 
 					r:FireServer(unpack(args))
 				end
 				task.wait(0.2)
@@ -417,14 +473,14 @@ CreateToggle(MainTab, "Auto Coins (1M)", "Loops 1 Million Coins", function(val)
 	end
 end)
 
-CreateToggle(MainTab, "Auto XP (1M)", "Loops 1 Million XP", function(val)
+CreateToggle(MainTab, "Auto XP (100k)", "Loops 100,000 XP", function(val)
 	AutoXP = val
 	if val then
 		task.spawn(function()
 			while AutoXP do
 				local r = GetEvent("AddXP")
 				if r then 
-					local args = { 1000000 } -- Fixed 1 Million
+					local args = { 100000 } 
 					r:FireServer(unpack(args))
 				end
 				task.wait(0.2)
@@ -453,7 +509,55 @@ CreateButton(MainTab, "Claim All Items", "Unlocks 16 Weapons Instantly", functio
 	end
 end)
 
--- // 9. SETTINGS TAB CONTENT (RESTORED) //
+-- // 9. SETTINGS TAB CONTENT //
+
+CreateSection(SettingsTab, "VISUALS")
+
+-- [NEW] Player Tracers (Line only, No Text, No Box)
+local function UpdateTracers()
+	if not EspTracersEnabled then
+		for _, v in pairs(TracerCache) do v:Destroy() end
+		TracerCache = {}
+		return
+	end
+
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local myRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if myRoot then
+				if not TracerCache[p] then
+					local att0 = Instance.new("Attachment", myRoot)
+					local att1 = Instance.new("Attachment", p.Character.HumanoidRootPart)
+					local beam = Instance.new("Beam", myRoot)
+					beam.Attachment0 = att0
+					beam.Attachment1 = att1
+					beam.Color = ColorSequence.new(Color3.fromRGB(255, 50, 50)) -- Red Line
+					beam.FaceCamera = true
+					beam.Width0 = 0.1
+					beam.Width1 = 0.1
+					TracerCache[p] = {Beam = beam, A0 = att0, A1 = att1}
+				end
+			end
+		else
+			if TracerCache[p] then
+				TracerCache[p].Beam:Destroy()
+				TracerCache[p].A0:Destroy()
+				TracerCache[p].A1:Destroy()
+				TracerCache[p] = nil
+			end
+		end
+	end
+end
+
+CreateToggle(SettingsTab, "Player Tracers", "Show lines to players", function(val)
+	EspTracersEnabled = val
+	if val then
+		RunService:BindToRenderStep("EspTracers", Enum.RenderPriority.Camera.Value, UpdateTracers)
+	else
+		RunService:UnbindFromRenderStep("EspTracers")
+		UpdateTracers() -- Clear
+	end
+end)
 
 CreateSection(SettingsTab, "DANGER ZONE")
 
@@ -461,14 +565,16 @@ local destroyConfirm = false
 CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(success, fail, label)
 	if not destroyConfirm then
 		destroyConfirm = true
-		fail() -- Turn red for warning
-		label.Text = "Confirm (Double Tap)"
+		fail() 
+		label.Text = "Confirm (1/2)" 
 		task.delay(2, function()
 			destroyConfirm = false
 			label.Text = "Destroy UI"
 			label.TextColor3 = THEME.text
+			doTween(label.Parent:FindFirstChild("UIStroke"), {Color = THEME.stroke})
 		end)
 	else
+		if EspTracersEnabled then RunService:UnbindFromRenderStep("EspTracers") end
 		gui:Destroy()
 	end
 end)
@@ -478,11 +584,12 @@ CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success,
 	if not quitConfirm then
 		quitConfirm = true
 		fail()
-		label.Text = "Confirm (Double Tap)"
+		label.Text = "Confirm (1/2)"
 		task.delay(2, function()
 			quitConfirm = false
 			label.Text = "Quit Game"
 			label.TextColor3 = THEME.text
+			doTween(label.Parent:FindFirstChild("UIStroke"), {Color = THEME.stroke})
 		end)
 	else
 		game:Shutdown()
@@ -490,6 +597,8 @@ CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success,
 end)
 
 -- // 10. INFO TAB CONTENT //
+
+CreateSection(InfoTab, "USER PROFILE")
 
 local ProfileFrame = Instance.new("Frame")
 ProfileFrame.Size = UDim2.new(1, -6, 0, 115) 
@@ -530,6 +639,17 @@ IDL.TextSize = 12
 IDL.TextXAlignment = Enum.TextXAlignment.Left
 IDL.Parent = ProfileFrame
 
+local GameIDL = Instance.new("TextLabel")
+GameIDL.Text = "Game ID: " .. game.PlaceId
+GameIDL.Size = UDim2.new(1, -70, 0, 15)
+GameIDL.Position = UDim2.new(0, 70, 0, 44)
+GameIDL.BackgroundTransparency = 1
+GameIDL.TextColor3 = THEME.subtext
+GameIDL.Font = DESC_FONT
+GameIDL.TextSize = 12
+GameIDL.TextXAlignment = Enum.TextXAlignment.Left
+GameIDL.Parent = ProfileFrame
+
 if HideProfileEnabled then
 	Avatar.Image = "rbxassetid://0"
 	NameL.Text = "Hidden User"
@@ -543,8 +663,9 @@ else
 	IDL.Text = "ID: " .. player.UserId
 end
 
-CreateInfoLabel(InfoTab, "Script Status", "Running")
-CreateInfoLabel(InfoTab, "Credits", "Blade Spin Optimized")
+CreateSection(InfoTab, "INFORMATION")
+CreateInfoLabel(InfoTab, "Credits", "LumaCore UI")
+CreateInfoLabel(InfoTab, "Script Status", "Active")
 
 -- // 11. TOGGLE & MINIMIZE LOGIC //
 
@@ -562,17 +683,22 @@ Instance.new("UIStroke", ToggleIcon).Color = THEME.stroke
 
 local visible = false -- UI Starts Hidden
 
+-- [FIXED] ANIMATED TOGGLE
 local function ToggleUI()
 	visible = not visible
 	if visible then
 		MainFrame.Visible = true
 		Minimized = false
-		doTween(MainFrame, {Size = OPEN_SIZE})
+		-- 1. Reset Scale to 0 for grow effect
+		MainFrame.Size = UDim2.new(0, 0, 0, 0)
+		-- 2. Animate to OPEN_SIZE
+		TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = OPEN_SIZE}):Play()
 		doTween(MinBtn, {Rotation = 180})
 		ContentArea.Visible = true
 	else
-		doTween(MainFrame, {Size = CLOSED_SIZE}) -- Shrink effect first
-		task.delay(0.2, function() MainFrame.Visible = false end)
+		-- 1. Shrink back to 0
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)}):Play()
+		task.delay(0.3, function() MainFrame.Visible = false end)
 	end
 end
 
@@ -582,12 +708,12 @@ MinBtn.MouseButton1Click:Connect(function()
 		-- Expand
 		Minimized = false
 		ContentArea.Visible = true
-		doTween(MainFrame, {Size = OPEN_SIZE})
+		TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = OPEN_SIZE}):Play()
 		doTween(MinBtn, {Rotation = 180})
 	else
 		-- Shrink
 		Minimized = true
-		doTween(MainFrame, {Size = CLOSED_SIZE})
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(OPEN_SIZE.X.Scale, OPEN_SIZE.X.Offset, 0, 40)}):Play()
 		ContentArea.Visible = false
 		doTween(MinBtn, {Rotation = 0})
 	end
@@ -599,7 +725,6 @@ UserInputService.InputBegan:Connect(function(input) if input.KeyCode == Enum.Key
 -- Mobile Drag
 local btnDragging, btnDragStart, btnStartPos
 ToggleIcon.InputBegan:Connect(function(input)
-	if not isMobile then return end
 	if input.UserInputType == Enum.UserInputType.Touch then
 		btnDragging = true; btnDragStart = input.Position; btnStartPos = ToggleIcon.Position
 		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then btnDragging = false end end)
@@ -612,7 +737,7 @@ ToggleIcon.InputChanged:Connect(function(input)
 	end
 end)
 
--- Entry Animation
+-- Entry Animation (Button Only)
 task.delay(0.5, function()
 	TweenService:Create(ToggleIcon, TweenInfo.new(1, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
 end)
@@ -639,4 +764,5 @@ UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then update(input) end
 end)
 
-print("Blade Spin v7.0 (Double Tap Settings) Loaded")
+PlayIntro() -- Joyful Intro Animation
+print("Blade Spin v9.0 (Animations & Tracers) Loaded")
