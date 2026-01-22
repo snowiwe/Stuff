@@ -1,11 +1,10 @@
 --[[ 
-    BLADE SPIN [v4.2 - LAYOUT FIXED]
+    BLADE SPIN [v6.0 - 1M LOOP EDITION]
     --------------------------------------------------
-    - UI: Loot Hero Framework (Classic Blue).
-    - TABS: Main, Settings (Info Removed).
-    - MAIN: Auto Farm + 5 Upgrade Buttons.
-    - SETTINGS: ESP + Low Performance.
-    - START: Hidden (Use Button to Open).
+    - UI BASE: Loot Hero v9.4 (Exact File Match).
+    - TABS: Main Only (Settings/Info Removed).
+    - COINS/XP: Toggles that loop 1 Million amount.
+    - ITEMS: "Claim All" button included.
     --------------------------------------------------
 ]]
 
@@ -23,10 +22,10 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.6, 0) or UDim2.new(0, 260, 0, 500) 
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.45, 0) or UDim2.new(0, 260, 0, 350) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
--- // 3. THEME //
+-- // 3. THEME (Classic Blue) //
 local UI_FONT = Enum.Font.SourceSansBold
 local DESC_FONT = Enum.Font.SourceSans
 
@@ -46,14 +45,7 @@ local THEME = {
 
 -- // 4. VARIABLES //
 local AutoCoins = false
-local SelectedCoinAmount = 100000 
-
 local AutoXP = false
-local SelectedXPAmount = 100000 
-
-local EspEnabled = false
-local EspCache = {}
-
 local DraggableEnabled = true
 local Minimized = true 
 
@@ -61,41 +53,30 @@ local Minimized = true
 local function GetEvent(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
-
+	
 	local Events = Holders:WaitForChild("Events", 2)
 	if not Events then return nil end
-
+	
 	return Events:WaitForChild(name, 2)
 end
 
-local function TriggerUpgrade(statName, success, fail)
-	local r = GetEvent("UpgradeStat")
-	if r then
-		local args = { statName }
-		r:FireServer(unpack(args))
-		if success then success() end
-	else
-		if fail then fail() end
-	end
-end
-
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("BladeSpin_UI_v4") then
-	PlayerGui.BladeSpin_UI_v4:Destroy()
+if PlayerGui:FindFirstChild("BladeSpin_UI_v6") then
+	PlayerGui.BladeSpin_UI_v6:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "BladeSpin_UI_v4"
+gui.Name = "BladeSpin_UI_v6"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
 
--- // 7. UTILS //
+-- // 7. ANIMATION UTILS //
 local function doTween(obj, props)
 	TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
--- // 8. MAIN FRAME //
+-- // 8. UI CONSTRUCTION //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
 MainFrame.Size = CLOSED_SIZE 
@@ -152,10 +133,10 @@ ContentArea.Size = UDim2.new(1, 0, 1, -40)
 ContentArea.Position = UDim2.new(0, 0, 0, 40)
 ContentArea.BackgroundTransparency = 1
 ContentArea.ClipsDescendants = true
-ContentArea.Visible = false -- Hidden when minimized
+ContentArea.Visible = false 
 ContentArea.Parent = MainFrame
 
--- Tabs Container
+-- Tabs Container (Single Tab Mode)
 local TabContainer = Instance.new("Frame")
 TabContainer.Size = UDim2.new(1, 0, 0, 30)
 TabContainer.Position = UDim2.new(0, 0, 0, 5)
@@ -170,14 +151,12 @@ PageContainer.BackgroundTransparency = 1
 PageContainer.Parent = ContentArea
 
 -- // TAB LOGIC //
-local Pages = {}
-
 local function CreateTab(name)
 	local TabBtn = Instance.new("TextButton")
-	TabBtn.Size = UDim2.new(0, 100, 1, 0) -- Wider for 2 tabs
-	TabBtn.BackgroundColor3 = THEME.base
+	TabBtn.Size = UDim2.new(0, 200, 1, 0) -- Wide since it's the only one
+	TabBtn.BackgroundColor3 = THEME.banner
 	TabBtn.Text = name
-	TabBtn.TextColor3 = THEME.subtext
+	TabBtn.TextColor3 = THEME.text
 	TabBtn.Font = UI_FONT
 	TabBtn.TextSize = 13
 	TabBtn.AutoButtonColor = false
@@ -193,7 +172,7 @@ local function CreateTab(name)
 	Page.ScrollingEnabled = true 
 	Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
 	Page.CanvasSize = UDim2.new(0,0,0,0)
-	Page.Visible = false
+	Page.Visible = true
 	Page.Parent = PageContainer
 
 	local pLayout = Instance.new("UIListLayout")
@@ -207,30 +186,10 @@ local function CreateTab(name)
 	pPad.PaddingBottom = UDim.new(0,10)
 	pPad.Parent = Page
 
-	Pages[name] = {Btn = TabBtn, Page = Page}
-
-	TabBtn.MouseButton1Click:Connect(function()
-		for n, data in pairs(Pages) do
-			if n == name then
-				data.Page.Visible = true
-				doTween(data.Page, {CanvasPosition = Vector2.new(0,0)}, 0.3)
-				doTween(data.Btn, {TextColor3 = THEME.text, BackgroundColor3 = THEME.banner})
-			else
-				data.Page.Visible = false
-				doTween(data.Btn, {TextColor3 = THEME.subtext, BackgroundColor3 = THEME.base})
-			end
-		end
-	end)
 	return Page
 end
 
-local MainTab = CreateTab("Main")
-local SettingsTab = CreateTab("Settings")
-
--- Select Main Default
-Pages["Main"].Page.Visible = true
-Pages["Main"].Btn.TextColor3 = THEME.text
-Pages["Main"].Btn.BackgroundColor3 = THEME.banner
+local MainTab = CreateTab("Main Menu")
 
 -- // COMPONENT BUILDERS //
 
@@ -245,76 +204,6 @@ local function CreateSection(parent, text)
 	Label.TextXAlignment = Enum.TextXAlignment.Left
 	Label.Parent = parent
 	return Label
-end
-
-local function CreateDropdown(parent, title, options, callback)
-	local Frame = Instance.new("Frame")
-	Frame.Size = UDim2.new(1, -6, 0, 50)
-	Frame.BackgroundColor3 = THEME.base
-	Frame.ClipsDescendants = true
-	Frame.Parent = parent
-	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
-	local s = Instance.new("UIStroke"); s.Color = THEME.stroke; s.Thickness = 1; s.Parent = Frame
-
-	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
-	ToggleBtn.BackgroundTransparency = 1
-	ToggleBtn.Text = ""
-	ToggleBtn.Parent = Frame
-
-	local TitleL = Instance.new("TextLabel")
-	TitleL.Text = title
-	TitleL.Size = UDim2.new(1, -40, 1, 0)
-	TitleL.Position = UDim2.new(0, 12, 0, 0)
-	TitleL.BackgroundTransparency = 1
-	TitleL.TextColor3 = THEME.text
-	TitleL.Font = UI_FONT
-	TitleL.TextSize = 14
-	TitleL.TextXAlignment = Enum.TextXAlignment.Left
-	TitleL.Parent = ToggleBtn
-
-	local Arrow = Instance.new("ImageLabel")
-	Arrow.Image = "rbxassetid://6031091004"
-	Arrow.Size = UDim2.new(0, 20, 0, 20)
-	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
-	Arrow.BackgroundTransparency = 1
-	Arrow.ImageColor3 = THEME.subtext
-	Arrow.Parent = ToggleBtn
-
-	local ListContainer = Instance.new("Frame")
-	ListContainer.Size = UDim2.new(1, 0, 0, 0)
-	ListContainer.BackgroundTransparency = 1
-	ListContainer.Parent = Frame
-	local lLayout = Instance.new("UIListLayout"); lLayout.Parent = ListContainer; lLayout.Padding = UDim.new(0,5); lLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
-	local isOpen = false
-	for _, opt in ipairs(options) do
-		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(0.9, 0, 0, 30)
-		btn.BackgroundColor3 = THEME.banner
-		btn.Text = opt.Name 
-		btn.TextColor3 = THEME.text
-		btn.Font = DESC_FONT
-		btn.TextSize = 12
-		btn.Parent = ListContainer
-		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
-
-		btn.MouseButton1Click:Connect(function()
-			callback(opt.Value)
-			TitleL.Text = title .. ": " .. opt.Name
-			isOpen = false
-			doTween(Frame, {Size = UDim2.new(1, -6, 0, 50)})
-			doTween(Arrow, {Rotation = 0})
-		end)
-	end
-
-	ToggleBtn.MouseButton1Click:Connect(function()
-		isOpen = not isOpen
-		doTween(Arrow, {Rotation = isOpen and 180 or 0})
-		local h = (#options * 35) + 50
-		ListContainer.Position = UDim2.new(0, 0, 0, 50)
-		doTween(Frame, {Size = UDim2.new(1, -6, 0, isOpen and h or 50)})
-	end)
 end
 
 local function CreateToggle(parent, title, desc, callback)
@@ -454,173 +343,67 @@ local function CreateButton(parent, title, desc, callback)
 	end)
 end
 
--- // 8. MAIN TAB CONTENT //
+-- // 9. MAIN TAB CONTENT //
 
 CreateSection(MainTab, "AUTO FARM")
 
-CreateDropdown(MainTab, "Coin Amount", {
-	{Name = "100,000 (Standard)", Value = 100000},
-	{Name = "10 Million (High)", Value = 10000000},
-	{Name = "1 Billion (Max)", Value = 1000000000}
-}, function(val) SelectedCoinAmount = val end)
-
-CreateToggle(MainTab, "Auto Coins Loop", "Spams selected coin amount", function(val)
+CreateToggle(MainTab, "Auto Coins (1M)", "Loops 1 Million Coins", function(val)
 	AutoCoins = val
 	if val then
 		task.spawn(function()
 			while AutoCoins do
 				local r = GetEvent("AddCoins")
-				if r then r:FireServer(SelectedCoinAmount) end
+				if r then 
+					local args = { 1000000 } -- Fixed 1 Million
+					r:FireServer(unpack(args))
+				end
 				task.wait(0.2)
 			end
 		end)
 	end
 end)
 
-CreateDropdown(MainTab, "XP Amount", {
-	{Name = "100,000 (Standard)", Value = 100000},
-	{Name = "10 Million (High)", Value = 10000000},
-	{Name = "1 Billion (Max)", Value = 1000000000}
-}, function(val) SelectedXPAmount = val end)
-
-CreateToggle(MainTab, "Auto XP Loop", "Spams selected XP amount", function(val)
+CreateToggle(MainTab, "Auto XP (1M)", "Loops 1 Million XP", function(val)
 	AutoXP = val
 	if val then
 		task.spawn(function()
 			while AutoXP do
 				local r = GetEvent("AddXP")
-				if r then r:FireServer(SelectedXPAmount) end
+				if r then 
+					local args = { 1000000 } -- Fixed 1 Million
+					r:FireServer(unpack(args))
+				end
 				task.wait(0.2)
 			end
 		end)
 	end
 end)
 
-CreateSection(MainTab, "STATS UPGRADES")
+CreateSection(MainTab, "UNLOCKS")
 
-CreateButton(MainTab, "Upgrade Blades", "+1 Blade Count", function(s, f) TriggerUpgrade("AmountOfBlades", s, f) end)
-CreateButton(MainTab, "Upgrade Spin Speed", "Increase Rotation", function(s, f) TriggerUpgrade("SpinSpeed", s, f) end)
-CreateButton(MainTab, "Upgrade Damage", "Increase Hit Power", function(s, f) TriggerUpgrade("Damage", s, f) end)
-CreateButton(MainTab, "Upgrade Health", "Increase Max HP", function(s, f) TriggerUpgrade("Health", s, f) end)
-CreateButton(MainTab, "Upgrade Speed", "Increase WalkSpeed", function(s, f) TriggerUpgrade("MovementSpeed", s, f) end)
-
--- // 9. SETTINGS TAB CONTENT //
-
-CreateSection(SettingsTab, "VISUALS & PERFORMANCE")
-
-local function AddESP(p)
-	if p == player or not p.Character then return end
-	if EspCache[p] then EspCache[p]:Destroy() end
-
-	local char = p.Character
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-
-	local holder = Instance.new("Folder")
-	holder.Name = p.Name .. "_ESP"
-	holder.Parent = char
-
-	local hl = Instance.new("Highlight")
-	hl.FillColor = THEME.danger
-	hl.FillTransparency = 0.5
-	hl.OutlineColor = THEME.text
-	hl.OutlineTransparency = 0
-	hl.Parent = holder
-
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.new(0, 200, 0, 50)
-	bb.StudsOffset = Vector3.new(0, 3, 0)
-	bb.AlwaysOnTop = true
-	bb.Parent = holder
-	bb.Adornee = root
-
-	local txt = Instance.new("TextLabel")
-	txt.Size = UDim2.fromScale(1,1)
-	txt.BackgroundTransparency = 1
-	txt.TextColor3 = THEME.text
-	txt.TextStrokeTransparency = 0
-	txt.Font = UI_FONT
-	txt.TextSize = 14
-	txt.Parent = bb
-
-	local attach1 = Instance.new("Attachment", root)
-	local beam = Instance.new("Beam")
-	beam.Attachment0 = nil 
-	beam.Attachment1 = attach1
-	beam.Color = ColorSequence.new(THEME.danger)
-	beam.Width0 = 0.1; beam.Width1 = 0.1
-	beam.FaceCamera = true
-	beam.Enabled = false
-	beam.Parent = holder
-
-	EspCache[p] = holder
-
-	task.spawn(function()
-		while EspEnabled and holder.Parent do
-			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-				local dist = (player.Character.HumanoidRootPart.Position - root.Position).Magnitude
-				txt.Text = string.format("%s\n[%.0f m]", p.Name, dist)
-
-				local myRoot = player.Character.HumanoidRootPart
-				if not myRoot:FindFirstChild("TracerAttach") then
-					local a = Instance.new("Attachment", myRoot); a.Name = "TracerAttach"
-				end
-				beam.Attachment0 = myRoot:FindFirstChild("TracerAttach")
-				beam.Enabled = true
-			else
-				beam.Enabled = false
-			end
-			task.wait(0.1)
+CreateButton(MainTab, "Claim All Items", "Unlocks 16 Weapons Instantly", function(success, fail)
+	local remote = GetEvent("AddToInventory")
+	if remote then
+		local items = {
+			"SunpiercerAxe", "AzureBlade", "Trident", "VoidwingReaver",
+			"LionSword", "InfernoAxe", "GoldenSword", "BoneFang",
+			"MoonFang", "SorrowsEdge", "ShadowKatana", "EmeraldBlade",
+			"BloodreignSaber", "WarlordsFang", "Obsidian", "CrimsonFang"
+		}
+		for _, item in ipairs(items) do
+			remote:FireServer(item)
 		end
-		holder:Destroy()
-	end)
-end
-
-CreateToggle(SettingsTab, "ESP (Lines + Dist)", "See players through walls", function(val)
-	EspEnabled = val
-	if val then
-		for _, p in pairs(Players:GetPlayers()) do AddESP(p) end
-		Players.PlayerAdded:Connect(function(p)
-			p.CharacterAdded:Connect(function() 
-				if EspEnabled then task.wait(1); AddESP(p) end 
-			end)
-		end)
+		success()
 	else
-		for _, v in pairs(EspCache) do v:Destroy() end
-		EspCache = {}
+		fail()
 	end
 end)
 
-CreateToggle(SettingsTab, "Low Performance", "Removes shadows/effects", function(val)
-	Lighting.GlobalShadows = not val
-	Lighting.FogEnd = val and 9e9 or 100000
-end)
+-- // 10. TOGGLE & MINIMIZE LOGIC //
 
--- // 10. DRAGGABLE LOGIC //
-local dragging, dragInput, dragStart, startPos
-local function update(input)
-	local delta = input.Position - dragStart
-	MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
-TopBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true; dragStart = input.Position; startPos = MainFrame.Position
-		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-	end
-end)
-TopBar.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
-end)
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then update(input) end
-end)
-
--- // 11. TOGGLE & MINIMIZE //
 local ToggleIcon = Instance.new("ImageButton")
 ToggleIcon.Name = "ToggleIcon"
-ToggleIcon.Size = UDim2.new(0, 50, 0, 50) 
+ToggleIcon.Size = UDim2.new(0, 0, 0, 0) -- Start hidden
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = THEME.base
 ToggleIcon.Image = "rbxassetid://3944676352" 
@@ -669,6 +452,7 @@ UserInputService.InputBegan:Connect(function(input) if input.KeyCode == Enum.Key
 -- Mobile Drag
 local btnDragging, btnDragStart, btnStartPos
 ToggleIcon.InputBegan:Connect(function(input)
+	if not isMobile then return end
 	if input.UserInputType == Enum.UserInputType.Touch then
 		btnDragging = true; btnDragStart = input.Position; btnStartPos = ToggleIcon.Position
 		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then btnDragging = false end end)
@@ -683,8 +467,31 @@ end)
 
 -- Entry Animation (Button Only)
 task.delay(0.5, function()
-	ToggleIcon.Size = UDim2.new(0,0,0,0)
 	TweenService:Create(ToggleIcon, TweenInfo.new(1, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
 end)
 
-print("Blade Spin v4.2 (Stable) Loaded")
+-- // 11. DRAGGABLE LOGIC //
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+	local delta = input.Position - dragStart
+	MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+TopBar.InputBegan:Connect(function(input)
+	if not DraggableEnabled then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = MainFrame.Position
+		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+	end
+end)
+TopBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then update(input) end
+end)
+
+print("Blade Spin v6.0 (1M Loops) Loaded")
