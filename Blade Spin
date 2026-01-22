@@ -1,11 +1,10 @@
 --[[ 
-    BLADE SPIN [v11.0 - DIAMOND POLISH]
+    BLADE SPIN [v11.0 - BUFFED XP EDITION]
     --------------------------------------------------
-    - ANIMATIONS: Restored "Slide Up" tab switching.
-    - MONITOR: Added "Slide Down" animation for FPS/Ping.
+    - XP: Upgraded to "Burst Mode" (Fires 50x/loop).
+    - ANIMATIONS: Slide Up/Down & Smooth Monitors.
     - UI: Exact Loot Hero Framework (Classic Blue).
-    - MAIN: 100k Loops & Item Unlocker.
-    - SETTINGS: Tracers, Destruction (Double Tap).
+    - SETTINGS: Tracers & Double-Tap Destruction.
     --------------------------------------------------
 ]]
 
@@ -63,10 +62,10 @@ local MonitorPing = false
 local function GetEvent(name)
 	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
 	if not Holders then return nil end
-
+	
 	local Events = Holders:WaitForChild("Events", 2)
 	if not Events then return nil end
-
+	
 	return Events:WaitForChild(name, 2)
 end
 
@@ -89,7 +88,7 @@ end
 -- // 8. ANIMATED PERFORMANCE MONITOR //
 local MonitorUI = Instance.new("Frame")
 MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
-MonitorUI.Position = UDim2.new(1, -110, 0, 10) -- Top Right
+MonitorUI.Position = UDim2.new(1, -110, 0, 10) 
 MonitorUI.BackgroundColor3 = THEME.base 
 MonitorUI.BackgroundTransparency = 0.2
 MonitorUI.Visible = false
@@ -127,18 +126,15 @@ end
 local FpsCont, FpsLabel = CreateMonitorLabel("FPS: --")
 local PingCont, PingLabel = CreateMonitorLabel("Ping: --")
 
--- [LOOT HERO ANIMATION LOGIC]
 local function AnimateMonitor(container, label, enabled, content)
 	if enabled then
 		label.Text = content
 		if container.Size.Y.Offset == 0 then
-			-- Slide Down & Fade In
 			doTween(container, {Size = UDim2.new(1, 0, 0, 20)}, 0.4, Enum.EasingStyle.Quart)
 			doTween(label, {TextTransparency = 0}, 0.3)
 		end
 	else
 		if container.Size.Y.Offset > 0 then
-			-- Slide Up & Fade Out
 			doTween(container, {Size = UDim2.new(1, 0, 0, 0)}, 0.4, Enum.EasingStyle.Quart)
 			doTween(label, {TextTransparency = 1}, 0.2)
 		end
@@ -153,7 +149,7 @@ RunService.RenderStepped:Connect(function(dt)
 		MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
 	else
 		MonitorUI.Visible = true
-
+		
 		local fpsVal = math.floor(1/dt)
 		AnimateMonitor(FpsCont, FpsLabel, MonitorFPS, "FPS: " .. fpsVal)
 
@@ -284,10 +280,10 @@ local function CreateTab(name)
 			if data.Page then
 				if n == name then
 					data.Page.Visible = true
-					-- [LOOT HERO ANIMATION]
-					data.Page.CanvasPosition = Vector2.new(0, 10) -- Start slightly down
-					TweenService:Create(data.Page, TweenInfo.new(0.3), {CanvasPosition = Vector2.new(0,0)}):Play() -- Slide up
-
+					-- Slide Up Animation
+					data.Page.CanvasPosition = Vector2.new(0, 10) 
+					TweenService:Create(data.Page, TweenInfo.new(0.3), {CanvasPosition = Vector2.new(0,0)}):Play()
+					
 					doTween(data.Btn, {TextColor3 = THEME.text, BackgroundColor3 = THEME.banner})
 				else
 					data.Page.Visible = false
@@ -494,7 +490,7 @@ end
 
 CreateSection(MainTab, "AUTO FARM")
 
-CreateToggle(MainTab, "Auto Coins", "Loops 100,000 Coins", function(val)
+CreateToggle(MainTab, "Auto Coins (100k)", "Loops 100,000 Coins", function(val)
 	AutoCoins = val
 	if val then
 		task.spawn(function()
@@ -510,17 +506,22 @@ CreateToggle(MainTab, "Auto Coins", "Loops 100,000 Coins", function(val)
 	end
 end)
 
-CreateToggle(MainTab, "Auto XP", "Loops 100,000 XP", function(val)
+-- [UPDATED] BUFFED XP TOGGLE (Burst Mode)
+CreateToggle(MainTab, "Auto XP (Buffed)", "Spams 50x per loop (Fast)", function(val)
 	AutoXP = val
 	if val then
 		task.spawn(function()
+			local r = GetEvent("AddXP")
 			while AutoXP do
-				local r = GetEvent("AddXP")
 				if r then 
-					local args = { 100000 } 
-					r:FireServer(unpack(args))
+					-- Burst Loop: Simulates the massive list of code
+					for i = 1, 50 do
+						if not AutoXP then break end
+						local args = { 100000 } 
+						r:FireServer(unpack(args))
+					end
 				end
-				task.wait(0.2)
+				task.wait() -- Minimal wait to prevent crash
 			end
 		end)
 	end
@@ -803,5 +804,56 @@ UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then update(input) end
 end)
 
+local function PlayIntro()
+	local IntroFrame = Instance.new("Frame")
+	IntroFrame.Size = UDim2.fromScale(1,1) 
+	IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	IntroFrame.ZIndex = 500 
+	IntroFrame.Parent = gui
+
+	local BarBG = Instance.new("Frame")
+	BarBG.Size = UDim2.new(0, 0, 0, 8) 
+	BarBG.Position = UDim2.fromScale(0.5, 0.55)
+	BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+	BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+	BarBG.ZIndex = 501
+	BarBG.Parent = IntroFrame
+	Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
+
+	local BarFill = Instance.new("Frame")
+	BarFill.Size = UDim2.new(0, 0, 1, 0)
+	BarFill.BackgroundColor3 = THEME.accent
+	BarFill.ZIndex = 502
+	BarFill.Parent = BarBG
+	Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
+
+	local Logo = Instance.new("TextLabel")
+	Logo.Text = "Blade Spin"
+	Logo.Font = Enum.Font.GothamBlack
+	Logo.TextSize = 42
+	Logo.TextColor3 = THEME.text
+	Logo.Position = UDim2.fromScale(0.5, 0.45)
+	Logo.AnchorPoint = Vector2.new(0.5, 0.5)
+	Logo.BackgroundTransparency = 1
+	Logo.ZIndex = 502
+	Logo.Parent = IntroFrame
+
+	Logo.Size = UDim2.new(0, 0, 0, 0)
+	TweenService:Create(Logo, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 200, 0, 50)}):Play()
+
+	task.wait(0.4)
+	TweenService:Create(BarBG, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 8)}):Play()
+	task.wait(0.2)
+	TweenService:Create(BarFill, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Size = UDim2.new(1,0,1,0)}):Play()
+	task.wait(1.0)
+
+	TweenService:Create(Logo, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
+	TweenService:Create(BarBG, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
+	TweenService:Create(IntroFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+
+	task.wait(0.5)
+	IntroFrame:Destroy()
+end
+
 PlayIntro() -- Joyful Intro Animation
-print("Blade Spin v11.0 (Diamond Polish) Loaded")
+print("Blade Spin v11.0 (Buffed XP Edition) Loaded")
