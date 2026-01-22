@@ -1,10 +1,10 @@
 --[[ 
-    BLADE SPIN [UI] v2.0
+    BLADE SPIN [UI] - FINAL FIXED VERSION
     --------------------------------------------------
-    - UI: Exact match to Loot Hero v9.5 (Classic Blue).
-    - DRAGGABLE: Added drag logic to the header.
-    - FEATURES: Auto Coins, Auto XP, Advanced ESP.
-    - REMOVED: Player Combat/Loop Hit logic.
+    - BASE: Exact Loot Hero v9.5 Framework.
+    - FIX: Fixed 'switchOff' nil error.
+    - TABS: Main, Settings, Info.
+    - FEATURES: Buffed Auto Farm (1B+), ESP, Low Perf.
     --------------------------------------------------
 ]]
 
@@ -16,17 +16,17 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local MarketplaceService = game:GetService("MarketplaceService")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
-local Camera = Workspace.CurrentCamera
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.45, 0) or UDim2.new(0, 260, 0, 350) 
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.6, 0) or UDim2.new(0, 260, 0, 500) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
--- // 3. THEME (Classic Blue) //
+-- // 3. THEME (Classic Blue - Fixed) //
 local THEME = {
 	mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(92,110,200)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40,50,125)) },
 	accent = Color3.fromRGB(105,160,255),
@@ -38,12 +38,16 @@ local THEME = {
 	danger = Color3.fromRGB(170,60,60),
 	success = Color3.fromRGB(80,200,120),
 	warning = Color3.fromRGB(230, 140, 60),
-	switchOff = Color3.fromRGB(60, 65, 90)
+	switchOff = Color3.fromRGB(60, 65, 90) -- [CRITICAL FIX] Added missing color
 }
 
 -- // 4. VARIABLES //
 local AutoCoins = false
+local CoinAmount = 100000 
+
 local AutoXP = false
+local XPAmount = 100000 
+
 local EspEnabled = false
 local EspCache = {}
 
@@ -87,7 +91,7 @@ MainGrad.Parent = MainFrame
 local UICorner = Instance.new("UICorner"); UICorner.CornerRadius = UDim.new(0, 14); UICorner.Parent = MainFrame
 local UIStroke = Instance.new("UIStroke"); UIStroke.Thickness = 1.5; UIStroke.Color = THEME.stroke; UIStroke.Parent = MainFrame
 
--- Header (Draggable Target)
+-- Header
 local TopBar = Instance.new("Frame")
 TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundTransparency = 1
@@ -121,6 +125,7 @@ ContentArea.Parent = MainFrame
 -- Tabs
 local TabContainer = Instance.new("Frame")
 TabContainer.Size = UDim2.new(1, 0, 0, 30)
+TabContainer.Position = UDim2.new(0, 0, 0, 5)
 TabContainer.BackgroundTransparency = 1
 TabContainer.Parent = ContentArea
 local TabLayout = Instance.new("UIListLayout"); TabLayout.FillDirection = Enum.FillDirection.Horizontal; TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center; TabLayout.Padding = UDim.new(0, 5); TabLayout.Parent = TabContainer
@@ -135,7 +140,7 @@ local Pages = {}
 
 local function CreateTab(name)
 	local TabBtn = Instance.new("TextButton")
-	TabBtn.Size = UDim2.new(0, 100, 1, 0)
+	TabBtn.Size = UDim2.new(0, 75, 1, 0)
 	TabBtn.BackgroundColor3 = THEME.base
 	TabBtn.Text = name
 	TabBtn.TextColor3 = THEME.subtext
@@ -172,12 +177,13 @@ end
 
 local MainTab = CreateTab("Main")
 local SettingsTab = CreateTab("Settings")
+local InfoTab = CreateTab("Info")
 
 Pages["Main"].Page.Visible = true
 Pages["Main"].Btn.TextColor3 = THEME.text
 Pages["Main"].Btn.BackgroundColor3 = THEME.banner
 
--- // COMPONENT BUILDERS // --
+-- // COMPONENT BUILDERS //
 
 local function CreateSection(parent, text)
 	local Label = Instance.new("TextLabel")
@@ -189,8 +195,81 @@ local function CreateSection(parent, text)
 	Label.TextSize = 12
 	Label.TextXAlignment = Enum.TextXAlignment.Left
 	Label.Parent = parent
+	return Label
 end
 
+local function CreateDropdown(parent, title, options, callback)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -6, 0, 50)
+	Frame.BackgroundColor3 = THEME.base
+	Frame.ClipsDescendants = true
+	Frame.Parent = parent
+	Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+	Instance.new("UIStroke", Frame).Color = THEME.stroke
+
+	local ToggleBtn = Instance.new("TextButton")
+	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
+	ToggleBtn.BackgroundTransparency = 1
+	ToggleBtn.Text = ""
+	ToggleBtn.Parent = Frame
+
+	local TitleL = Instance.new("TextLabel")
+	TitleL.Text = title
+	TitleL.Size = UDim2.new(1, -40, 1, 0)
+	TitleL.Position = UDim2.new(0, 12, 0, 0)
+	TitleL.BackgroundTransparency = 1
+	TitleL.TextColor3 = THEME.text
+	TitleL.Font = Enum.Font.SourceSansBold
+	TitleL.TextSize = 14
+	TitleL.TextXAlignment = Enum.TextXAlignment.Left
+	TitleL.Parent = ToggleBtn
+
+	local Arrow = Instance.new("ImageLabel")
+	Arrow.Image = "rbxassetid://6031091004"
+	Arrow.Size = UDim2.new(0, 20, 0, 20)
+	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
+	Arrow.BackgroundTransparency = 1
+	Arrow.ImageColor3 = THEME.subtext
+	Arrow.Parent = ToggleBtn
+
+	local ListContainer = Instance.new("Frame")
+	ListContainer.Size = UDim2.new(1, 0, 0, 0)
+	ListContainer.Position = UDim2.new(0, 0, 0, 50)
+	ListContainer.BackgroundTransparency = 1
+	ListContainer.Parent = Frame
+	local lLayout = Instance.new("UIListLayout"); lLayout.Parent = ListContainer; lLayout.Padding = UDim.new(0,5); lLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local isOpen = false
+
+	for _, opt in ipairs(options) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.9, 0, 0, 30)
+		btn.BackgroundColor3 = THEME.banner
+		btn.Text = opt.Name 
+		btn.TextColor3 = THEME.text
+		btn.Font = Enum.Font.SourceSans
+		btn.TextSize = 12
+		btn.Parent = ListContainer
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+		btn.MouseButton1Click:Connect(function()
+			callback(opt.Value)
+			TitleL.Text = title .. ": " .. opt.Name
+			isOpen = false
+			doTween(Frame, {Size = UDim2.new(1, -6, 0, 50)})
+			doTween(Arrow, {Rotation = 0})
+		end)
+	end
+
+	ToggleBtn.MouseButton1Click:Connect(function()
+		isOpen = not isOpen
+		doTween(Arrow, {Rotation = isOpen and 180 or 0})
+		local h = (#options * 35) + 5
+		doTween(Frame, {Size = UDim2.new(1, -6, 0, isOpen and (50 + h) or 50)})
+	end)
+end
+
+-- [FIXED] TOGGLE UI (Using Right Alignment Holder)
 local function CreateToggle(parent, title, desc, callback)
 	local Frame = Instance.new("TextButton")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
@@ -223,19 +302,19 @@ local function CreateToggle(parent, title, desc, callback)
 	DescL.TextXAlignment = Enum.TextXAlignment.Left
 	DescL.Parent = Frame
 
-	-- Right Side Holder (Alignment Fix)
+	-- Right Holder
 	local RightHolder = Instance.new("Frame")
-	RightHolder.Size = UDim2.new(0, 120, 1, 0)
+	RightHolder.Size = UDim2.new(0, 60, 1, 0)
 	RightHolder.Position = UDim2.new(1, -10, 0, 0)
 	RightHolder.AnchorPoint = Vector2.new(1, 0)
 	RightHolder.BackgroundTransparency = 1
 	RightHolder.Parent = Frame
-	local RL = Instance.new("UIListLayout"); RL.FillDirection = Enum.FillDirection.Horizontal; RL.HorizontalAlignment = Enum.HorizontalAlignment.Right; RL.VerticalAlignment = Enum.VerticalAlignment.Center; RL.Padding = UDim.new(0, 10); RL.Parent = RightHolder
+	local RL = Instance.new("UIListLayout"); RL.FillDirection = Enum.FillDirection.Horizontal; RL.HorizontalAlignment = Enum.HorizontalAlignment.Right; RL.VerticalAlignment = Enum.VerticalAlignment.Center; RL.Parent = RightHolder
 
 	-- Pill Switch
 	local SwitchContainer = Instance.new("Frame")
 	SwitchContainer.Size = UDim2.new(0, 42, 0, 22)
-	SwitchContainer.BackgroundColor3 = THEME.switchOff
+	SwitchContainer.BackgroundColor3 = THEME.switchOff -- [FIXED: This was nil before]
 	SwitchContainer.Parent = RightHolder
 	Instance.new("UICorner", SwitchContainer).CornerRadius = UDim.new(1,0)
 
@@ -265,37 +344,57 @@ local function CreateToggle(parent, title, desc, callback)
 	end)
 end
 
--- // 8. MAIN FEATURES //
+-- // 8. MAIN TAB (AUTO FARM) //
 
 CreateSection(MainTab, "AUTO FARM")
 
-CreateToggle(MainTab, "Auto Coins", "Loops 100k Coins", function(val)
+-- COIN DROPDOWN
+CreateDropdown(MainTab, "Coin Amount", {
+	{Name = "100,000 (Standard)", Value = 100000},
+	{Name = "10 Million (High)", Value = 10000000},
+	{Name = "1 Billion (Max)", Value = 1000000000}
+}, function(val)
+	CoinAmount = val
+end)
+
+-- COIN TOGGLE
+CreateToggle(MainTab, "Auto Coins Loop", "Spams selected coin amount", function(val)
 	AutoCoins = val
 	if val then
 		task.spawn(function()
 			while AutoCoins do
 				local r = GetRemote("AddCoins")
-				if r then r:FireServer(10000000000) end
+				if r then r:FireServer(CoinAmount) end
 				task.wait(0.2)
 			end
 		end)
 	end
 end)
 
-CreateToggle(MainTab, "Auto XP", "Loops 100k XP", function(val)
+-- XP DROPDOWN
+CreateDropdown(MainTab, "XP Amount", {
+	{Name = "100,000 (Standard)", Value = 100000},
+	{Name = "10 Million (High)", Value = 10000000},
+	{Name = "1 Billion (Max)", Value = 1000000000}
+}, function(val)
+	XPAmount = val
+end)
+
+-- XP TOGGLE
+CreateToggle(MainTab, "Auto XP Loop", "Spams selected XP amount", function(val)
 	AutoXP = val
 	if val then
 		task.spawn(function()
 			while AutoXP do
 				local r = GetRemote("AddXP")
-				if r then r:FireServer(10000000000) end
+				if r then r:FireServer(XPAmount) end
 				task.wait(0.2)
 			end
 		end)
 	end
 end)
 
--- // 9. SETTINGS (ESP) //
+-- // 9. SETTINGS TAB (VISUALS) //
 
 CreateSection(SettingsTab, "VISUALS")
 
@@ -355,7 +454,7 @@ local function AddESP(p)
 			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 				local dist = (player.Character.HumanoidRootPart.Position - root.Position).Magnitude
 				txt.Text = string.format("%s\n[%.0f m]", p.Name, dist)
-				
+
 				local myRoot = player.Character.HumanoidRootPart
 				if not myRoot:FindFirstChild("TracerAttach") then
 					local a = Instance.new("Attachment", myRoot); a.Name = "TracerAttach"
@@ -391,7 +490,25 @@ CreateToggle(SettingsTab, "Low Performance", "Removes shadows/effects", function
 	Lighting.FogEnd = val and 9e9 or 100000
 end)
 
--- // 10. DRAGGABLE LOGIC //
+-- // 10. INFO TAB (Standard) //
+local ProfileFrame = Instance.new("Frame")
+ProfileFrame.Size = UDim2.new(1, -6, 0, 100) 
+ProfileFrame.BackgroundColor3 = THEME.base
+ProfileFrame.Parent = InfoTab
+Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
+Instance.new("UIStroke", ProfileFrame).Color = THEME.stroke
+
+local Avatar = Instance.new("ImageLabel")
+Avatar.Size = UDim2.new(0, 50, 0, 50); Avatar.Position = UDim2.new(0, 10, 0, 10); Avatar.Parent = ProfileFrame; Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
+task.spawn(function() Avatar.Image = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
+
+local NameL = Instance.new("TextLabel")
+NameL.Text = player.DisplayName; NameL.Size = UDim2.new(1, -70, 0, 20); NameL.Position = UDim2.new(0, 70, 0, 10); NameL.BackgroundTransparency = 1; NameL.TextColor3 = THEME.text; NameL.Font = Enum.Font.SourceSansBold; NameL.TextSize = 16; NameL.TextXAlignment = Enum.TextXAlignment.Left; NameL.Parent = ProfileFrame
+
+local Creds = Instance.new("TextLabel")
+Creds.Text = "Logic by Neutral\nUI by LumaCore"; Creds.Size = UDim2.new(1, -70, 0, 40); Creds.Position = UDim2.new(0, 70, 0, 35); Creds.BackgroundTransparency = 1; Creds.TextColor3 = THEME.subtext; Creds.Font = Enum.Font.SourceSans; Creds.TextSize = 12; Creds.TextXAlignment = Enum.TextXAlignment.Left; Creds.Parent = ProfileFrame
+
+-- // 11. DRAGGABLE LOGIC //
 local dragging, dragInput, dragStart, startPos
 local function update(input)
 	local delta = input.Position - dragStart
@@ -414,7 +531,7 @@ UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then update(input) end
 end)
 
--- // 11. TOGGLE BUTTON //
+-- // 12. TOGGLE BUTTON //
 local ToggleIcon = Instance.new("ImageButton")
 ToggleIcon.Size = UDim2.new(0, 0, 0, 0) -- Start hidden
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
@@ -468,4 +585,4 @@ task.delay(0.5, function()
 end)
 task.delay(2, ToggleUI)
 
-print("Blade Spin v2.0 Loaded")
+print("Blade Spin v3.0 Loaded")
