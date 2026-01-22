@@ -1,10 +1,11 @@
 --[[ 
-    BLADE SPIN [UI] - FINAL FIXED VERSION
+    BLADE SPIN [v4.2 - LAYOUT FIXED]
     --------------------------------------------------
-    - BASE: Exact Loot Hero v9.5 Framework.
-    - FIX: Fixed 'switchOff' nil error.
-    - TABS: Main, Settings, Info.
-    - FEATURES: Buffed Auto Farm (1B+), ESP, Low Perf.
+    - UI: Loot Hero Framework (Classic Blue).
+    - TABS: Main, Settings (Info Removed).
+    - MAIN: Auto Farm + 5 Upgrade Buttons.
+    - SETTINGS: ESP + Low Performance.
+    - START: Hidden (Use Button to Open).
     --------------------------------------------------
 ]]
 
@@ -16,7 +17,6 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local MarketplaceService = game:GetService("MarketplaceService")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
@@ -26,7 +26,10 @@ local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEn
 local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.6, 0) or UDim2.new(0, 260, 0, 500) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
--- // 3. THEME (Classic Blue - Fixed) //
+-- // 3. THEME //
+local UI_FONT = Enum.Font.SourceSansBold
+local DESC_FONT = Enum.Font.SourceSans
+
 local THEME = {
 	mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(92,110,200)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40,50,125)) },
 	accent = Color3.fromRGB(105,160,255),
@@ -38,42 +41,61 @@ local THEME = {
 	danger = Color3.fromRGB(170,60,60),
 	success = Color3.fromRGB(80,200,120),
 	warning = Color3.fromRGB(230, 140, 60),
-	switchOff = Color3.fromRGB(60, 65, 90) -- [CRITICAL FIX] Added missing color
+	switchOff = Color3.fromRGB(60, 65, 90)
 }
 
 -- // 4. VARIABLES //
 local AutoCoins = false
-local CoinAmount = 100000 
+local SelectedCoinAmount = 100000 
 
 local AutoXP = false
-local XPAmount = 100000 
+local SelectedXPAmount = 100000 
 
 local EspEnabled = false
 local EspCache = {}
 
--- // 5. UI SETUP //
-if PlayerGui:FindFirstChild("BladeSpin_UI") then
-	PlayerGui.BladeSpin_UI:Destroy()
+local DraggableEnabled = true
+local Minimized = true 
+
+-- // 5. REMOTE HANDLER //
+local function GetEvent(name)
+	local Holders = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
+	if not Holders then return nil end
+
+	local Events = Holders:WaitForChild("Events", 2)
+	if not Events then return nil end
+
+	return Events:WaitForChild(name, 2)
+end
+
+local function TriggerUpgrade(statName, success, fail)
+	local r = GetEvent("UpgradeStat")
+	if r then
+		local args = { statName }
+		r:FireServer(unpack(args))
+		if success then success() end
+	else
+		if fail then fail() end
+	end
+end
+
+-- // 6. UI SETUP //
+if PlayerGui:FindFirstChild("BladeSpin_UI_v4") then
+	PlayerGui.BladeSpin_UI_v4:Destroy()
 end
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "BladeSpin_UI"
+gui.Name = "BladeSpin_UI_v4"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
 
--- // 6. UTILS //
+-- // 7. UTILS //
 local function doTween(obj, props)
 	TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
-local function GetRemote(name)
-	local holder = ReplicatedStorage:FindFirstChild("ReplicatedStorageHolders")
-	local events = holder and holder:FindFirstChild("Events")
-	return events and events:FindFirstChild(name)
-end
-
--- // 7. UI CONSTRUCTION //
+-- // 8. MAIN FRAME //
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "Main"
 MainFrame.Size = CLOSED_SIZE 
@@ -81,6 +103,7 @@ MainFrame.Position = UDim2.new(0.5, - (OPEN_SIZE.X.Offset/2), 0.4, 0)
 MainFrame.BackgroundColor3 = THEME.base 
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
+MainFrame.Visible = false -- Start Hidden
 MainFrame.Parent = gui
 
 local MainGrad = Instance.new("UIGradient")
@@ -93,36 +116,46 @@ local UIStroke = Instance.new("UIStroke"); UIStroke.Thickness = 1.5; UIStroke.Co
 
 -- Header
 local TopBar = Instance.new("Frame")
+TopBar.Name = "Header"
 TopBar.Size = UDim2.new(1, 0, 0, 40)
 TopBar.BackgroundTransparency = 1
 TopBar.Parent = MainFrame
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Text = "Blade Spin"
-TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Font = UI_FONT 
 TitleLabel.TextSize = 18
 TitleLabel.TextColor3 = THEME.text
-TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+TitleLabel.Size = UDim2.new(1, -100, 1, 0)
+TitleLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
+TitleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.BackgroundTransparency = 1
+TitleLabel.ZIndex = 1
 TitleLabel.Parent = TopBar
 
 local MinBtn = Instance.new("ImageButton")
+MinBtn.Name = "Minimize"
 MinBtn.BackgroundTransparency = 1
 MinBtn.Image = "rbxassetid://6031091004" 
 MinBtn.ImageColor3 = THEME.subtext
 MinBtn.Size = UDim2.new(0, 24, 0, 24)
 MinBtn.Position = UDim2.new(1, -35, 0.5, 0)
 MinBtn.AnchorPoint = Vector2.new(0, 0.5)
+MinBtn.ZIndex = 10 
 MinBtn.Parent = TopBar
 
 -- Content Area
 local ContentArea = Instance.new("Frame")
+ContentArea.Name = "ContentArea"
 ContentArea.Size = UDim2.new(1, 0, 1, -40)
 ContentArea.Position = UDim2.new(0, 0, 0, 40)
 ContentArea.BackgroundTransparency = 1
+ContentArea.ClipsDescendants = true
+ContentArea.Visible = false -- Hidden when minimized
 ContentArea.Parent = MainFrame
 
--- Tabs
+-- Tabs Container
 local TabContainer = Instance.new("Frame")
 TabContainer.Size = UDim2.new(1, 0, 0, 30)
 TabContainer.Position = UDim2.new(0, 0, 0, 5)
@@ -136,28 +169,43 @@ PageContainer.Position = UDim2.new(0, 5, 0, 40)
 PageContainer.BackgroundTransparency = 1
 PageContainer.Parent = ContentArea
 
+-- // TAB LOGIC //
 local Pages = {}
 
 local function CreateTab(name)
 	local TabBtn = Instance.new("TextButton")
-	TabBtn.Size = UDim2.new(0, 75, 1, 0)
+	TabBtn.Size = UDim2.new(0, 100, 1, 0) -- Wider for 2 tabs
 	TabBtn.BackgroundColor3 = THEME.base
 	TabBtn.Text = name
 	TabBtn.TextColor3 = THEME.subtext
-	TabBtn.Font = Enum.Font.SourceSansBold
+	TabBtn.Font = UI_FONT
 	TabBtn.TextSize = 13
+	TabBtn.AutoButtonColor = false
 	TabBtn.Parent = TabContainer
-	Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 8)
-	Instance.new("UIStroke", TabBtn).Color = THEME.stroke
+
+	local tCorner = Instance.new("UICorner"); tCorner.CornerRadius = UDim.new(0, 8); tCorner.Parent = TabBtn
+	local tStroke = Instance.new("UIStroke"); tStroke.Color = THEME.stroke; tStroke.Thickness = 1; tStroke.Parent = TabBtn
 
 	local Page = Instance.new("ScrollingFrame")
 	Page.Size = UDim2.new(1, 0, 1, 0)
 	Page.BackgroundTransparency = 1
 	Page.ScrollBarThickness = 0 
+	Page.ScrollingEnabled = true 
+	Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
+	Page.CanvasSize = UDim2.new(0,0,0,0)
 	Page.Visible = false
 	Page.Parent = PageContainer
-	local pList = Instance.new("UIListLayout"); pList.Padding = UDim.new(0, 8); pList.HorizontalAlignment = Enum.HorizontalAlignment.Center; pList.Parent = Page
-	Instance.new("UIPadding", Page).PaddingTop = UDim.new(0,5)
+
+	local pLayout = Instance.new("UIListLayout")
+	pLayout.Padding = UDim.new(0, 8)
+	pLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	pLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	pLayout.Parent = Page
+
+	local pPad = Instance.new("UIPadding")
+	pPad.PaddingTop = UDim.new(0,5)
+	pPad.PaddingBottom = UDim.new(0,10)
+	pPad.Parent = Page
 
 	Pages[name] = {Btn = TabBtn, Page = Page}
 
@@ -165,6 +213,7 @@ local function CreateTab(name)
 		for n, data in pairs(Pages) do
 			if n == name then
 				data.Page.Visible = true
+				doTween(data.Page, {CanvasPosition = Vector2.new(0,0)}, 0.3)
 				doTween(data.Btn, {TextColor3 = THEME.text, BackgroundColor3 = THEME.banner})
 			else
 				data.Page.Visible = false
@@ -177,8 +226,8 @@ end
 
 local MainTab = CreateTab("Main")
 local SettingsTab = CreateTab("Settings")
-local InfoTab = CreateTab("Info")
 
+-- Select Main Default
 Pages["Main"].Page.Visible = true
 Pages["Main"].Btn.TextColor3 = THEME.text
 Pages["Main"].Btn.BackgroundColor3 = THEME.banner
@@ -191,7 +240,7 @@ local function CreateSection(parent, text)
 	Label.Size = UDim2.new(1, -10, 0, 24)
 	Label.BackgroundTransparency = 1
 	Label.TextColor3 = THEME.accent
-	Label.Font = Enum.Font.SourceSansBold
+	Label.Font = UI_FONT
 	Label.TextSize = 12
 	Label.TextXAlignment = Enum.TextXAlignment.Left
 	Label.Parent = parent
@@ -204,8 +253,8 @@ local function CreateDropdown(parent, title, options, callback)
 	Frame.BackgroundColor3 = THEME.base
 	Frame.ClipsDescendants = true
 	Frame.Parent = parent
-	Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
-	Instance.new("UIStroke", Frame).Color = THEME.stroke
+	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
+	local s = Instance.new("UIStroke"); s.Color = THEME.stroke; s.Thickness = 1; s.Parent = Frame
 
 	local ToggleBtn = Instance.new("TextButton")
 	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
@@ -219,7 +268,7 @@ local function CreateDropdown(parent, title, options, callback)
 	TitleL.Position = UDim2.new(0, 12, 0, 0)
 	TitleL.BackgroundTransparency = 1
 	TitleL.TextColor3 = THEME.text
-	TitleL.Font = Enum.Font.SourceSansBold
+	TitleL.Font = UI_FONT
 	TitleL.TextSize = 14
 	TitleL.TextXAlignment = Enum.TextXAlignment.Left
 	TitleL.Parent = ToggleBtn
@@ -234,20 +283,18 @@ local function CreateDropdown(parent, title, options, callback)
 
 	local ListContainer = Instance.new("Frame")
 	ListContainer.Size = UDim2.new(1, 0, 0, 0)
-	ListContainer.Position = UDim2.new(0, 0, 0, 50)
 	ListContainer.BackgroundTransparency = 1
 	ListContainer.Parent = Frame
 	local lLayout = Instance.new("UIListLayout"); lLayout.Parent = ListContainer; lLayout.Padding = UDim.new(0,5); lLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
 	local isOpen = false
-
 	for _, opt in ipairs(options) do
 		local btn = Instance.new("TextButton")
 		btn.Size = UDim2.new(0.9, 0, 0, 30)
 		btn.BackgroundColor3 = THEME.banner
 		btn.Text = opt.Name 
 		btn.TextColor3 = THEME.text
-		btn.Font = Enum.Font.SourceSans
+		btn.Font = DESC_FONT
 		btn.TextSize = 12
 		btn.Parent = ListContainer
 		Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
@@ -264,12 +311,12 @@ local function CreateDropdown(parent, title, options, callback)
 	ToggleBtn.MouseButton1Click:Connect(function()
 		isOpen = not isOpen
 		doTween(Arrow, {Rotation = isOpen and 180 or 0})
-		local h = (#options * 35) + 5
-		doTween(Frame, {Size = UDim2.new(1, -6, 0, isOpen and (50 + h) or 50)})
+		local h = (#options * 35) + 50
+		ListContainer.Position = UDim2.new(0, 0, 0, 50)
+		doTween(Frame, {Size = UDim2.new(1, -6, 0, isOpen and h or 50)})
 	end)
 end
 
--- [FIXED] TOGGLE UI (Using Right Alignment Holder)
 local function CreateToggle(parent, title, desc, callback)
 	local Frame = Instance.new("TextButton")
 	Frame.Size = UDim2.new(1, -6, 0, 50)
@@ -286,7 +333,7 @@ local function CreateToggle(parent, title, desc, callback)
 	TitleL.Position = UDim2.new(0, 12, 0, 6)
 	TitleL.BackgroundTransparency = 1
 	TitleL.TextColor3 = THEME.text
-	TitleL.Font = Enum.Font.SourceSansBold
+	TitleL.Font = UI_FONT
 	TitleL.TextSize = 14
 	TitleL.TextXAlignment = Enum.TextXAlignment.Left
 	TitleL.Parent = Frame
@@ -297,12 +344,11 @@ local function CreateToggle(parent, title, desc, callback)
 	DescL.Position = UDim2.new(0, 12, 0, 26)
 	DescL.BackgroundTransparency = 1
 	DescL.TextColor3 = THEME.subtext
-	DescL.Font = Enum.Font.SourceSans
+	DescL.Font = DESC_FONT
 	DescL.TextSize = 11
 	DescL.TextXAlignment = Enum.TextXAlignment.Left
 	DescL.Parent = Frame
 
-	-- Right Holder
 	local RightHolder = Instance.new("Frame")
 	RightHolder.Size = UDim2.new(0, 60, 1, 0)
 	RightHolder.Position = UDim2.new(1, -10, 0, 0)
@@ -311,10 +357,9 @@ local function CreateToggle(parent, title, desc, callback)
 	RightHolder.Parent = Frame
 	local RL = Instance.new("UIListLayout"); RL.FillDirection = Enum.FillDirection.Horizontal; RL.HorizontalAlignment = Enum.HorizontalAlignment.Right; RL.VerticalAlignment = Enum.VerticalAlignment.Center; RL.Parent = RightHolder
 
-	-- Pill Switch
 	local SwitchContainer = Instance.new("Frame")
 	SwitchContainer.Size = UDim2.new(0, 42, 0, 22)
-	SwitchContainer.BackgroundColor3 = THEME.switchOff -- [FIXED: This was nil before]
+	SwitchContainer.BackgroundColor3 = THEME.switchOff
 	SwitchContainer.Parent = RightHolder
 	Instance.new("UICorner", SwitchContainer).CornerRadius = UDim.new(1,0)
 
@@ -344,61 +389,125 @@ local function CreateToggle(parent, title, desc, callback)
 	end)
 end
 
--- // 8. MAIN TAB (AUTO FARM) //
+local function CreateButton(parent, title, desc, callback)
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.new(1, -6, 0, 50)
+	Btn.BackgroundColor3 = THEME.base
+	Btn.AutoButtonColor = false
+	Btn.Text = ""
+	Btn.Parent = parent
+	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 10)
+	local s = Instance.new("UIStroke"); s.Color = THEME.stroke; s.Thickness = 1; s.Parent = Btn
+
+	local TitleL = Instance.new("TextLabel")
+	TitleL.Text = title
+	TitleL.Size = UDim2.new(1, -10, 0, 20)
+	TitleL.Position = UDim2.new(0, 12, 0, 6)
+	TitleL.BackgroundTransparency = 1
+	TitleL.TextColor3 = THEME.text
+	TitleL.Font = UI_FONT
+	TitleL.TextSize = 14
+	TitleL.TextXAlignment = Enum.TextXAlignment.Left
+	TitleL.Parent = Btn
+
+	local DescL = Instance.new("TextLabel")
+	DescL.Text = desc
+	DescL.Size = UDim2.new(1, -10, 0, 15)
+	DescL.Position = UDim2.new(0, 12, 0, 26)
+	DescL.BackgroundTransparency = 1
+	DescL.TextColor3 = THEME.subtext
+	DescL.Font = DESC_FONT
+	DescL.TextSize = 11
+	DescL.TextXAlignment = Enum.TextXAlignment.Left
+	DescL.Parent = Btn
+
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new(0, 0, 1, 0)
+	fill.BackgroundColor3 = THEME.accent
+	fill.BackgroundTransparency = 0.8
+	fill.BorderSizePixel = 0
+	fill.Parent = Btn
+	Instance.new("UICorner", fill).CornerRadius = UDim.new(0,10)
+
+	local function success()
+		doTween(s, {Color = THEME.success})
+		doTween(TitleL, {TextColor3 = THEME.success})
+		task.delay(0.5, function()
+			doTween(s, {Color = THEME.stroke})
+			doTween(TitleL, {TextColor3 = THEME.text})
+		end)
+	end
+
+	local function fail()
+		doTween(s, {Color = THEME.danger})
+		doTween(TitleL, {TextColor3 = THEME.danger})
+		task.delay(0.5, function()
+			doTween(s, {Color = THEME.stroke})
+			doTween(TitleL, {TextColor3 = THEME.text})
+		end)
+	end
+
+	Btn.MouseButton1Click:Connect(function()
+		doTween(Btn, {Size = UDim2.new(1, -12, 0, 48)}, 0.1)
+		task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
+		callback(success, fail)
+	end)
+end
+
+-- // 8. MAIN TAB CONTENT //
 
 CreateSection(MainTab, "AUTO FARM")
 
--- COIN DROPDOWN
 CreateDropdown(MainTab, "Coin Amount", {
 	{Name = "100,000 (Standard)", Value = 100000},
 	{Name = "10 Million (High)", Value = 10000000},
 	{Name = "1 Billion (Max)", Value = 1000000000}
-}, function(val)
-	CoinAmount = val
-end)
+}, function(val) SelectedCoinAmount = val end)
 
--- COIN TOGGLE
 CreateToggle(MainTab, "Auto Coins Loop", "Spams selected coin amount", function(val)
 	AutoCoins = val
 	if val then
 		task.spawn(function()
 			while AutoCoins do
-				local r = GetRemote("AddCoins")
-				if r then r:FireServer(CoinAmount) end
+				local r = GetEvent("AddCoins")
+				if r then r:FireServer(SelectedCoinAmount) end
 				task.wait(0.2)
 			end
 		end)
 	end
 end)
 
--- XP DROPDOWN
 CreateDropdown(MainTab, "XP Amount", {
 	{Name = "100,000 (Standard)", Value = 100000},
 	{Name = "10 Million (High)", Value = 10000000},
 	{Name = "1 Billion (Max)", Value = 1000000000}
-}, function(val)
-	XPAmount = val
-end)
+}, function(val) SelectedXPAmount = val end)
 
--- XP TOGGLE
 CreateToggle(MainTab, "Auto XP Loop", "Spams selected XP amount", function(val)
 	AutoXP = val
 	if val then
 		task.spawn(function()
 			while AutoXP do
-				local r = GetRemote("AddXP")
-				if r then r:FireServer(XPAmount) end
+				local r = GetEvent("AddXP")
+				if r then r:FireServer(SelectedXPAmount) end
 				task.wait(0.2)
 			end
 		end)
 	end
 end)
 
--- // 9. SETTINGS TAB (VISUALS) //
+CreateSection(MainTab, "STATS UPGRADES")
 
-CreateSection(SettingsTab, "VISUALS")
+CreateButton(MainTab, "Upgrade Blades", "+1 Blade Count", function(s, f) TriggerUpgrade("AmountOfBlades", s, f) end)
+CreateButton(MainTab, "Upgrade Spin Speed", "Increase Rotation", function(s, f) TriggerUpgrade("SpinSpeed", s, f) end)
+CreateButton(MainTab, "Upgrade Damage", "Increase Hit Power", function(s, f) TriggerUpgrade("Damage", s, f) end)
+CreateButton(MainTab, "Upgrade Health", "Increase Max HP", function(s, f) TriggerUpgrade("Health", s, f) end)
+CreateButton(MainTab, "Upgrade Speed", "Increase WalkSpeed", function(s, f) TriggerUpgrade("MovementSpeed", s, f) end)
 
--- ESP Logic
+-- // 9. SETTINGS TAB CONTENT //
+
+CreateSection(SettingsTab, "VISUALS & PERFORMANCE")
+
 local function AddESP(p)
 	if p == player or not p.Character then return end
 	if EspCache[p] then EspCache[p]:Destroy() end
@@ -411,7 +520,6 @@ local function AddESP(p)
 	holder.Name = p.Name .. "_ESP"
 	holder.Parent = char
 
-	-- Highlight
 	local hl = Instance.new("Highlight")
 	hl.FillColor = THEME.danger
 	hl.FillTransparency = 0.5
@@ -419,7 +527,6 @@ local function AddESP(p)
 	hl.OutlineTransparency = 0
 	hl.Parent = holder
 
-	-- Text
 	local bb = Instance.new("BillboardGui")
 	bb.Size = UDim2.new(0, 200, 0, 50)
 	bb.StudsOffset = Vector3.new(0, 3, 0)
@@ -432,11 +539,10 @@ local function AddESP(p)
 	txt.BackgroundTransparency = 1
 	txt.TextColor3 = THEME.text
 	txt.TextStrokeTransparency = 0
-	txt.Font = Enum.Font.SourceSansBold
+	txt.Font = UI_FONT
 	txt.TextSize = 14
 	txt.Parent = bb
 
-	-- Tracer
 	local attach1 = Instance.new("Attachment", root)
 	local beam = Instance.new("Beam")
 	beam.Attachment0 = nil 
@@ -490,25 +596,7 @@ CreateToggle(SettingsTab, "Low Performance", "Removes shadows/effects", function
 	Lighting.FogEnd = val and 9e9 or 100000
 end)
 
--- // 10. INFO TAB (Standard) //
-local ProfileFrame = Instance.new("Frame")
-ProfileFrame.Size = UDim2.new(1, -6, 0, 100) 
-ProfileFrame.BackgroundColor3 = THEME.base
-ProfileFrame.Parent = InfoTab
-Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
-Instance.new("UIStroke", ProfileFrame).Color = THEME.stroke
-
-local Avatar = Instance.new("ImageLabel")
-Avatar.Size = UDim2.new(0, 50, 0, 50); Avatar.Position = UDim2.new(0, 10, 0, 10); Avatar.Parent = ProfileFrame; Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
-task.spawn(function() Avatar.Image = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
-
-local NameL = Instance.new("TextLabel")
-NameL.Text = player.DisplayName; NameL.Size = UDim2.new(1, -70, 0, 20); NameL.Position = UDim2.new(0, 70, 0, 10); NameL.BackgroundTransparency = 1; NameL.TextColor3 = THEME.text; NameL.Font = Enum.Font.SourceSansBold; NameL.TextSize = 16; NameL.TextXAlignment = Enum.TextXAlignment.Left; NameL.Parent = ProfileFrame
-
-local Creds = Instance.new("TextLabel")
-Creds.Text = "Logic by Neutral\nUI by LumaCore"; Creds.Size = UDim2.new(1, -70, 0, 40); Creds.Position = UDim2.new(0, 70, 0, 35); Creds.BackgroundTransparency = 1; Creds.TextColor3 = THEME.subtext; Creds.Font = Enum.Font.SourceSans; Creds.TextSize = 12; Creds.TextXAlignment = Enum.TextXAlignment.Left; Creds.Parent = ProfileFrame
-
--- // 11. DRAGGABLE LOGIC //
+-- // 10. DRAGGABLE LOGIC //
 local dragging, dragInput, dragStart, startPos
 local function update(input)
 	local delta = input.Position - dragStart
@@ -516,9 +604,7 @@ local function update(input)
 end
 TopBar.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
+		dragging = true; dragStart = input.Position; startPos = MainFrame.Position
 		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
 	end
 end)
@@ -531,9 +617,10 @@ UserInputService.InputChanged:Connect(function(input)
 	if input == dragInput and dragging then update(input) end
 end)
 
--- // 12. TOGGLE BUTTON //
+-- // 11. TOGGLE & MINIMIZE //
 local ToggleIcon = Instance.new("ImageButton")
-ToggleIcon.Size = UDim2.new(0, 0, 0, 0) -- Start hidden
+ToggleIcon.Name = "ToggleIcon"
+ToggleIcon.Size = UDim2.new(0, 50, 0, 50) 
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = THEME.base
 ToggleIcon.Image = "rbxassetid://3944676352" 
@@ -543,30 +630,45 @@ ToggleIcon.Parent = gui
 Instance.new("UICorner", ToggleIcon).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", ToggleIcon).Color = THEME.stroke
 
-local visible = false
+local visible = false -- UI Starts Hidden
+
 local function ToggleUI()
 	visible = not visible
 	if visible then
 		MainFrame.Visible = true
+		Minimized = false
 		doTween(MainFrame, {Size = OPEN_SIZE})
 		doTween(MinBtn, {Rotation = 180})
+		ContentArea.Visible = true
 	else
-		doTween(MainFrame, {Size = CLOSED_SIZE})
-		doTween(MinBtn, {Rotation = 0})
-		task.delay(0.3, function() if not visible then MainFrame.Visible = false end end)
+		doTween(MainFrame, {Size = CLOSED_SIZE}) -- Shrink effect first
+		task.delay(0.2, function() MainFrame.Visible = false end)
 	end
 end
 
-ToggleIcon.MouseButton1Click:Connect(ToggleUI)
-MinBtn.MouseButton1Click:Connect(ToggleUI)
-UserInputService.InputBegan:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.RightControl then ToggleUI() end
+-- Minimize Function
+MinBtn.MouseButton1Click:Connect(function()
+	if Minimized then
+		-- Expand
+		Minimized = false
+		ContentArea.Visible = true
+		doTween(MainFrame, {Size = OPEN_SIZE})
+		doTween(MinBtn, {Rotation = 180})
+	else
+		-- Shrink
+		Minimized = true
+		doTween(MainFrame, {Size = CLOSED_SIZE})
+		ContentArea.Visible = false
+		doTween(MinBtn, {Rotation = 0})
+	end
 end)
 
--- Mobile Drag for Button
+ToggleIcon.MouseButton1Click:Connect(ToggleUI)
+UserInputService.InputBegan:Connect(function(input) if input.KeyCode == Enum.KeyCode.RightControl then ToggleUI() end end)
+
+-- Mobile Drag
 local btnDragging, btnDragStart, btnStartPos
 ToggleIcon.InputBegan:Connect(function(input)
-	if not isMobile then return end
 	if input.UserInputType == Enum.UserInputType.Touch then
 		btnDragging = true; btnDragStart = input.Position; btnStartPos = ToggleIcon.Position
 		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then btnDragging = false end end)
@@ -579,10 +681,10 @@ ToggleIcon.InputChanged:Connect(function(input)
 	end
 end)
 
--- Entry Animation
+-- Entry Animation (Button Only)
 task.delay(0.5, function()
+	ToggleIcon.Size = UDim2.new(0,0,0,0)
 	TweenService:Create(ToggleIcon, TweenInfo.new(1, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
 end)
-task.delay(2, ToggleUI)
 
-print("Blade Spin v3.0 Loaded")
+print("Blade Spin v4.2 (Stable) Loaded")
