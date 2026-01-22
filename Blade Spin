@@ -1,9 +1,10 @@
 --[[ 
-    BLADE SPIN [UI] v1.0
+    BLADE SPIN [v1.1]
     --------------------------------------------------
-    - Based on Loot Hero v9.5 Architecture
-    - MAIN: Auto Coins/XP + Player Loop Attack
-    - SETTINGS: Advanced ESP (Lines/Dist) + Performance
+    - UI: Exact match to Loot Hero v9.5 (Perfect Alignment).
+    - TABS: Main & Settings only.
+    - MAIN: Auto Coins, Auto XP, Player Target Loop.
+    - SETTINGS: Advanced ESP (Lines/Dist), Low Performance.
     --------------------------------------------------
 ]]
 
@@ -15,17 +16,17 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local Stats = game:GetService("Stats")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
+local Camera = Workspace.CurrentCamera
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.55, 0) or UDim2.new(0, 260, 0, 500) 
+local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.6, 0) or UDim2.new(0, 260, 0, 550) 
 local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
 
--- // 3. THEME (Classic Blue) //
+-- // 3. THEME (Classic Blue - v9.5 Style) //
 local THEME = {
 	mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(92,110,200)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40,50,125)) },
 	accent = Color3.fromRGB(105,160,255),
@@ -44,11 +45,11 @@ local THEME = {
 local AutoCoins = false
 local AutoXP = false
 local LoopHit = false
-local SelectedTarget = nil -- Name of player
+local SelectedTarget = nil 
 
 local EspEnabled = false
-local EspFolder = Instance.new("Folder", Workspace)
-EspFolder.Name = "BladeSpin_ESP"
+local LowPerfEnabled = false
+local EspCache = {}
 
 -- // 5. UI SETUP //
 if PlayerGui:FindFirstChild("BladeSpin_UI") then
@@ -61,15 +62,15 @@ gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true 
 
--- // 6. HELPER FUNCTIONS //
+-- // 6. ANIMATION & HELPER UTILS //
 local function doTween(obj, props)
 	TweenService:Create(obj, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
 local function GetRemote(name)
-	local holder = ReplicatedStorage:WaitForChild("ReplicatedStorageHolders", 2)
-	local events = holder and holder:WaitForChild("Events", 2)
-	return events and events:WaitForChild(name, 2)
+	local holder = ReplicatedStorage:FindFirstChild("ReplicatedStorageHolders")
+	local events = holder and holder:FindFirstChild("Events")
+	return events and events:FindFirstChild(name)
 end
 
 -- // 7. UI CONSTRUCTION //
@@ -104,6 +105,15 @@ TitleLabel.TextColor3 = THEME.text
 TitleLabel.Size = UDim2.new(1, 0, 1, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Parent = TopBar
+
+local MinBtn = Instance.new("ImageButton")
+MinBtn.BackgroundTransparency = 1
+MinBtn.Image = "rbxassetid://6031091004" 
+MinBtn.ImageColor3 = THEME.subtext
+MinBtn.Size = UDim2.new(0, 24, 0, 24)
+MinBtn.Position = UDim2.new(1, -35, 0.5, 0)
+MinBtn.AnchorPoint = Vector2.new(0, 0.5)
+MinBtn.Parent = TopBar
 
 -- Content Area
 local ContentArea = Instance.new("Frame")
@@ -167,12 +177,11 @@ end
 local MainTab = CreateTab("Main")
 local SettingsTab = CreateTab("Settings")
 
--- Select Main by default
 Pages["Main"].Page.Visible = true
 Pages["Main"].Btn.TextColor3 = THEME.text
 Pages["Main"].Btn.BackgroundColor3 = THEME.banner
 
--- // COMPONENT BUILDERS // --
+-- // COMPONENT BUILDERS (v9.5 STYLE) // --
 
 local function CreateSection(parent, text)
 	local Label = Instance.new("TextLabel")
@@ -198,7 +207,7 @@ local function CreateToggle(parent, title, desc, callback)
 
 	local TitleL = Instance.new("TextLabel")
 	TitleL.Text = title
-	TitleL.Size = UDim2.new(1, -70, 0, 20)
+	TitleL.Size = UDim2.new(1, -100, 0, 20)
 	TitleL.Position = UDim2.new(0, 12, 0, 6)
 	TitleL.BackgroundTransparency = 1
 	TitleL.TextColor3 = THEME.text
@@ -209,7 +218,7 @@ local function CreateToggle(parent, title, desc, callback)
 
 	local DescL = Instance.new("TextLabel")
 	DescL.Text = desc
-	DescL.Size = UDim2.new(1, -70, 0, 15)
+	DescL.Size = UDim2.new(1, -100, 0, 15)
 	DescL.Position = UDim2.new(0, 12, 0, 26)
 	DescL.BackgroundTransparency = 1
 	DescL.TextColor3 = THEME.subtext
@@ -218,13 +227,20 @@ local function CreateToggle(parent, title, desc, callback)
 	DescL.TextXAlignment = Enum.TextXAlignment.Left
 	DescL.Parent = Frame
 
-	-- Switch UI
+	-- Right Side Holder (Alignment Fix)
+	local RightHolder = Instance.new("Frame")
+	RightHolder.Size = UDim2.new(0, 120, 1, 0)
+	RightHolder.Position = UDim2.new(1, -10, 0, 0)
+	RightHolder.AnchorPoint = Vector2.new(1, 0)
+	RightHolder.BackgroundTransparency = 1
+	RightHolder.Parent = Frame
+	local RL = Instance.new("UIListLayout"); RL.FillDirection = Enum.FillDirection.Horizontal; RL.HorizontalAlignment = Enum.HorizontalAlignment.Right; RL.VerticalAlignment = Enum.VerticalAlignment.Center; RL.Padding = UDim.new(0, 10); RL.Parent = RightHolder
+
+	-- Pill Switch
 	local SwitchContainer = Instance.new("Frame")
 	SwitchContainer.Size = UDim2.new(0, 42, 0, 22)
-	SwitchContainer.Position = UDim2.new(1, -12, 0.5, 0)
-	SwitchContainer.AnchorPoint = Vector2.new(1, 0.5)
 	SwitchContainer.BackgroundColor3 = THEME.switchOff
-	SwitchContainer.Parent = Frame
+	SwitchContainer.Parent = RightHolder
 	Instance.new("UICorner", SwitchContainer).CornerRadius = UDim.new(1,0)
 
 	local Knob = Instance.new("Frame")
@@ -341,7 +357,7 @@ local function CreatePlayerDropdown(parent, callback)
 	end)
 end
 
--- // 8. MAIN FEATURES //
+-- // 8. MAIN TAB FEATURES //
 
 CreateSection(MainTab, "AUTO FARM")
 
@@ -380,22 +396,20 @@ end)
 CreateToggle(MainTab, "Loop Hit Target", "Spams Hit on Selected User", function(val)
 	LoopHit = val
 	if val then
-		if not SelectedTarget then 
-			LoopHit = false 
-			return 
-		end
 		task.spawn(function()
 			while LoopHit do
-				local targetPlayer = Players:FindFirstChild(SelectedTarget)
-				if targetPlayer then
-					local r = GetRemote("PlayerHit")
-					if r then
-						-- Passing the Player Instance as requested
-						r:FireServer(targetPlayer)
+				if SelectedTarget then
+					local targetPlayer = Players:FindFirstChild(SelectedTarget)
+					if targetPlayer then
+						local r = GetRemote("PlayerHit")
+						if r then
+							-- Using the target player INSTANCE as requested
+							r:FireServer(targetPlayer)
+						end
+					else
+						-- Player left
+						SelectedTarget = nil
 					end
-				else
-					-- Player left or invalid
-					LoopHit = false
 				end
 				task.wait(0.1) -- Fast loop
 			end
@@ -403,116 +417,119 @@ CreateToggle(MainTab, "Loop Hit Target", "Spams Hit on Selected User", function(
 	end
 end)
 
--- // 9. SETTINGS (ESP) //
+-- // 9. SETTINGS TAB (ESP) //
 
 CreateSection(SettingsTab, "VISUALS")
 
--- ESP LOGIC
-local function CreateESP(targetPlayer)
-	if not targetPlayer.Character then return end
-	local char = targetPlayer.Character
+-- Basic ESP Implementation
+local function AddESP(p)
+	if p == player or not p.Character then return end
+	
+	-- Cleanup old
+	if EspCache[p] then EspCache[p]:Destroy(); EspCache[p] = nil end
+
+	local char = p.Character
 	local root = char:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 
-	-- 1. Highlight
-	local hl = Instance.new("Highlight")
-	hl.Name = "BladeESP_HL"
-	hl.FillColor = Color3.fromRGB(255, 0, 0)
-	hl.FillTransparency = 0.5
-	hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-	hl.OutlineTransparency = 0
-	hl.Parent = char
+	local holder = Instance.new("Folder")
+	holder.Name = p.Name .. "_ESP"
+	holder.Parent = char
 
-	-- 2. Text (Name + Distance)
+	-- Highlight
+	local hl = Instance.new("Highlight")
+	hl.FillColor = THEME.danger
+	hl.FillTransparency = 0.5
+	hl.OutlineColor = THEME.text
+	hl.OutlineTransparency = 0
+	hl.Parent = holder
+
+	-- Distance Text
 	local bb = Instance.new("BillboardGui")
-	bb.Name = "BladeESP_BB"
-	bb.Adornee = root
 	bb.Size = UDim2.new(0, 200, 0, 50)
 	bb.StudsOffset = Vector3.new(0, 3, 0)
 	bb.AlwaysOnTop = true
-	bb.Parent = char
+	bb.Parent = holder
+	bb.Adornee = root
 
 	local txt = Instance.new("TextLabel")
-	txt.Size = UDim2.new(1, 0, 1, 0)
+	txt.Size = UDim2.fromScale(1,1)
 	txt.BackgroundTransparency = 1
-	txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+	txt.TextColor3 = THEME.text
 	txt.TextStrokeTransparency = 0
 	txt.Font = Enum.Font.SourceSansBold
 	txt.TextSize = 14
-	txt.Text = targetPlayer.Name
+	txt.Text = p.Name
 	txt.Parent = bb
 
-	-- Update Loop for Text Distance
+	-- Tracer Line
+	local attach1 = Instance.new("Attachment", root)
+	local beam = Instance.new("Beam")
+	beam.Attachment0 = nil -- Will update in loop
+	beam.Attachment1 = attach1
+	beam.Color = ColorSequence.new(THEME.danger)
+	beam.Width0 = 0.1
+	beam.Width1 = 0.1
+	beam.FaceCamera = true
+	beam.Enabled = false
+	beam.Parent = holder
+
+	EspCache[p] = holder
+
+	-- Update Loop
 	task.spawn(function()
-		while char.Parent and bb.Parent do
+		while EspEnabled and holder.Parent do
 			if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
 				local dist = (player.Character.HumanoidRootPart.Position - root.Position).Magnitude
-				txt.Text = string.format("%s\n[%.0f m]", targetPlayer.Name, dist)
+				txt.Text = string.format("%s\n[%.0f m]", p.Name, dist)
+				
+				-- Update Tracer
+				local myRoot = player.Character.HumanoidRootPart
+				if not myRoot:FindFirstChild("TracerAttach") then
+					local a = Instance.new("Attachment", myRoot)
+					a.Name = "TracerAttach"
+				end
+				beam.Attachment0 = myRoot:FindFirstChild("TracerAttach")
+				beam.Enabled = true
+			else
+				beam.Enabled = false
 			end
-			task.wait(0.5)
+			task.wait(0.1)
 		end
+		holder:Destroy()
 	end)
-
-	-- 3. Tracer Lines (Beam)
-	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-		local att0 = Instance.new("Attachment", player.Character.HumanoidRootPart)
-		local att1 = Instance.new("Attachment", root)
-		
-		local beam = Instance.new("Beam")
-		beam.Name = "BladeESP_Beam"
-		beam.Attachment0 = att0
-		beam.Attachment1 = att1
-		beam.FaceCamera = true
-		beam.Width0 = 0.1
-		beam.Width1 = 0.1
-		beam.Color = ColorSequence.new(Color3.fromRGB(255, 0, 0))
-		beam.Parent = char
-	end
-end
-
-local function ClearESP()
-	for _, v in pairs(Players:GetPlayers()) do
-		if v.Character then
-			for _, c in pairs(v.Character:GetChildren()) do
-				if c.Name:find("BladeESP") then c:Destroy() end
-			end
-		end
-	end
 end
 
 CreateToggle(SettingsTab, "ESP (Lines + Dist)", "See players through walls", function(val)
 	EspEnabled = val
 	if val then
-		-- Add existing
-		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= player then CreateESP(p) end
-		end
-		-- Add new
+		for _, p in pairs(Players:GetPlayers()) do AddESP(p) end
 		Players.PlayerAdded:Connect(function(p)
-			p.CharacterAdded:Connect(function()
-				if EspEnabled then 
-					task.wait(1)
-					CreateESP(p) 
-				end
+			p.CharacterAdded:Connect(function() 
+				if EspEnabled then task.wait(1); AddESP(p) end 
 			end)
 		end)
 	else
-		ClearESP()
+		for _, v in pairs(EspCache) do v:Destroy() end
+		EspCache = {}
 	end
 end)
 
 CreateToggle(SettingsTab, "Low Performance", "Removes shadows/effects", function(val)
+	LowPerfEnabled = val
 	Lighting.GlobalShadows = not val
 	Lighting.FogEnd = val and 9e9 or 100000
 end)
 
 -- // 10. TOGGLE BUTTON //
 local ToggleIcon = Instance.new("ImageButton")
-ToggleIcon.Size = UDim2.new(0, 0, 0, 0)
+ToggleIcon.Name = "ToggleIcon"
+ToggleIcon.Size = UDim2.new(0, 0, 0, 0) -- Start hidden
 ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
 ToggleIcon.BackgroundColor3 = THEME.base
-ToggleIcon.Image = "rbxassetid://3944676352" -- Menu Icon
-ToggleIcon.ImageColor3 = THEME.text
+ToggleIcon.Image = "rbxassetid://3944676352" 
+ToggleIcon.ImageColor3 = THEME.text 
+ToggleIcon.Visible = true 
 ToggleIcon.Parent = gui
 Instance.new("UICorner", ToggleIcon).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", ToggleIcon).Color = THEME.stroke
@@ -523,21 +540,41 @@ local function ToggleUI()
 	if visible then
 		MainFrame.Visible = true
 		doTween(MainFrame, {Size = OPEN_SIZE})
+		doTween(MinBtn, {Rotation = 180})
 	else
 		doTween(MainFrame, {Size = CLOSED_SIZE})
+		doTween(MinBtn, {Rotation = 0})
 		task.delay(0.3, function() if not visible then MainFrame.Visible = false end end)
 	end
 end
 
 ToggleIcon.MouseButton1Click:Connect(ToggleUI)
+MinBtn.MouseButton1Click:Connect(ToggleUI)
 UserInputService.InputBegan:Connect(function(input)
 	if input.KeyCode == Enum.KeyCode.RightControl then ToggleUI() end
 end)
 
+-- Mobile Button Drag
+local btnDragging, btnDragStart, btnStartPos
+ToggleIcon.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch then
+		btnDragging = true
+		btnDragStart = input.Position
+		btnStartPos = ToggleIcon.Position
+		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then btnDragging = false end end)
+	end
+end)
+ToggleIcon.InputChanged:Connect(function(input)
+	if btnDragging and input.UserInputType == Enum.UserInputType.Touch then
+		local delta = input.Position - btnDragStart
+		ToggleIcon.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
+	end
+end)
+
 -- Intro Animation
 task.delay(0.5, function()
-	doTween(ToggleIcon, {Size = UDim2.new(0, 50, 0, 50)})
+	TweenService:Create(ToggleIcon, TweenInfo.new(1, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Size = UDim2.new(0, 50, 0, 50)}):Play()
 end)
 task.delay(2, ToggleUI) -- Auto open
 
-print("Blade Spin Loaded")
+print("Blade Spin v1.1 Loaded")
