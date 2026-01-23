@@ -1,11 +1,9 @@
 --[[ 
-    TANK GAME [v2.0 - LUMACORE EDITION]
+    TANK GAME [v3.0 - ULTIMATE EDITION]
     --------------------------------------------------
     - THEME: LumaCore "Dark Nebula"
-    - NEW: Spawn/Lobby Toggle
-    - NEW: Reset + Free Combo Button
-    - NEW: Auto Damage Upgrade (Buffer args)
-    - RETAINED: Auto Spin & Auto Claim
+    - NEW: Full Upgrade System (8 Stats via Dropdown)
+    - FEATURES: Auto Spin, Auto Claim, Gameplay Tools
     --------------------------------------------------
 ]]
 
@@ -21,7 +19,7 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 
 -- // 2. CONFIGURATION //
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local OPEN_SIZE = isMobile and UDim2.new(0, 300, 0.65, 0) or UDim2.new(0, 360, 0, 520) 
+local OPEN_SIZE = isMobile and UDim2.new(0, 300, 0.65, 0) or UDim2.new(0, 360, 0, 580) 
 local CLOSED_SIZE = UDim2.new(0, 360, 0, 45)
 
 local DRAGGABLE_DEFAULT = true
@@ -49,12 +47,24 @@ local CurrentTheme = {
 	switchOff = Color3.fromRGB(60, 65, 90)
 }
 
--- // 4. VARIABLES //
+-- // 4. DATA & VARIABLES //
+-- Upgrade Codes Map
+local UPGRADE_CODES = {
+	["Max Health"]    = "\000",
+	["Health Regen"]  = "\001",
+	["Tank Speed"]    = "\002",
+	["Body Damage"]   = "\003",
+	["Bullet Damage"] = "\004",
+	["Bullet Health"] = "\005",
+	["Bullet Speed"]  = "\006",
+	["Fire Rate"]     = "\a" -- Bell Character (\007)
+}
+
 -- Game Flags
 local AutoSpinEnabled = false
 local AutoClaimEnabled = false
-local AutoDamageEnabled = false
-local SpawnToggleState = false 
+local AutoUpgradeEnabled = false
+local SelectedUpgrade = "Bullet Damage" -- Default
 
 -- UI Flags
 local DraggableEnabled = DRAGGABLE_DEFAULT
@@ -75,7 +85,7 @@ task.spawn(function()
 			-- General Remotes
 			WheelSpin = Network:WaitForChild("Wheel", 2) and Network.Wheel:WaitForChild("Spin", 2)
 			GiftClaim = Network:WaitForChild("Gifts", 2) and Network.Gifts:WaitForChild("Claim", 2)
-
+			
 			-- Tank Gameplay Remotes
 			TankNet = Network:WaitForChild("Tank", 2)
 			if TankNet then
@@ -85,8 +95,8 @@ task.spawn(function()
 				FreeRemote = TankNet:WaitForChild("Free", 2)
 				UpgradeRemote = TankNet:WaitForChild("SetUpgrade", 2)
 			end
-
-			if WheelSpin and GiftClaim and TankNet then
+			
+			if WheelSpin and GiftClaim and UpgradeRemote then
 				RemotesActive = true
 			end
 		end
@@ -501,6 +511,78 @@ local function CreateButton(parent, title, desc, callback)
 	end)
 end
 
+local function CreateDropdown(parent, title, options, callback)
+	local Frame = Instance.new("Frame")
+	Frame.Size = UDim2.new(1, -12, 0, 50)
+	Frame.BackgroundColor3 = CurrentTheme.item 
+	Frame.ClipsDescendants = true
+	Frame.Parent = parent
+	rounded(Frame, 10)
+	local stroke = Instance.new("UIStroke", Frame); stroke.Color = CurrentTheme.stroke; stroke.Transparency = 0.5
+
+	local ToggleBtn = Instance.new("TextButton")
+	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
+	ToggleBtn.BackgroundTransparency = 1
+	ToggleBtn.Text = ""
+	ToggleBtn.Parent = Frame
+
+	local TitleL = Instance.new("TextLabel")
+	TitleL.Text = title
+	TitleL.Size = UDim2.new(1, -40, 1, 0)
+	TitleL.Position = UDim2.new(0, 12, 0, 0)
+	TitleL.BackgroundTransparency = 1
+	TitleL.TextColor3 = CurrentTheme.text
+	TitleL.Font = UI_FONT
+	TitleL.TextSize = 15
+	TitleL.TextXAlignment = Enum.TextXAlignment.Left
+	TitleL.Parent = ToggleBtn
+
+	local Arrow = Instance.new("TextLabel")
+	Arrow.Text = "V"
+	Arrow.Size = UDim2.new(0, 20, 0, 20)
+	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
+	Arrow.BackgroundTransparency = 1
+	Arrow.TextColor3 = CurrentTheme.subtext
+	Arrow.Font = Enum.Font.FredokaOne
+	Arrow.Parent = ToggleBtn
+
+	local ListContainer = Instance.new("Frame")
+	ListContainer.Size = UDim2.new(1, 0, 0, 0)
+	ListContainer.Position = UDim2.new(0,0,0,50)
+	ListContainer.BackgroundTransparency = 1
+	ListContainer.Parent = Frame
+	local lLayout = Instance.new("UIListLayout", ListContainer)
+	lLayout.Padding = UDim.new(0,5); lLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+	local isOpen = false
+	for _, opt in ipairs(options) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.95, 0, 0, 30)
+		btn.BackgroundColor3 = CurrentTheme.base
+		btn.Text = opt
+		btn.TextColor3 = CurrentTheme.text
+		btn.Font = DESC_FONT
+		btn.TextSize = 13
+		btn.Parent = ListContainer
+		rounded(btn, 6)
+		
+		btn.MouseButton1Click:Connect(function()
+			callback(opt)
+			TitleL.Text = title .. ": " .. opt
+			isOpen = false
+			doTween(Frame, {Size = UDim2.new(1, -12, 0, 50)})
+			doTween(Arrow, {Rotation = 0})
+		end)
+	end
+
+	ToggleBtn.MouseButton1Click:Connect(function()
+		isOpen = not isOpen
+		doTween(Arrow, {Rotation = isOpen and 180 or 0})
+		local h = (#options * 35) + 55
+		doTween(Frame, {Size = UDim2.new(1, -12, 0, isOpen and h or 50)})
+	end)
+end
+
 local function CreateInfoLabel(parent, title, desc)
 	local Frame = Instance.new("Frame")
 	Frame.Size = UDim2.new(1, -12, 0, 50)
@@ -588,16 +670,30 @@ end)
 
 CreateSection(MainTab, "UPGRADES")
 
-CreateToggle(MainTab, "Auto Damage", "Spams Damage Upgrade", function(val)
-	AutoDamageEnabled = val
+-- List of options for dropdown
+local statNames = {}
+for name, _ in pairs(UPGRADE_CODES) do
+	table.insert(statNames, name)
+end
+table.sort(statNames) -- Alphabetical order
+
+CreateDropdown(MainTab, "Select Stat", statNames, function(val)
+	SelectedUpgrade = val
+end)
+
+CreateToggle(MainTab, "Auto Upgrade", "Spams selected stat", function(val)
+	AutoUpgradeEnabled = val
 	if val then
 		task.spawn(function()
-			while AutoDamageEnabled do
-				if UpgradeRemote then
-					local args = { buffer.fromstring("\004") }
-					UpgradeRemote:FireServer(unpack(args))
+			while AutoUpgradeEnabled do
+				if UpgradeRemote and SelectedUpgrade then
+					local code = UPGRADE_CODES[SelectedUpgrade]
+					if code then
+						local args = { buffer.fromstring(code) }
+						UpgradeRemote:FireServer(unpack(args))
+					end
 				end
-				task.wait(0.1)
+				task.wait(0.1) -- Upgrade speed
 			end
 		end)
 	end
@@ -641,7 +737,7 @@ CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(su
 	else
 		AutoSpinEnabled = false
 		AutoClaimEnabled = false
-		AutoDamageEnabled = false
+		AutoUpgradeEnabled = false
 		gui:Destroy()
 	end
 end)
@@ -701,7 +797,7 @@ _G.UpdateProfile()
 
 CreateSection(InfoTab, "SYSTEM")
 CreateInfoLabel(InfoTab, "Credits", "LumaCore UI")
-CreateInfoLabel(InfoTab, "Version", "v2.0 [Tank Edition]")
+CreateInfoLabel(InfoTab, "Version", "v3.0 [Tank Edition]")
 
 -- // 15. TOGGLE & DRAG //
 local ToggleIcon = Instance.new("ImageButton", gui)
@@ -755,4 +851,4 @@ end)
 
 PlayIntro()
 task.delay(3.5, function() ToggleUI() end)
-print("Tank Game [LumaCore v2.0] Loaded")
+print("Tank Game [LumaCore v3.0] Loaded")
