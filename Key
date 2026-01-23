@@ -51,7 +51,7 @@ local GAMES_DATABASE = {
 			loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/Stuff/refs/heads/main/Loot%20Hero"))()
 		end
 	},
-	[119789365111500] = { 
+	[118282030597956] = { 
 		Name = "Tank Game",
 		Load = function()
 			print(">> Loading Tank Game... <<")
