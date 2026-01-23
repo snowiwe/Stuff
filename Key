@@ -1,196 +1,458 @@
+--[[ 
+    LUMACORE KEY SYSTEM [v15.1 - TOGGLES RESTORED]
+    --------------------------------------------------
+    - CONFIG: All switches (Global, Beta, Status) at the top.
+    - BETA: Priority access bypasses locks.
+    - UI: Static, Safe, Clean.
+    --------------------------------------------------
+]]
 
--- Instances
+-----------------------------
+-- 1. ACCESS & STATUS CONFIGURATION
+-----------------------------
+-- [1] GLOBAL LOCK
+local hasAccess   = true -- If FALSE, script is closed to the public.
 
-local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local TopBarFrame = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
-local TextLabel = Instance.new("TextLabel")
-local CloseFrame = Instance.new("Frame")
-local UICorner_2 = Instance.new("UICorner")
-local CloseBtn = Instance.new("TextButton")
-local UICorner_3 = Instance.new("UICorner")
-local EnterBtn = Instance.new("TextButton")
-local UICorner_4 = Instance.new("UICorner")
-local GetKeyBtn = Instance.new("TextButton")
-local UICorner_5 = Instance.new("UICorner")
-local TextBox = Instance.new("TextBox")
-local UICorner_6 = Instance.new("UICorner")
-local ImageLabel = Instance.new("ImageLabel")
-local UICorner_7 = Instance.new("UICorner")
-local UIStroke = Instance.new("UIStroke")
-local TextLabelversion = Instance.new("TextLabel")
+-- [2] BETA ACCESS
+local betaAccess  = false  -- If TRUE, IDs in 'BETA_IDS' can bypass Global Lock.
 
--- Properties --
+-- [3] MAINTENANCE MODE
+local SCRIPT_STATUS = true -- [TRUE = Online] | [FALSE = Maintenance Mode]
 
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
+local BETA_IDS = {
+	-- Add beta tester IDs here:
+	-- 123456789, 
 
-Frame.Parent = ScreenGui
-Frame.BackgroundColor3 = Color3.new(0.137255, 0.137255, 0.137255)
-Frame.BorderColor3 = Color3.new(1, 1, 1)
-Frame.BorderSizePixel = 0
-Frame.Position = UDim2.new(0.218643025, 0, 0.222072095, 0)
-Frame.Size = UDim2.new(0, 400, 0, 200)
-Frame.Active = true
-Frame.Draggable = true
-Frame.Parent = ScreenGui
+}
 
-TopBarFrame.Name = "TopBarFrame"
-TopBarFrame.Parent = Frame
-TopBarFrame.BackgroundColor3 = Color3.new(0.0980392, 0.0980392, 0.0980392)
-TopBarFrame.BorderColor3 = Color3.new(1, 1, 1)
-TopBarFrame.BorderSizePixel = 0
-TopBarFrame.Position = UDim2.new(0, 0, -0.000150146487, 0)
-TopBarFrame.Size = UDim2.new(0, 400, 0, 40)
+local SCRIPT_KEY = "LOOT-2025" 
 
-UICorner.Parent = TopBarFrame
-UICorner.CornerRadius = UDim.new(0, 5)
+-- // 2. SERVICES //
+local Players          = game:GetService("Players")
+local TweenService     = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local player           = Players.LocalPlayer
+local PlayerGui        = player:WaitForChild("PlayerGui")
+local Camera           = workspace.CurrentCamera
 
-TextLabel.Parent = TopBarFrame
-TextLabel.BackgroundColor3 = Color3.new(1, 1, 1)
-TextLabel.BackgroundTransparency = 1
-TextLabel.BorderColor3 = Color3.new(0, 0, 0)
-TextLabel.BorderSizePixel = 0
-TextLabel.Position = UDim2.new(0, 0, 0.275000006, 0)
-TextLabel.Size = UDim2.new(0, 400, 0, 29)
-TextLabel.Font = Enum.Font.LuckiestGuy
-TextLabel.Text = "Key System"
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.TextScaled = true
-TextLabel.TextSize = 14
-TextLabel.TextWrapped = true
+-- // 3. GAME DATABASE //
+local GAMES_DATABASE = {
+	[79311273910901] = { 
+		Name = "Blade Spin",
+		Load = function()
+			print(">> Loading Blade Spin... <<")
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/Stuff/refs/heads/main/Blade%20Spin"))()
+		end
+	},
+	[138013005633222] = { 
+		Name = "Loot Hero",
+		Load = function()
+			print(">> Loading Loot Hero... <<")
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/Stuff/refs/heads/main/Loot%20Hero"))()
+		end
+	},
+	[119789365111500] = { 
+		Name = "Tank Game",
+		Load = function()
+			print(">> Loading Tank Game... <<")
+			loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/Stuff/refs/heads/main/Tank%20Game"))()
+		end
+	}
 
-CloseFrame.Name = "CloseFrame"
-CloseFrame.Parent = TopBarFrame
-CloseFrame.BackgroundColor3 = Color3.new(0.137255, 0.137255, 0.137255)
-CloseFrame.BackgroundTransparency = 1
-CloseFrame.BorderColor3 = Color3.new(1, 1, 1)
-CloseFrame.BorderSizePixel = 0
-CloseFrame.Position = UDim2.new(0.708994687, 0, 0.34984985, 0)
-CloseFrame.Size = UDim2.new(0, 42, 0, 39)
+}
 
-UICorner_2.Parent = CloseFrame
-UICorner_2.CornerRadius = UDim.new(0, 5)
+local CurrentPlaceID = game.PlaceId
+local CurrentGameData = GAMES_DATABASE[CurrentPlaceID]
+local IsGameSupported = (CurrentGameData ~= nil)
 
-CloseBtn.Name = "CloseBtn"
-CloseBtn.Parent = CloseFrame
-CloseBtn.BackgroundColor3 = Color3.new(1, 1, 1)
-CloseBtn.BackgroundTransparency = 1
-CloseBtn.BorderColor3 = Color3.new(0, 0, 0)
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Position = UDim2.new(1.76190472, 0, -0.333333343, 0)
-CloseBtn.Size = UDim2.new(0, 42, 0, 38)
-CloseBtn.Font = Enum.Font.LuckiestGuy
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.TextSize = 14
-CloseBtn.TextWrapped = true
-CloseBtn.MouseButton1Click:Connect(function()
-	ScreenGui:Destroy()
-end)
+-- // 4. ACCESS CHECKER //
+local function CheckAccess()
+	local userId = player.UserId
 
-UICorner_3.Parent = Frame
-UICorner_3.CornerRadius = UDim.new(0, 5)
-UIStroke.Parent = Frame
+	-- STEP 1: CHECK BETA LIST (Priority)
+	if betaAccess then
+		for _, id in pairs(BETA_IDS) do
+			if userId == id then
+				print("[LumaCore Hub] Beta Access Granted.")
+				return true -- Bypass Global Lock
+			end
+		end
+	end
 
-EnterBtn.Name = "EnterBtn"
-EnterBtn.Parent = Frame
-EnterBtn.BackgroundColor3 = Color3.new(1, 1, 1)
-EnterBtn.BorderColor3 = Color3.new(0, 0, 0)
-EnterBtn.BorderSizePixel = 0
-EnterBtn.Position = UDim2.new(0.512499988, 0, 0.685000002, 0)
-EnterBtn.Size = UDim2.new(0, 79, 0, 32)
-EnterBtn.Font = Enum.Font.FredokaOne
-EnterBtn.Text = "Enter"
-EnterBtn.TextColor3 = Color3.new(0, 0, 0)
-EnterBtn.TextSize = 14
+	-- STEP 2: CHECK GLOBAL LOCK
+	if not hasAccess then
+		warn("[LumaCore Hub] Script is currently closed.")
+		return false
+	end
 
-UICorner_4.Parent = EnterBtn
-UICorner_4.CornerRadius = UDim.new(0, 5)
-
-GetKeyBtn.Name = "GetKeyBtn"
-GetKeyBtn.Parent = Frame
-GetKeyBtn.BackgroundColor3 = Color3.new(1, 1, 1)
-GetKeyBtn.BorderColor3 = Color3.new(0, 0, 0)
-GetKeyBtn.BorderSizePixel = 0
-GetKeyBtn.Position = UDim2.new(0.282499999, 0, 0.685000002, 0)
-GetKeyBtn.Size = UDim2.new(0, 79, 0, 32)
-GetKeyBtn.Font = Enum.Font.FredokaOne
-GetKeyBtn.Text = "Get Key"
-GetKeyBtn.TextColor3 = Color3.new(0, 0, 0)
-GetKeyBtn.TextSize = 14
-
-UICorner_5.Parent = GetKeyBtn
-UICorner_5.CornerRadius = UDim.new(0, 5)
-
-TextBox.Parent = Frame
-TextBox.BackgroundColor3 = Color3.new(1, 1, 1)
-TextBox.BorderColor3 = Color3.new(0, 0, 0)
-TextBox.BorderSizePixel = 0
-TextBox.Position = UDim2.new(0.25, 0, 0.375, 0)
-TextBox.Size = UDim2.new(0, 200, 0, 50)
-TextBox.Font = Enum.Font.FredokaOne
-TextBox.PlaceholderText = "Enter Key"
-TextBox.Text = ""
-TextBox.TextColor3 = Color3.new(0, 0, 0)
-TextBox.TextSize = 14
-
-UICorner_6.Parent = TextBox
-UICorner_6.CornerRadius = UDim.new(0, 5)
-
-ImageLabel.Parent = Frame
-ImageLabel.BackgroundColor3 = Color3.new(1, 1, 1)
-ImageLabel.BorderColor3 = Color3.new(0, 0, 0)
-ImageLabel.BorderSizePixel = 0
-ImageLabel.Position = UDim2.new(0, 0, 0.00481979363, 0)
-ImageLabel.Size = UDim2.new(0, 49, 0, 37)
-ImageLabel.Image = "rbxassetid://16038840027"
-
-UICorner_7.Parent = ImageLabel
-UICorner_7.CornerRadius = UDim.new(0, 5)
-
-TextLabelversion.Name = "TextLabelversion"
-TextLabelversion.Parent = Frame
-TextLabelversion.BackgroundColor3 = Color3.new(1, 1, 1)
-TextLabelversion.BackgroundTransparency = 1
-TextLabelversion.BorderColor3 = Color3.new(1, 1, 1)
-TextLabelversion.BorderSizePixel = 0
-TextLabelversion.Position = UDim2.new(0.911000013, 0, 0.910000026, 0)
-TextLabelversion.Size = UDim2.new(0, 35, 0, 18)
-TextLabelversion.Font = Enum.Font.FredokaOne
-TextLabelversion.Text = "v1.5"
-TextLabelversion.TextColor3 = Color3.new(1, 1, 1)
-TextLabelversion.TextSize = 14
-
--- Scripts --
-
---
-GetKeyBtn.MouseButton1Click:Connect(function()
-	setclipboard("https://link-target.net/561600/key")
-end)
-
-local function validateKey(key)
-	return key == "" -- Key 
+	return true -- Public Access
 end
 
-EnterBtn.MouseButton1Click:Connect(function()
-	local enteredKey = TextBox.Text
-	if validateKey(enteredKey) then
-		TextBox.PlaceholderText = "Correct Key!"
-		TextBox.Text = ""
-		wait(1)
-		ScreenGui:Destroy()
+-- // 5. LUMACORE THEME //
+local TI_FAST = TweenInfo.new(0.15, Enum.EasingStyle.Back,  Enum.EasingDirection.Out)
+local TI_MED  = TweenInfo.new(0.30, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out)
+local TI_SLOW = TweenInfo.new(0.45, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
-		-- Loaded --
-		loadstring(game:HttpGet("https://raw.githubusercontent.com/snowiwe/BladeBall/main/betaversion",true))()
+local THEME = {
+	mainGrad = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(92,110,200)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(40,50,125)),
+	},
+	accent  = Color3.fromRGB(105,160,255),
+	base    = Color3.fromRGB(35, 40, 85), 
+	item    = Color3.fromRGB(50,60,130), 
+	text    = Color3.fromRGB(255,255,255),
+	subtext = Color3.fromRGB(205,205,230),
+	stroke  = Color3.fromRGB(60,70,140),
+	banner  = Color3.fromRGB(70,85,160),
+	danger  = Color3.fromRGB(170,60,60),
+	success = Color3.fromRGB(80,200,120),
+	warning = Color3.fromRGB(255, 180, 50),
+}
 
+local function rounded(parent, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r or 10)
+	c.Parent = parent
+	return c
+end
+
+local function doTween(obj, info, props)
+	TweenService:Create(obj, info, props):Play()
+end
+
+-- // 6. UI CONSTRUCTION //
+if PlayerGui:FindFirstChild("LumaHub_Key_v15_1") then
+	PlayerGui.LumaHub_Key_v15_1:Destroy()
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "LumaHub_Key_v15_1"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.Enabled = false 
+gui.Parent = PlayerGui
+
+local dim = Instance.new("Frame")
+dim.Name = "Dim"
+dim.Size = UDim2.fromScale(1,1)
+dim.BackgroundColor3 = Color3.new(0,0,0)
+dim.BackgroundTransparency = 1
+dim.ZIndex = 0
+dim.Parent = gui
+
+-- Main Window Config
+local OPEN_SIZE = UDim2.new(0, 320, 0, 340)
+local CLOSED_SIZE = UDim2.new(0, 320, 0, 40)
+local minimized = false
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.AnchorPoint = Vector2.new(0.5,0.5)
+main.Position = UDim2.new(0.5,0,0.5,0)
+main.Size = UDim2.new(0,0,0,0) 
+main.BackgroundColor3 = Color3.fromRGB(255,255,255) 
+main.ClipsDescendants = true
+main.ZIndex = 10
+main.Parent = gui
+rounded(main,14)
+
+local mainStroke = Instance.new("UIStroke", main); mainStroke.Thickness = 1.5; mainStroke.Color = THEME.stroke
+local mainGrad   = Instance.new("UIGradient", main); mainGrad.Rotation = 45; mainGrad.Color = THEME.mainGrad
+
+-- TitleBar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1,0,0,40)
+titleBar.BackgroundTransparency = 1
+titleBar.ZIndex = 20
+titleBar.Parent = main
+
+local titleLbl = Instance.new("TextLabel")
+titleLbl.Size = UDim2.new(1,-40,1,0) 
+titleLbl.Position = UDim2.new(0.5,0,0.5,0)
+titleLbl.AnchorPoint = Vector2.new(0.5,0.5)
+titleLbl.BackgroundTransparency = 1
+titleLbl.Text = "LumaCore"
+titleLbl.Font = Enum.Font.SourceSansBold
+titleLbl.TextSize = 20
+titleLbl.TextColor3 = THEME.text
+titleLbl.TextXAlignment = Enum.TextXAlignment.Center 
+titleLbl.ZIndex = 21
+titleLbl.Parent = titleBar
+
+-- Minimize Button
+local minBtn = Instance.new("TextButton")
+minBtn.Name = "Minimize"
+minBtn.Size = UDim2.new(0, 40, 1, 0)
+minBtn.Position = UDim2.new(1, -40, 0, 0)
+minBtn.BackgroundTransparency = 1
+minBtn.Text = "↓"
+minBtn.Font = Enum.Font.SourceSansBold
+minBtn.TextSize = 20
+minBtn.TextColor3 = THEME.subtext
+minBtn.ZIndex = 22
+minBtn.Parent = titleBar
+
+minBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	if minimized then
+		doTween(main, TI_MED, {Size = CLOSED_SIZE})
+		doTween(minBtn, TI_MED, {Rotation = 180}) 
 	else
-		TextBox.PlaceholderText = "Invalid key"
-		TextBox.Text = ""
-		wait(1)
-		TextBox.PlaceholderText = "Enter Key"
-		TextBox.Text = ""
+		doTween(main, TI_MED, {Size = OPEN_SIZE})
+		doTween(minBtn, TI_MED, {Rotation = 0}) 
 	end
 end)
+
+-- Content Area
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Size = UDim2.new(1,0,1,-40)
+content.Position = UDim2.new(0,0,0,40)
+content.BackgroundTransparency = 1
+content.ZIndex = 15
+content.Parent = main
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1,0,1,0)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 0 
+scroll.ScrollingEnabled = false 
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y 
+scroll.CanvasSize = UDim2.new(0,0,0,0)
+scroll.ZIndex = 16
+scroll.Parent = content
+
+local list = Instance.new("UIListLayout", scroll)
+list.Padding = UDim.new(0,10)
+list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+list.SortOrder = Enum.SortOrder.LayoutOrder
+
+local pad = Instance.new("UIPadding", scroll)
+pad.PaddingTop = UDim.new(0,10)
+pad.PaddingBottom = UDim.new(0,15)
+
+-- // 7. COMPONENT BUILDERS //
+
+local function LargeButton(text, onClick)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(1,-20,0,45)
+	b.Text = text
+	b.Font = Enum.Font.SourceSansSemibold
+	b.TextSize = 18
+	b.BackgroundColor3 = THEME.item 
+	b.TextColor3 = Color3.fromRGB(240,240,255)
+	b.AutoButtonColor = false
+	b.ZIndex = 17
+	b.Parent = scroll
+	rounded(b,8)
+
+	local s = Instance.new("UIStroke", b); s.Thickness = 1; s.Transparency = 0.6; s.Color = THEME.stroke
+
+	b.MouseEnter:Connect(function() doTween(b, TI_MED, {BackgroundColor3 = Color3.fromRGB(60,75,150)}) end)
+	b.MouseLeave:Connect(function() doTween(b, TI_MED, {BackgroundColor3 = THEME.item}) end)
+	b.MouseButton1Click:Connect(function()
+		doTween(b, TI_FAST, {Size = UDim2.new(1,-24,0,43)})
+		task.delay(0.08, function() doTween(b, TI_FAST, {Size = UDim2.new(1,-20,0,45)}) end)
+		if onClick then onClick(b) end
+	end)
+
+	return b
+end
+
+local function LargeInput(placeholder)
+	local b = Instance.new("TextBox")
+	b.Size = UDim2.new(1,-20,0,45)
+	b.PlaceholderText = placeholder
+	b.Text = ""
+	b.Font = Enum.Font.SourceSansSemibold
+	b.TextSize = 18
+	b.BackgroundColor3 = Color3.fromRGB(35,40,90) 
+	b.TextColor3 = Color3.fromRGB(255,255,255)
+	b.PlaceholderColor3 = THEME.subtext
+	b.ZIndex = 17
+	b.Parent = scroll
+	rounded(b,8)
+
+	local s = Instance.new("UIStroke", b); s.Thickness = 1; s.Transparency = 0.6; s.Color = THEME.stroke
+	return b
+end
+
+local function StatusRow()
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(1,-20,0,54)
+	frame.BackgroundColor3 = THEME.base
+	frame.ZIndex = 17
+	frame.Parent = scroll
+	rounded(frame,10)
+	local stroke = Instance.new("UIStroke", frame); stroke.Transparency = 0.6; stroke.Color = THEME.stroke
+
+	local t = Instance.new("TextLabel", frame)
+	t.BackgroundTransparency = 1
+	t.Text = "System Status"
+	t.Font = Enum.Font.SourceSansSemibold
+	t.TextSize = 16
+	t.TextColor3 = THEME.text
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.Position = UDim2.new(0,12,0,6)
+	t.Size = UDim2.new(1,-60,0,22)
+	t.ZIndex = 18
+
+	local d = Instance.new("TextLabel", frame)
+	d.BackgroundTransparency = 1
+	d.Font = Enum.Font.SourceSans
+	d.TextSize = 13
+	d.TextXAlignment = Enum.TextXAlignment.Left
+	d.Position = UDim2.new(0,12,0,28)
+	d.Size = UDim2.new(1,-60,0,18)
+	d.ZIndex = 18
+
+	local dot = Instance.new("Frame", frame)
+	dot.Size = UDim2.new(0,12,0,12)
+	dot.Position = UDim2.new(1,-30,0.5,-6)
+	dot.ZIndex = 18
+	rounded(dot,6)
+
+	if not SCRIPT_STATUS then
+		d.Text = "Maintenance Mode"
+		d.TextColor3 = THEME.text 
+		dot.BackgroundColor3 = THEME.warning
+	elseif IsGameSupported then
+		d.Text = "Detected: " .. CurrentGameData.Name
+		d.TextColor3 = THEME.text 
+		dot.BackgroundColor3 = THEME.success
+	else
+		d.Text = "Unsupported (ID: "..CurrentPlaceID..")"
+		d.TextColor3 = THEME.text 
+		dot.BackgroundColor3 = THEME.danger
+	end
+end
+
+local function Header(txt)
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1,-25,0,20)
+	lbl.Font = Enum.Font.SourceSansSemibold
+	lbl.TextSize = 16
+	lbl.TextColor3 = Color3.fromRGB(235,235,255)
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Text = txt
+	lbl.ZIndex = 17
+	lbl.Parent = scroll
+end
+
+local function Divider()
+	local d = Instance.new("Frame")
+	d.Size = UDim2.new(1,-20,0,1)
+	d.BorderSizePixel = 0
+	d.BackgroundColor3 = THEME.stroke
+	d.BackgroundTransparency = 0.4
+	d.ZIndex = 17
+	d.Parent = scroll
+end
+
+-- // 8. BUILD THE UI //
+
+Header("Status")
+StatusRow()
+Divider()
+
+Header("Authentication")
+local input = LargeInput("Paste Key Here...")
+local verifyBtn = LargeButton("Verify Key", function(btn)
+	local key = input.Text
+	if key == SCRIPT_KEY then
+		if not SCRIPT_STATUS then
+			btn.Text = "Maintenance Mode"
+			btn.BackgroundColor3 = THEME.warning
+			return
+		end
+
+		if IsGameSupported then
+			btn.Text = "Success!"
+			btn.BackgroundColor3 = THEME.success
+
+			task.wait(1)
+			doTween(dim, TI_MED, {BackgroundTransparency = 1})
+			doTween(main, TI_SLOW, {Size = UDim2.new(0,0,0,0)})
+			task.wait(0.5)
+			gui:Destroy()
+			CurrentGameData.Load()
+		else
+			-- COUNTDOWN DESTRUCTION
+			btn.BackgroundColor3 = THEME.danger
+			for i = 3, 1, -1 do
+				btn.Text = "Unsupported Game ("..i..")"
+				task.wait(1)
+			end
+			btn.Text = "Closing..."
+			task.wait(0.5)
+			doTween(dim, TI_MED, {BackgroundTransparency = 1})
+			doTween(main, TI_SLOW, {Size = UDim2.new(0,0,0,0)})
+			task.wait(0.5)
+			gui:Destroy()
+		end
+	else
+		btn.Text = "Invalid Key"
+		btn.BackgroundColor3 = THEME.danger
+		task.delay(1, function()
+			btn.Text = "Verify Key"
+			btn.BackgroundColor3 = THEME.item
+		end)
+	end
+end)
+
+Divider()
+local hint = Instance.new("TextLabel", scroll)
+hint.BackgroundTransparency = 1
+hint.Size = UDim2.new(1,0,0,20)
+hint.Text = "Key: " .. SCRIPT_KEY
+hint.TextColor3 = THEME.subtext
+hint.Font = Enum.Font.SourceSans
+hint.TextSize = 14
+hint.ZIndex = 17
+
+-- // 9. INTRO ANIMATION //
+local function PlayIntro()
+	local splash = Instance.new("Frame")
+	splash.AnchorPoint = Vector2.new(0.5,0.5)
+	splash.Position = UDim2.new(0.5,0,0.5,0)
+	splash.Size = UDim2.fromOffset(0,0)
+	splash.BackgroundColor3 = Color3.fromRGB(120,160,255)
+	splash.ZIndex = 100
+	splash.Parent = gui
+	rounded(splash,100)
+
+	local sg = Instance.new("UIGradient", splash)
+	sg.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(110,180,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(180,130,255))}
+	sg.Rotation = 45
+
+	local lbl = Instance.new("TextLabel", splash)
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.fromScale(1,1)
+	lbl.Text = "LumaCore"
+	lbl.Font = Enum.Font.SourceSansBold
+	lbl.TextSize = 22
+	lbl.TextColor3 = Color3.new(1,1,1)
+	lbl.TextTransparency = 1
+
+	gui.Enabled = true
+
+	doTween(splash, TI_SLOW, {Size = UDim2.fromOffset(120,120)})
+	doTween(lbl, TI_MED, {TextTransparency = 0})
+	task.wait(1.2)
+	doTween(splash, TI_SLOW, {Size = UDim2.fromOffset(300,300), BackgroundTransparency = 1})
+	doTween(lbl, TI_FAST, {TextTransparency = 1})
+	task.wait(0.4)
+	splash:Destroy()
+
+	doTween(dim, TI_MED, {BackgroundTransparency = 0.4})
+	doTween(main, TI_SLOW, {Size = OPEN_SIZE})
+end
+
+-- // 10. ACCESS & SECURITY CHECK //
+if CheckAccess() then
+	PlayIntro()
+else
+	gui:Destroy()
+end
