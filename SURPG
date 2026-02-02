@@ -1,9 +1,10 @@
 --[[ 
-    SURPG SCRIPT [UPDATE 2.7]
+    SURPG SCRIPT [UPDATE 2.8]
     --------------------------------------------------
-    - FORM LOGIC: Select Form -> Click Transform Toggle
-    - EMERALD LOGIC: Select Color -> Click Teleport Button
-    - ENGINE: LumaCore (Mobile Ready & Optimized)
+    - FIX: Forms are BUTTONS again (Fixed visibility)
+    - UI: Emeralds remain as Dropdown (Cleaner)
+    - LOGIC: Set Form -> Toggle Transform
+    - STYLE: LumaCore (Auto-Sorted & Mobile Ready)
     --------------------------------------------------
 ]]
 
@@ -14,19 +15,17 @@ local SCALE_FACTOR = 1.0
 local LayoutCounter = 0 
 
 -- State Variables
-local SelectedForm = "Super" -- Default
 local SelectedEmerald = "White"
 local EmeraldColor = Color3.new(1,1,1)
 local TailsLoop = false
 
 -- ============================================================================
--- [2] SERVICES & INITIALIZATION
+-- [2] SERVICES
 -- ============================================================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
@@ -35,11 +34,11 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
 if isMobile then SCALE_FACTOR = 1.2 end 
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 320, 0.65, 0) or UDim2.new(0, 280, 0, 600)
+local OPEN_SIZE = isMobile and UDim2.new(0, 320, 0.65, 0) or UDim2.new(0, 280, 0, 650)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 320 or 280, 0, 45)
 
 -- ============================================================================
--- [3] THEME & STYLING
+-- [3] THEME
 -- ============================================================================
 local UI_FONT = Enum.Font.SourceSansBold
 local THEMES = {
@@ -57,7 +56,7 @@ local THEMES = {
 local CurrentTheme = THEMES.Classic
 
 -- ============================================================================
--- [4] REMOTE HANDLER (Safe Loading)
+-- [4] REMOTE HANDLER
 -- ============================================================================
 local Remotes = { Quest = nil, Chaos = nil, Replica = nil, Transform = nil }
 
@@ -70,25 +69,21 @@ task.spawn(function()
 end)
 
 -- ============================================================================
--- [5] UI LIBRARY (Builders)
+-- [5] UI LIBRARY
 -- ============================================================================
-if PlayerGui:FindFirstChild("SURPG_UI_v2_7") then PlayerGui["SURPG_UI_v2_7"]:Destroy() end
+if PlayerGui:FindFirstChild("SURPG_UI_v2_8") then PlayerGui["SURPG_UI_v2_8"]:Destroy() end
 local gui = Instance.new("ScreenGui")
-gui.Name = "SURPG_UI_v2_7"
+gui.Name = "SURPG_UI_v2_8"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true
 if SCALE_FACTOR ~= 1 then local s = Instance.new("UIScale", gui); s.Scale = SCALE_FACTOR end
 
--- > Tweens
-local function doTween(obj, props, time)
-	TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
-end
-
--- > Sorting
+-- Utils
+local function doTween(obj, props, time) TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play() end
 local function GetNextOrder() LayoutCounter = LayoutCounter + 1; return LayoutCounter end
 
--- > Notifications
+-- Notification
 local function Notify(text, color)
 	local b = Instance.new("Frame", gui)
 	b.Size = UDim2.new(0, 240, 0, 36); b.Position = UDim2.new(0.5, -120, 0.88, 0); b.BackgroundColor3 = color or CurrentTheme.banner
@@ -98,37 +93,35 @@ local function Notify(text, color)
 	task.delay(2, function() doTween(b, {Position = UDim2.new(0.5, -120, 0.9, 0), BackgroundTransparency = 1}, 0.5); doTween(l, {TextTransparency = 1}, 0.5); task.wait(0.5); b:Destroy() end)
 end
 
--- > Main Frame
+-- Main Frames
 local MainFrame = Instance.new("Frame", gui)
 MainFrame.Size = CLOSED_SIZE; MainFrame.Position = UDim2.new(0.5, -(CLOSED_SIZE.X.Offset/2), 0.4, 0); MainFrame.BackgroundColor3 = CurrentTheme.base; MainFrame.ClipsDescendants = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14); local MainStroke = Instance.new("UIStroke", MainFrame); MainStroke.Color = CurrentTheme.stroke; MainStroke.Thickness = 2
 
--- > Top Bar
 local TopBar = Instance.new("Frame", MainFrame); TopBar.Size = UDim2.new(1,0,0,45); TopBar.BackgroundTransparency = 1
-local Title = Instance.new("TextLabel", TopBar); Title.Text = "[Update 2.7] SURPG"; Title.Size = UDim2.fromScale(1,1); Title.BackgroundTransparency=1; Title.TextColor3 = CurrentTheme.text; Title.Font = UI_FONT; Title.TextSize = 18
+local Title = Instance.new("TextLabel", TopBar); Title.Text = "[Update 2.8] SURPG"; Title.Size = UDim2.fromScale(1,1); Title.BackgroundTransparency=1; Title.TextColor3 = CurrentTheme.text; Title.Font = UI_FONT; Title.TextSize = 18
 local MinBtn = Instance.new("TextButton", TopBar); MinBtn.Text = "+"; MinBtn.Size = UDim2.new(0,45,1,0); MinBtn.Position = UDim2.new(1,-45,0,0); MinBtn.BackgroundTransparency=1; MinBtn.TextColor3 = CurrentTheme.subtext; MinBtn.Font = UI_FONT; MinBtn.TextSize = 24
 
--- > Logic
+-- Logic
 local Minimized = true
 MinBtn.MouseButton1Click:Connect(function() Minimized = not Minimized; doTween(MainFrame, {Size = Minimized and CLOSED_SIZE or OPEN_SIZE}); MinBtn.Text = Minimized and "+" or "-" end)
 
--- > Draggable
+-- Draggable
 local dragging, dragInput, dragStart, startPos
 TopBar.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = true; dragStart = input.Position; startPos = MainFrame.Position; input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end) end end)
 TopBar.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
 UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then local delta = input.Position - dragStart; MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y) end end)
 
--- > Content Area
+-- Content
 local Content = Instance.new("ScrollingFrame", MainFrame); Content.Size = UDim2.new(1,0,1,-45); Content.Position = UDim2.new(0,0,0,45); Content.BackgroundTransparency = 1; Content.ScrollBarThickness = 3; Content.ScrollBarImageColor3 = CurrentTheme.accent
 local UIList = Instance.new("UIListLayout", Content); UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center; UIList.Padding = UDim.new(0, 6); UIList.SortOrder = Enum.SortOrder.LayoutOrder
 local UIPad = Instance.new("UIPadding", Content); UIPad.PaddingTop = UDim.new(0, 5); UIPad.PaddingBottom = UDim.new(0, 10)
 
--- > BUILDER: Section Header
+-- Builders
 local function CreateSection(text)
 	local l = Instance.new("TextLabel", Content); l.Text = text; l.Size = UDim2.new(1, -20, 0, 25); l.BackgroundTransparency = 1; l.TextColor3 = CurrentTheme.accent; l.Font = UI_FONT; l.TextSize = 12; l.TextXAlignment = Enum.TextXAlignment.Left; l.LayoutOrder = GetNextOrder()
 end
 
--- > BUILDER: Button
 local function CreateButton(text, callback)
 	local b = Instance.new("TextButton", Content); b.Size = UDim2.new(1, -12, 0, 42); b.BackgroundColor3 = Color3.fromRGB(45, 50, 65); b.Text = ""; b.LayoutOrder = GetNextOrder()
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8); local s = Instance.new("UIStroke", b); s.Color = CurrentTheme.stroke; s.Thickness = 1
@@ -141,7 +134,6 @@ local function CreateButton(text, callback)
 	return b
 end
 
--- > BUILDER: Toggle
 local function CreateToggle(text, callback)
 	local b = Instance.new("TextButton", Content); b.Size = UDim2.new(1, -12, 0, 42); b.BackgroundColor3 = Color3.fromRGB(45, 50, 65); b.Text = ""; b.LayoutOrder = GetNextOrder()
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8); local s = Instance.new("UIStroke", b); s.Color = CurrentTheme.stroke; s.Thickness = 1
@@ -152,7 +144,6 @@ local function CreateToggle(text, callback)
 	return b
 end
 
--- > BUILDER: Dropdown
 local function CreateDropdown(title, options, callback)
 	local Frame = Instance.new("Frame", Content); Frame.Size = UDim2.new(1, -12, 0, 42); Frame.BackgroundColor3 = Color3.fromRGB(45, 50, 65); Frame.ClipsDescendants = true; Frame.LayoutOrder = GetNextOrder()
 	Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8); local s = Instance.new("UIStroke", Frame); s.Color = CurrentTheme.stroke; s.Thickness = 1
@@ -163,7 +154,6 @@ local function CreateDropdown(title, options, callback)
 	local Pad = Instance.new("Frame", Frame); Pad.Size = UDim2.new(1, 0, 0, 42); Pad.BackgroundTransparency = 1; Pad.LayoutOrder = 0
 	local isOpen = false
 	MainBtn.MouseButton1Click:Connect(function() isOpen = not isOpen; Arrow.Text = isOpen and "^" or "v"; doTween(Frame, {Size = UDim2.new(1, -12, 0, isOpen and (42 + (#options * 32) + 5) or 42)}, 0.3) end)
-
 	for i, opt in ipairs(options) do
 		local OptBtn = Instance.new("TextButton", Frame); OptBtn.Size = UDim2.new(0.95, 0, 0, 30); OptBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55); OptBtn.Text = opt.name; OptBtn.TextColor3 = CurrentTheme.subtext; OptBtn.Font = UI_FONT; OptBtn.TextSize = 13; OptBtn.LayoutOrder = i; Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 6)
 		if opt.col then local dot = Instance.new("Frame", OptBtn); dot.Size = UDim2.new(0, 10, 0, 10); dot.Position = UDim2.new(0, 10, 0.5, 0); dot.AnchorPoint = Vector2.new(0, 0.5); dot.BackgroundColor3 = opt.col; Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0) end
@@ -187,48 +177,47 @@ CreateToggle("Auto Tails Quest", function(state)
 				task.wait(0.5)
 			end
 		end)
-	else
-		Notify("Tails Loop: DISABLED", CurrentTheme.danger)
-	end
+	else Notify("Tails Loop: DISABLED", CurrentTheme.danger) end
 end)
 
--- :: FORMS ::
-CreateSection("FORMS")
+-- :: FORMS (Reverted to Buttons for Stability) ::
+CreateSection("SELECT FORM")
 
-local forms = { {name="Super"}, {name="Dark"}, {name="FakeHyper"} }
-
-CreateDropdown("Select Form", forms, function(choice)
-	SelectedForm = choice.name
-	-- Automatically set the form variable on server when selected
+local function FireForm(formName)
 	if Remotes.Replica then
-		Remotes.Replica:FireServer(unpack({ 1606, "SetChosenForm", SelectedForm }))
-		Notify("Selected: " .. SelectedForm, CurrentTheme.accent)
+		Remotes.Replica:FireServer(unpack({ 1606, "SetChosenForm", formName }))
+		Notify("Set Form: " .. formName, CurrentTheme.success)
+		return true
+	else
+		Notify("Remote Missing", CurrentTheme.danger)
+		return false
 	end
-end)
+end
 
+CreateButton("Set Super Form", function() return FireForm("Super") end)
+CreateButton("Set Dark Form", function() return FireForm("Dark") end)
+CreateButton("Set FakeHyper Form", function() return FireForm("FakeHyper") end)
+
+-- The Transform Toggle
+CreateSection("ACTIVATE FORM")
 CreateToggle("Transform Toggle", function(state)
 	if Remotes.Transform then
 		Remotes.Transform:FireServer()
 		Notify(state and "Transforming..." or "Reverting...", state and CurrentTheme.success or CurrentTheme.danger)
-	else
-		Notify("Remote Missing", CurrentTheme.danger)
-	end
+	else Notify("Remote Missing", CurrentTheme.danger) end
 end)
 
--- :: CHAOS EMERALDS ::
+-- :: CHAOS EMERALDS (Dropdown) ::
 CreateSection("CHAOS EMERALDS")
 
 local emeraldData = {
-	{name = "White", col = Color3.new(1,1,1)},
-	{name = "Red", col = Color3.fromRGB(255,50,50)},
-	{name = "Blue", col = Color3.fromRGB(50,50,255)},
-	{name = "Yellow", col = Color3.fromRGB(255,255,50)},
-	{name = "Green", col = Color3.fromRGB(50,255,50)},
-	{name = "Cyan", col = Color3.fromRGB(50,255,255)},
+	{name = "White", col = Color3.new(1,1,1)}, {name = "Red", col = Color3.fromRGB(255,50,50)},
+	{name = "Blue", col = Color3.fromRGB(50,50,255)}, {name = "Yellow", col = Color3.fromRGB(255,255,50)},
+	{name = "Green", col = Color3.fromRGB(50,255,50)}, {name = "Cyan", col = Color3.fromRGB(50,255,255)},
 	{name = "Purple", col = Color3.fromRGB(170,0,170)}
 }
 
-CreateDropdown("Select Emerald", emeraldData, function(selection)
+CreateDropdown("Select Color", emeraldData, function(selection)
 	SelectedEmerald = selection.name
 	EmeraldColor = selection.col
 end)
@@ -237,15 +226,10 @@ CreateButton("Teleport to Emerald", function(btnStroke)
 	if Remotes.Chaos then
 		Remotes.Chaos:FireServer(SelectedEmerald)
 		Notify("Warped to " .. SelectedEmerald, EmeraldColor)
-
-		-- Special Visual: Button border changes to Emerald color
 		doTween(btnStroke, {Color = EmeraldColor}, 0.3)
 		task.delay(0.8, function() doTween(btnStroke, {Color = CurrentTheme.stroke}, 0.5) end)
 		return true
-	else
-		Notify("Remote Missing", CurrentTheme.danger)
-		return false
-	end
+	else Notify("Remote Missing", CurrentTheme.danger); return false end
 end)
 
 -- :: INTERFACE ::
@@ -253,11 +237,11 @@ CreateSection("INTERFACE")
 CreateButton("Destroy UI", function() TailsLoop = false; gui:Destroy(); return true end)
 
 -- ============================================================================
--- [7] STARTUP ANIMATION
+-- [7] STARTUP
 -- ============================================================================
 local function PlayIntro()
 	local Intro = Instance.new("Frame", gui); Intro.Size = UDim2.fromScale(1,1); Intro.BackgroundColor3 = Color3.fromRGB(20,20,25); Intro.ZIndex = 100
-	local Lbl = Instance.new("TextLabel", Intro); Lbl.Text = "SURPG v2.7"; Lbl.Font = Enum.Font.GothamBlack; Lbl.TextSize = 0; Lbl.TextColor3 = CurrentTheme.accent; Lbl.Position = UDim2.fromScale(0.5, 0.5); Lbl.AnchorPoint = Vector2.new(0.5, 0.5); Lbl.BackgroundTransparency = 1
+	local Lbl = Instance.new("TextLabel", Intro); Lbl.Text = "SURPG v2.8"; Lbl.Font = Enum.Font.GothamBlack; Lbl.TextSize = 0; Lbl.TextColor3 = CurrentTheme.accent; Lbl.Position = UDim2.fromScale(0.5, 0.5); Lbl.AnchorPoint = Vector2.new(0.5, 0.5); Lbl.BackgroundTransparency = 1
 	doTween(Lbl, {TextSize = 45}, 0.5); task.wait(1.2); doTween(Intro, {BackgroundTransparency = 1}, 0.5); doTween(Lbl, {TextTransparency = 1}, 0.5); task.wait(0.5); Intro:Destroy()
 end
 
