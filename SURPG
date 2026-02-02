@@ -270,7 +270,7 @@ CreateSection("FORMS")
 
 local function FireForm(formName)
 	if Remotes.Replica then
-		local args = { 334, "SetChosenForm", formName }
+		local args = { 339, "SetChosenForm", formName }
 		Remotes.Replica:FireServer(unpack(args))
 		Notify("Form Set: " .. formName, CurrentTheme.success)
 		return true
