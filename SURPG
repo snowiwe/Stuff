@@ -1,17 +1,17 @@
 --[[ 
-    SURPG SCRIPT [UPDATE 2.4] - POLISHED & MOBILE READY
+    SURPG SCRIPT [UPDATE 2.5]
     --------------------------------------------------
-    - FIXED: Global Variable Errors (SCALE_FACTOR)
-    - FIXED: Layout Sorting (Headers stick to sections)
-    - MOBILE: Auto-scales for phones/tablets
-    - FEATURES: Quests, Forms, Emeralds
+    - NEW: Transform Toggle (Visual + Functional)
+    - UPDATE: Tails Quest is now a LOOP (Toggle)
+    - UPDATE: Hyper Form -> Fake Hyper Form
+    - REMOVED: Knuckles Quest
+    - STYLE: LumaCore (Mobile Friendly & Draggable)
     --------------------------------------------------
 ]]
 
--- // 1. GLOBAL VARIABLES (Must be at the top) //
-local SCALE_FACTOR = 1.0 -- Default Scale
-local LockedButtons = {} -- Fixes 'LockedButtons' error
-local LayoutCounter = 0  -- Fixes Sorting Issues
+-- // 1. GLOBAL VARIABLES //
+local SCALE_FACTOR = 1.0 
+local LayoutCounter = 0 
 
 -- // 2. SERVICES //
 local Players = game:GetService("Players")
@@ -27,91 +27,92 @@ local PlayerGui = player:WaitForChild("PlayerGui")
 local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
 
 if isMobile then 
-	SCALE_FACTOR = 1.2 -- Make UI bigger on mobile
+    SCALE_FACTOR = 1.2 
 end 
 
--- Dynamic Sizing
 local OPEN_SIZE = isMobile and UDim2.new(0, 320, 0.60, 0) or UDim2.new(0, 280, 0, 600)
 local CLOSED_SIZE = UDim2.new(0, isMobile and 320 or 280, 0, 45)
 
 -- // 4. THEME //
 local UI_FONT = Enum.Font.SourceSansBold
 local THEMES = {
-	Classic = {
-		base = Color3.fromRGB(35, 40, 55), -- Darker, cleaner base
-		text = Color3.fromRGB(255, 255, 255),
-		subtext = Color3.fromRGB(200, 200, 220),
-		stroke = Color3.fromRGB(60, 70, 100),
-		banner = Color3.fromRGB(60, 75, 140),
-		accent = Color3.fromRGB(100, 160, 255),
-		success = Color3.fromRGB(100, 220, 120),
-		danger = Color3.fromRGB(220, 80, 80),
-	}
+    Classic = {
+        base = Color3.fromRGB(35, 40, 55),
+        text = Color3.fromRGB(255, 255, 255),
+        subtext = Color3.fromRGB(200, 200, 220),
+        stroke = Color3.fromRGB(60, 70, 100),
+        banner = Color3.fromRGB(60, 75, 140),
+        accent = Color3.fromRGB(100, 160, 255),
+        success = Color3.fromRGB(100, 220, 120),
+        danger = Color3.fromRGB(220, 80, 80),
+    }
 }
 local CurrentTheme = THEMES.Classic
 
 -- // 5. REMOTE HANDLER //
 local Remotes = {
-	Quest = nil,
-	Chaos = nil,
-	Replica = nil
+    Quest = nil,
+    Chaos = nil,
+    Replica = nil,
+    Transform = nil
 }
 
 task.spawn(function()
-	pcall(function() Remotes.Quest = ReplicatedStorage:WaitForChild("Events", 5):WaitForChild("Quest", 5) end)
-	pcall(function() Remotes.Chaos = ReplicatedStorage:WaitForChild("Remotes", 5):WaitForChild("ChaosControlUsed", 5) end)
-	pcall(function() Remotes.Replica = ReplicatedStorage:WaitForChild("RemoteEvents", 5):WaitForChild("ReplicaSignal", 5) end)
-	print("SURPG: Remotes Loaded")
+    pcall(function() Remotes.Quest = ReplicatedStorage:WaitForChild("Events", 5):WaitForChild("Quest", 5) end)
+    pcall(function() Remotes.Chaos = ReplicatedStorage:WaitForChild("Remotes", 5):WaitForChild("ChaosControlUsed", 5) end)
+    pcall(function() Remotes.Replica = ReplicatedStorage:WaitForChild("RemoteEvents", 5):WaitForChild("ReplicaSignal", 5) end)
+    pcall(function() Remotes.Transform = ReplicatedStorage:WaitForChild("Remotes", 5):WaitForChild("TransformPlayer", 5) end)
+    print("SURPG: Remotes Loaded")
 end)
 
 -- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("SURPG_UI_v2_4") then PlayerGui["SURPG_UI_v2_4"]:Destroy() end
+if PlayerGui:FindFirstChild("SURPG_UI_v2_5") then PlayerGui["SURPG_UI_v2_5"]:Destroy() end
 local gui = Instance.new("ScreenGui")
-gui.Name = "SURPG_UI_v2_4"
+gui.Name = "SURPG_UI_v2_5"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true
 
 if SCALE_FACTOR ~= 1 then
-	local s = Instance.new("UIScale", gui)
-	s.Scale = SCALE_FACTOR
+    local s = Instance.new("UIScale", gui)
+    s.Scale = SCALE_FACTOR
 end
 
 -- // 7. UTILS //
 local function doTween(obj, props, time)
-	TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+    TweenService:Create(obj, TweenInfo.new(time or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
 end
 
 local function GetNextOrder()
-	LayoutCounter = LayoutCounter + 1
-	return LayoutCounter
+    LayoutCounter = LayoutCounter + 1
+    return LayoutCounter
 end
 
 local function Notify(text, color)
-	local b = Instance.new("Frame", gui)
-	b.Size = UDim2.new(0, 240, 0, 36)
-	b.Position = UDim2.new(0.5, -120, 0.88, 0)
-	b.BackgroundColor3 = color or CurrentTheme.banner
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-
-	local l = Instance.new("TextLabel", b)
-	l.Size = UDim2.fromScale(1, 1)
-	l.BackgroundTransparency = 1
-	l.Text = text
-	l.TextColor3 = CurrentTheme.text
-	l.Font = UI_FONT
-	l.TextSize = 14
-
-	doTween(b, {Position = UDim2.new(0.5, -120, 0.85, 0)}, 0.3)
-	task.delay(2, function()
-		doTween(b, {Position = UDim2.new(0.5, -120, 0.9, 0), BackgroundTransparency = 1}, 0.5)
-		doTween(l, {TextTransparency = 1}, 0.5)
-		task.wait(0.5)
-		b:Destroy()
-	end)
+    local b = Instance.new("Frame", gui)
+    b.Size = UDim2.new(0, 240, 0, 36)
+    b.Position = UDim2.new(0.5, -120, 0.88, 0)
+    b.BackgroundColor3 = color or CurrentTheme.banner
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    
+    local l = Instance.new("TextLabel", b)
+    l.Size = UDim2.fromScale(1, 1)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = CurrentTheme.text
+    l.Font = UI_FONT
+    l.TextSize = 14
+    
+    doTween(b, {Position = UDim2.new(0.5, -120, 0.85, 0)}, 0.3)
+    task.delay(2, function()
+        doTween(b, {Position = UDim2.new(0.5, -120, 0.9, 0), BackgroundTransparency = 1}, 0.5)
+        doTween(l, {TextTransparency = 1}, 0.5)
+        task.wait(0.5)
+        b:Destroy()
+    end)
 end
 
--- // 8. MAIN FRAME & DRAGGING //
+-- // 8. MAIN FRAME //
 local MainFrame = Instance.new("Frame", gui)
 MainFrame.Size = CLOSED_SIZE
 MainFrame.Position = UDim2.new(0.5, - (CLOSED_SIZE.X.Offset/2), 0.4, 0)
@@ -127,7 +128,7 @@ TopBar.Size = UDim2.new(1, 0, 0, 45)
 TopBar.BackgroundTransparency = 1
 
 local Title = Instance.new("TextLabel", TopBar)
-Title.Text = "[Update 2.4] SURPG"
+Title.Text = "[Update 2.5] SURPG"
 Title.Size = UDim2.fromScale(1, 1)
 Title.BackgroundTransparency = 1
 Title.TextColor3 = CurrentTheme.text
@@ -146,39 +147,34 @@ MinBtn.TextSize = 24
 -- Draggable Logic
 local dragging, dragInput, dragStart, startPos
 TopBar.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
-
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then dragging = false end
-		end)
-	end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+    end
 end)
 TopBar.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - dragStart
-		MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	end
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 end)
 
 -- Minimize Logic
 local Minimized = true
 local function ToggleUI()
-	Minimized = not Minimized
-	if Minimized then
-		doTween(MainFrame, {Size = CLOSED_SIZE})
-		MinBtn.Text = "+"
-	else
-		doTween(MainFrame, {Size = OPEN_SIZE})
-		MinBtn.Text = "-"
-	end
+    Minimized = not Minimized
+    if Minimized then
+        doTween(MainFrame, {Size = CLOSED_SIZE})
+        MinBtn.Text = "+"
+    else
+        doTween(MainFrame, {Size = OPEN_SIZE})
+        MinBtn.Text = "-"
+    end
 end
 MinBtn.MouseButton1Click:Connect(ToggleUI)
 
@@ -193,7 +189,7 @@ Content.ScrollBarImageColor3 = CurrentTheme.accent
 local UIList = Instance.new("UIListLayout", Content)
 UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
 UIList.Padding = UDim.new(0, 6)
-UIList.SortOrder = Enum.SortOrder.LayoutOrder -- THIS IS CRITICAL FOR SORTING
+UIList.SortOrder = Enum.SortOrder.LayoutOrder 
 
 local UIPad = Instance.new("UIPadding", Content)
 UIPad.PaddingTop = UDim.new(0, 5)
@@ -201,51 +197,88 @@ UIPad.PaddingBottom = UDim.new(0, 10)
 
 -- // 10. UI BUILDERS //
 local function CreateSection(text)
-	local l = Instance.new("TextLabel", Content)
-	l.Text = text
-	l.Size = UDim2.new(1, -20, 0, 25)
-	l.BackgroundTransparency = 1
-	l.TextColor3 = CurrentTheme.accent
-	l.Font = UI_FONT
-	l.TextSize = 12
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.LayoutOrder = GetNextOrder() -- Assign Order
+    local l = Instance.new("TextLabel", Content)
+    l.Text = text
+    l.Size = UDim2.new(1, -20, 0, 25)
+    l.BackgroundTransparency = 1
+    l.TextColor3 = CurrentTheme.accent
+    l.Font = UI_FONT
+    l.TextSize = 12
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.LayoutOrder = GetNextOrder() 
 end
 
 local function CreateButton(text, callback)
-	local b = Instance.new("TextButton", Content)
-	b.Size = UDim2.new(1, -12, 0, 42)
-	b.BackgroundColor3 = Color3.fromRGB(45, 50, 65) -- Slightly lighter than base
-	b.Text = ""
-	b.LayoutOrder = GetNextOrder() -- Assign Order
+    local b = Instance.new("TextButton", Content)
+    b.Size = UDim2.new(1, -12, 0, 42)
+    b.BackgroundColor3 = Color3.fromRGB(45, 50, 65) 
+    b.Text = ""
+    b.LayoutOrder = GetNextOrder() 
+    
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke", b); s.Color = CurrentTheme.stroke; s.Thickness = 1
+    
+    local t = Instance.new("TextLabel", b)
+    t.Text = text
+    t.Size = UDim2.fromScale(1, 1)
+    t.BackgroundTransparency = 1
+    t.TextColor3 = CurrentTheme.text
+    t.Font = UI_FONT
+    t.TextSize = 14
+    
+    b.MouseButton1Click:Connect(function()
+        doTween(b, {Size = UDim2.new(1, -16, 0, 40)}, 0.1)
+        task.delay(0.1, function() doTween(b, {Size = UDim2.new(1, -12, 0, 42)}, 0.1) end)
+        
+        if callback() then
+            doTween(s, {Color = CurrentTheme.success}, 0.3)
+            task.delay(0.5, function() doTween(s, {Color = CurrentTheme.stroke}, 0.5) end)
+        else
+            doTween(s, {Color = CurrentTheme.danger}, 0.3)
+            task.delay(0.5, function() doTween(s, {Color = CurrentTheme.stroke}, 0.5) end)
+        end
+    end)
+    return b 
+end
 
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
-	local s = Instance.new("UIStroke", b)
-	s.Color = CurrentTheme.stroke
-	s.Thickness = 1
-
-	local t = Instance.new("TextLabel", b)
-	t.Text = text
-	t.Size = UDim2.fromScale(1, 1)
-	t.BackgroundTransparency = 1
-	t.TextColor3 = CurrentTheme.text
-	t.Font = UI_FONT
-	t.TextSize = 14
-
-	b.MouseButton1Click:Connect(function()
-		doTween(b, {Size = UDim2.new(1, -16, 0, 40)}, 0.1)
-		task.delay(0.1, function() doTween(b, {Size = UDim2.new(1, -12, 0, 42)}, 0.1) end)
-
-		local success = callback()
-		if success then
-			doTween(s, {Color = CurrentTheme.success}, 0.3)
-			task.delay(0.5, function() doTween(s, {Color = CurrentTheme.stroke}, 0.5) end)
-		else
-			doTween(s, {Color = CurrentTheme.danger}, 0.3)
-			task.delay(0.5, function() doTween(s, {Color = CurrentTheme.stroke}, 0.5) end)
-		end
-	end)
-	return b -- Return button for extra customization (dots)
+-- [NEW] CreateToggle Builder
+local function CreateToggle(text, callback)
+    local b = Instance.new("TextButton", Content)
+    b.Size = UDim2.new(1, -12, 0, 42)
+    b.BackgroundColor3 = Color3.fromRGB(45, 50, 65) 
+    b.Text = ""
+    b.LayoutOrder = GetNextOrder()
+    
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke", b); s.Color = CurrentTheme.stroke; s.Thickness = 1
+    
+    local t = Instance.new("TextLabel", b)
+    t.Text = text
+    t.Size = UDim2.new(1, -40, 1, 0)
+    t.Position = UDim2.new(0, 15, 0, 0)
+    t.BackgroundTransparency = 1
+    t.TextColor3 = CurrentTheme.text
+    t.Font = UI_FONT
+    t.TextSize = 14
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Status Indicator
+    local ind = Instance.new("Frame", b)
+    ind.Size = UDim2.new(0, 16, 0, 16)
+    ind.Position = UDim2.new(1, -25, 0.5, 0)
+    ind.AnchorPoint = Vector2.new(0, 0.5)
+    ind.BackgroundColor3 = CurrentTheme.danger
+    Instance.new("UICorner", ind).CornerRadius = UDim.new(0, 4)
+    
+    local on = false
+    b.MouseButton1Click:Connect(function()
+        on = not on
+        callback(on)
+        
+        doTween(ind, {BackgroundColor3 = on and CurrentTheme.success or CurrentTheme.danger}, 0.2)
+        doTween(s, {Color = on and CurrentTheme.success or CurrentTheme.stroke}, 0.3)
+    end)
+    return b
 end
 
 -- // 11. FEATURES LOGIC //
@@ -253,105 +286,124 @@ end
 -- [SECTION 1: QUESTS]
 CreateSection("QUESTS")
 
-CreateButton("Complete Tails Quest", function()
-	if Remotes.Quest then
-		local args = { "CompletedToNPC", "Tails", "ScrapSearch", "Tails" }
-		Remotes.Quest:FireServer(unpack(args))
-		Notify("Tails Quest Done!", CurrentTheme.success)
-		return true
-	else
-		Notify("Quest Remote Not Found", CurrentTheme.danger)
-		return false
-	end
+local TailsLoop = false
+CreateToggle("Auto Tails Quest", function(state)
+    TailsLoop = state
+    if state then
+        Notify("Tails Loop: ENABLED", CurrentTheme.success)
+        task.spawn(function()
+            while TailsLoop and gui.Parent do
+                if Remotes.Quest then
+                    local args = { "CompletedToNPC", "Tails", "ScrapSearch", "Tails" }
+                    Remotes.Quest:FireServer(unpack(args))
+                end
+                task.wait(0.5) -- Loop speed
+            end
+        end)
+    else
+        Notify("Tails Loop: DISABLED", CurrentTheme.danger)
+    end
 end)
 
 -- [SECTION 2: FORMS]
 CreateSection("FORMS")
 
 local function FireForm(formName)
-	if Remotes.Replica then
-		local args = { 339, "SetChosenForm", formName }
-		Remotes.Replica:FireServer(unpack(args))
-		Notify("Form Set: " .. formName, CurrentTheme.success)
-		return true
-	else
-		Notify("ReplicaSignal Missing", CurrentTheme.danger)
-		return false
-	end
+    if Remotes.Replica then
+        local args = { 1523, "SetChosenForm", formName }
+        Remotes.Replica:FireServer(unpack(args))
+        Notify("Form Set: " .. formName, CurrentTheme.success)
+        return true
+    else
+        Notify("ReplicaSignal Missing", CurrentTheme.danger)
+        return false
+    end
 end
 
 CreateButton("Super Form", function() return FireForm("Super") end)
 CreateButton("Dark Form", function() return FireForm("Dark") end)
-CreateButton("Hyper Form", function() return FireForm("Hyper") end)
+CreateButton("Fake Hyper Form", function() return FireForm("FakeHyper") end) -- Updated
+
+-- [NEW] Transform Toggle
+CreateToggle("Transform", function(state)
+    if Remotes.Transform then
+        Remotes.Transform:FireServer()
+        Notify(state and "Transformed" or "Detransformed", state and CurrentTheme.success or CurrentTheme.danger)
+    else
+        Notify("Transform Remote Missing", CurrentTheme.danger)
+    end
+end)
 
 -- [SECTION 3: CHAOS EMERALDS]
 CreateSection("CHAOS EMERALDS (Teleport)")
 
 local function TeleportEmerald(color)
-	if Remotes.Chaos then
-		Remotes.Chaos:FireServer(color)
-		Notify("Warped to " .. color, CurrentTheme.success)
-		return true
-	else
-		Notify("Chaos Remote Missing", CurrentTheme.danger)
-		return false
-	end
+    if Remotes.Chaos then
+        Remotes.Chaos:FireServer(color)
+        Notify("Warped to " .. color, CurrentTheme.success)
+        return true
+    else
+        Notify("Chaos Remote Missing", CurrentTheme.danger)
+        return false
+    end
 end
 
 local emeralds = {
-	{name = "White", col = Color3.new(1,1,1)},
-	{name = "Red", col = Color3.fromRGB(255,50,50)},
-	{name = "Blue", col = Color3.fromRGB(50,50,255)},
-	{name = "Yellow", col = Color3.fromRGB(255,255,50)},
-	{name = "Green", col = Color3.fromRGB(50,255,50)},
-	{name = "Cyan", col = Color3.fromRGB(50,255,255)},
-	{name = "Purple", col = Color3.fromRGB(170,0,170)}
+    {name = "White", col = Color3.new(1,1,1)},
+    {name = "Red", col = Color3.fromRGB(255,50,50)},
+    {name = "Blue", col = Color3.fromRGB(50,50,255)},
+    {name = "Yellow", col = Color3.fromRGB(255,255,50)},
+    {name = "Green", col = Color3.fromRGB(50,255,50)},
+    {name = "Cyan", col = Color3.fromRGB(50,255,255)},
+    {name = "Purple", col = Color3.fromRGB(170,0,170)}
 }
 
 for _, gem in ipairs(emeralds) do
-	local b = CreateButton(gem.name .. " Emerald", function()
-		return TeleportEmerald(gem.name)
-	end)
-
-	-- Add Colored Dot
-	local dot = Instance.new("Frame", b)
-	dot.Size = UDim2.new(0, 10, 0, 10)
-	dot.Position = UDim2.new(0, 15, 0.5, 0)
-	dot.AnchorPoint = Vector2.new(0, 0.5)
-	dot.BackgroundColor3 = gem.col
-	Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
-
-	-- Shift Text Right
-	local t = b:FindFirstChild("TextLabel")
-	if t then t.Position = UDim2.new(0, 20, 0, 0) end
+    local b = CreateButton(gem.name .. " Emerald", function()
+        return TeleportEmerald(gem.name)
+    end)
+    
+    local dot = Instance.new("Frame", b)
+    dot.Size = UDim2.new(0, 10, 0, 10)
+    dot.Position = UDim2.new(0, 15, 0.5, 0)
+    dot.AnchorPoint = Vector2.new(0, 0.5)
+    dot.BackgroundColor3 = gem.col
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+    
+    local t = b:FindFirstChild("TextLabel")
+    if t then t.Position = UDim2.new(0, 20, 0, 0) end
 end
 
 -- [SECTION 4: INTERFACE]
 CreateSection("INTERFACE")
-CreateButton("Destroy UI", function() gui:Destroy() return true end)
+CreateButton("Destroy UI", function() 
+    TailsLoop = false -- Stop loop safely
+    gui:Destroy() 
+    return true 
+end)
 
 -- // 12. INITIALIZE //
 local function PlayIntro()
-	local Intro = Instance.new("Frame", gui)
-	Intro.Size = UDim2.fromScale(1,1)
-	Intro.BackgroundColor3 = Color3.fromRGB(20,20,25)
-	Intro.ZIndex = 100
-
-	local Lbl = Instance.new("TextLabel", Intro)
-	Lbl.Text = "SURPG v2.4"
-	Lbl.Font = Enum.Font.GothamBlack
-	Lbl.TextSize = 0
-	Lbl.TextColor3 = CurrentTheme.accent
-	Lbl.Position = UDim2.fromScale(0.5, 0.5)
-	Lbl.AnchorPoint = Vector2.new(0.5, 0.5)
-	Lbl.BackgroundTransparency = 1
-
-	doTween(Lbl, {TextSize = 45}, 0.5)
-	task.wait(1.2)
-	doTween(Intro, {BackgroundTransparency = 1}, 0.5)
-	doTween(Lbl, {TextTransparency = 1}, 0.5)
-	task.wait(0.5)
-	Intro:Destroy()
+    local Intro = Instance.new("Frame", gui)
+    Intro.Size = UDim2.fromScale(1,1)
+    Intro.BackgroundColor3 = Color3.fromRGB(20,20,25)
+    Intro.ZIndex = 100
+    
+    local Lbl = Instance.new("TextLabel", Intro)
+    Lbl.Text = "SURPG v2.5"
+    Lbl.Font = Enum.Font.GothamBlack
+    Lbl.TextSize = 0
+    Lbl.TextColor3 = CurrentTheme.accent
+    Lbl.Position = UDim2.fromScale(0.5, 0.5)
+    Lbl.AnchorPoint = Vector2.new(0.5, 0.5)
+    Lbl.BackgroundTransparency = 1
+    
+    doTween(Lbl, {TextSize = 45}, 0.5)
+    task.wait(1.2)
+    doTween(Intro, {BackgroundTransparency = 1}, 0.5)
+    doTween(Lbl, {TextTransparency = 1}, 0.5)
+    task.wait(0.5)
+    Intro:Destroy()
 end
 
 PlayIntro()
