@@ -1,9 +1,10 @@
 --[[ 
-    BAN OR BE BANNED SCRIPT [v1.3]
+    BAN OR BE BANNED SCRIPT [v1.5]
     --------------------------------------------------
     - ENGINE: LumaCore UI (Mobile Optimized)
-    - UPDATE: Corrected Ban Time Arguments
-    - FEATURE: Search Functionality
+    - NEW: Unban Shop (Buy Unban Tokens)
+    - NEW: Ban Shop (Buy Ban Time)
+    - FEATURE: Searchable Player List
     - STYLE: Classic Blue
     --------------------------------------------------
 ]]
@@ -16,8 +17,14 @@ local LayoutCounter = 0
 
 -- State Variables
 local SelectedTarget = nil 
-local SelectedTimeArg = "Ban5Min" -- Default Argument
+local SelectedTimeArg = "Ban5Min" -- Banning Players
 local SelectedTimeText = "5 Mins"
+
+local SelectedBanShopArg = "Ban5Min" -- Buying Bans
+local SelectedBanShopText = "5 Mins"
+
+local SelectedUnbanShopArg = "Unban1" -- Buying Unbans
+local SelectedUnbanShopText = "1 Unban"
 
 -- ============================================================================
 -- [2] SERVICES
@@ -35,7 +42,7 @@ local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEn
 if isMobile then SCALE_FACTOR = 1.2 end 
 
 -- Dynamic Sizing
-local OPEN_SIZE = isMobile and UDim2.new(0, 320, 0.60, 0) or UDim2.new(0, 280, 0, 520)
+local OPEN_SIZE = isMobile and UDim2.new(0, 320, 0.65, 0) or UDim2.new(0, 280, 0, 750) -- Taller for Extra Shop
 local CLOSED_SIZE = UDim2.new(0, isMobile and 320 or 280, 0, 45)
 
 -- ============================================================================
@@ -62,24 +69,27 @@ local CurrentTheme = THEMES.Classic
 -- [4] REMOTE HANDLER
 -- ============================================================================
 local BanRemote = nil
+local ShopBanRemote = nil
+local ShopUnbanRemote = nil
 
 task.spawn(function()
     pcall(function()
         BanRemote = ReplicatedStorage:WaitForChild("BanRequest", 5)
+        ShopBanRemote = ReplicatedStorage:WaitForChild("ShopBuyBan", 5)
+        -- ASSUMED NAME: Check if this is correct in your game
+        ShopUnbanRemote = ReplicatedStorage:WaitForChild("ShopBuyUnban", 5) 
     end)
-    if BanRemote then 
-        print("Ban Remote Found!") 
-    else 
-        warn("Ban Remote NOT Found") 
-    end
+    if BanRemote then print("Ban Remote Found!") else warn("Ban Remote NOT Found") end
+    if ShopBanRemote then print("Shop Ban Remote Found!") end
+    if ShopUnbanRemote then print("Shop Unban Remote Found!") else warn("Shop Unban Remote NOT Found (Check Name)") end
 end)
 
 -- ============================================================================
 -- [5] UI LIBRARY
 -- ============================================================================
-if PlayerGui:FindFirstChild("BanUI_v1_3") then PlayerGui["BanUI_v1_3"]:Destroy() end
+if PlayerGui:FindFirstChild("BanUI_v1_5") then PlayerGui["BanUI_v1_5"]:Destroy() end
 local gui = Instance.new("ScreenGui")
-gui.Name = "BanUI_v1_3"
+gui.Name = "BanUI_v1_5"
 gui.ResetOnSpawn = false
 gui.Parent = PlayerGui
 gui.IgnoreGuiInset = true
@@ -144,116 +154,123 @@ end
 local function CreateSearchablePlayerDropdown(callback)
     local Frame = Instance.new("Frame", Content); Frame.Size = UDim2.new(1, -12, 0, 42); Frame.BackgroundColor3 = Color3.fromRGB(45, 50, 65); Frame.ClipsDescendants = true; Frame.LayoutOrder = GetNextOrder()
     Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8); local s = Instance.new("UIStroke", Frame); s.Color = CurrentTheme.stroke; s.Thickness = 1
-    
     local MainBtn = Instance.new("TextButton", Frame); MainBtn.Size = UDim2.new(1, 0, 0, 42); MainBtn.BackgroundTransparency = 1; MainBtn.Text = ""
     local TitleL = Instance.new("TextLabel", MainBtn); TitleL.Text = "Select Target: None"; TitleL.Size = UDim2.new(1, -30, 1, 0); TitleL.Position = UDim2.new(0, 15, 0, 0); TitleL.BackgroundTransparency = 1; TitleL.TextColor3 = CurrentTheme.text; TitleL.Font = UI_FONT; TitleL.TextSize = 14; TitleL.TextXAlignment = Enum.TextXAlignment.Left
     local Arrow = Instance.new("TextLabel", MainBtn); Arrow.Text = "v"; Arrow.Size = UDim2.new(0, 30, 1, 0); Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.BackgroundTransparency = 1; Arrow.TextColor3 = CurrentTheme.subtext; Arrow.Font = UI_FONT; Arrow.TextSize = 14
-    
-    -- Search Bar
     local SearchContainer = Instance.new("Frame", Frame); SearchContainer.Size = UDim2.new(1, -10, 0, 35); SearchContainer.Position = UDim2.new(0, 5, 0, 42); SearchContainer.BackgroundTransparency = 1; SearchContainer.Visible = false
     local SearchBox = Instance.new("TextBox", SearchContainer); SearchBox.Size = UDim2.new(1, 0, 1, 0); SearchBox.BackgroundColor3 = CurrentTheme.search; SearchBox.PlaceholderText = "Type to search..."; SearchBox.Text = ""; SearchBox.TextColor3 = CurrentTheme.text; SearchBox.PlaceholderColor3 = CurrentTheme.subtext; SearchBox.Font = UI_FONT_REG; SearchBox.TextSize = 14; Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 6)
-    
-    -- List Container
     local ItemContainer = Instance.new("ScrollingFrame", Frame); ItemContainer.Size = UDim2.new(1, 0, 0, 0); ItemContainer.Position = UDim2.new(0, 0, 0, 80); ItemContainer.BackgroundTransparency = 1; ItemContainer.LayoutOrder = 2; ItemContainer.ScrollBarThickness = 2
     local IList = Instance.new("UIListLayout", ItemContainer); IList.Padding = UDim.new(0, 2); IList.HorizontalAlignment = Enum.HorizontalAlignment.Center
     
     local isOpen = false
-    
     local function UpdateList(filter)
         filter = filter and filter:lower() or ""
         for _, c in ipairs(ItemContainer:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
-        
         local pList = Players:GetPlayers(); local count = 0
-        
         for _, p in ipairs(pList) do
             if p ~= player then
                 if filter == "" or string.find(p.Name:lower(), filter) or string.find(p.DisplayName:lower(), filter) then
                     count = count + 1
-                    local b = Instance.new("TextButton", ItemContainer)
-                    b.Size = UDim2.new(0.95, 0, 0, 30); b.BackgroundColor3 = Color3.fromRGB(35, 40, 55); b.Text = p.Name; b.TextColor3 = CurrentTheme.subtext; b.Font = UI_FONT; b.TextSize = 13; Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-                    
-                    b.MouseButton1Click:Connect(function()
-                        callback(p.Name)
-                        TitleL.Text = "Target: " .. p.Name
-                        isOpen = false; Arrow.Text = "v"; SearchContainer.Visible = false; doTween(Frame, {Size = UDim2.new(1, -12, 0, 42)}, 0.3)
-                    end)
+                    local b = Instance.new("TextButton", ItemContainer); b.Size = UDim2.new(0.95, 0, 0, 30); b.BackgroundColor3 = Color3.fromRGB(35, 40, 55); b.Text = p.Name; b.TextColor3 = CurrentTheme.subtext; b.Font = UI_FONT; b.TextSize = 13; Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+                    b.MouseButton1Click:Connect(function() callback(p.Name); TitleL.Text = "Target: " .. p.Name; isOpen = false; Arrow.Text = "v"; SearchContainer.Visible = false; doTween(Frame, {Size = UDim2.new(1, -12, 0, 42)}, 0.3) end)
                 end
             end
         end
         ItemContainer.CanvasSize = UDim2.new(0, 0, 0, count * 32); local h = math.min(count * 32, 150)
         if isOpen then ItemContainer.Position = UDim2.new(0, 0, 0, 82); doTween(ItemContainer, {Size = UDim2.new(1, 0, 0, h)}); doTween(Frame, {Size = UDim2.new(1, -12, 0, 42 + 40 + h + 5)}) end
     end
-    
     MainBtn.MouseButton1Click:Connect(function() isOpen = not isOpen; Arrow.Text = isOpen and "^" or "v"; SearchContainer.Visible = isOpen; if isOpen then SearchBox.Text = ""; UpdateList("") else doTween(Frame, {Size = UDim2.new(1, -12, 0, 42)}) end end)
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function() if isOpen then UpdateList(SearchBox.Text) end end)
     Players.PlayerAdded:Connect(function() if isOpen then UpdateList(SearchBox.Text) end end)
     Players.PlayerRemoving:Connect(function(p) if isOpen then UpdateList(SearchBox.Text) end; if SelectedTarget == p.Name then SelectedTarget = nil; TitleL.Text = "Select Target: None"; Notify("Target Left Game!", CurrentTheme.danger) end end)
 end
 
--- [TIME DROPDOWN]
-local function CreateTimeDropdown(callback)
+-- [GENERIC DROPDOWN]
+local function CreateDropdown(title, default, options, callback)
     local Frame = Instance.new("Frame", Content); Frame.Size = UDim2.new(1, -12, 0, 42); Frame.BackgroundColor3 = Color3.fromRGB(45, 50, 65); Frame.ClipsDescendants = true; Frame.LayoutOrder = GetNextOrder()
     Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8); local s = Instance.new("UIStroke", Frame); s.Color = CurrentTheme.stroke; s.Thickness = 1
     local MainBtn = Instance.new("TextButton", Frame); MainBtn.Size = UDim2.new(1, 0, 0, 42); MainBtn.BackgroundTransparency = 1; MainBtn.Text = ""
-    local TitleL = Instance.new("TextLabel", MainBtn); TitleL.Text = "Time: 5 Mins"; TitleL.Size = UDim2.new(1, -30, 1, 0); TitleL.Position = UDim2.new(0, 15, 0, 0); TitleL.BackgroundTransparency = 1; TitleL.TextColor3 = CurrentTheme.text; TitleL.Font = UI_FONT; TitleL.TextSize = 14; TitleL.TextXAlignment = Enum.TextXAlignment.Left
+    local TitleL = Instance.new("TextLabel", MainBtn); TitleL.Text = title .. ": " .. default; TitleL.Size = UDim2.new(1, -30, 1, 0); TitleL.Position = UDim2.new(0, 15, 0, 0); TitleL.BackgroundTransparency = 1; TitleL.TextColor3 = CurrentTheme.text; TitleL.Font = UI_FONT; TitleL.TextSize = 14; TitleL.TextXAlignment = Enum.TextXAlignment.Left
     local Arrow = Instance.new("TextLabel", MainBtn); Arrow.Text = "v"; Arrow.Size = UDim2.new(0, 30, 1, 0); Arrow.Position = UDim2.new(1, -30, 0, 0); Arrow.BackgroundTransparency = 1; Arrow.TextColor3 = CurrentTheme.subtext; Arrow.Font = UI_FONT; Arrow.TextSize = 14
     local ItemList = Instance.new("UIListLayout", Frame); ItemList.Padding = UDim.new(0, 2); ItemList.HorizontalAlignment = Enum.HorizontalAlignment.Center; ItemList.SortOrder = Enum.SortOrder.LayoutOrder
     local Pad = Instance.new("Frame", Frame); Pad.Size = UDim2.new(1, 0, 0, 42); Pad.BackgroundTransparency = 1; Pad.LayoutOrder = 0
-    
-    -- THE REQUESTED OPTIONS
-    local options = {
-        {txt="5 Mins", val="Ban5Min"},
-        {txt="15 Mins", val="Ban15Min"},
-        {txt="30 Mins", val="Ban30Min"},
-        {txt="1 Hour", val="Ban1Hour"},
-        {txt="1 Day", val="Ban1Day"},
-        {txt="30 Days", val="Ban30Days"},
-        {txt="365 Days", val="Ban365Days"}
-    }
     
     local isOpen = false
     MainBtn.MouseButton1Click:Connect(function() isOpen = not isOpen; Arrow.Text = isOpen and "^" or "v"; doTween(Frame, {Size = UDim2.new(1, -12, 0, isOpen and (42 + (#options * 32) + 5) or 42)}, 0.3) end)
     
     for i, opt in ipairs(options) do
         local OptBtn = Instance.new("TextButton", Frame); OptBtn.Size = UDim2.new(0.95, 0, 0, 30); OptBtn.BackgroundColor3 = Color3.fromRGB(35, 40, 55); OptBtn.Text = opt.txt; OptBtn.TextColor3 = CurrentTheme.subtext; OptBtn.Font = UI_FONT; OptBtn.TextSize = 13; OptBtn.LayoutOrder = i; Instance.new("UICorner", OptBtn).CornerRadius = UDim.new(0, 6)
-        OptBtn.MouseButton1Click:Connect(function() callback(opt); TitleL.Text = "Time: " .. opt.txt; isOpen = false; Arrow.Text = "v"; doTween(Frame, {Size = UDim2.new(1, -12, 0, 42)}, 0.3) end)
+        OptBtn.MouseButton1Click:Connect(function() callback(opt); TitleL.Text = title .. ": " .. opt.txt; isOpen = false; Arrow.Text = "v"; doTween(Frame, {Size = UDim2.new(1, -12, 0, 42)}, 0.3) end)
     end
 end
 
 -- ============================================================================
--- [6] BAN LOGIC
+-- [6] ACTIONS
 -- ============================================================================
 
-CreateSection("CONFIGURATION")
+-- :: BAN PLAYER SECTION ::
+CreateSection("BAN PLAYER")
 
-CreateSearchablePlayerDropdown(function(name)
-    SelectedTarget = name
-end)
+CreateSearchablePlayerDropdown(function(name) SelectedTarget = name end)
 
-CreateTimeDropdown(function(option)
+local banTimes = {
+    {txt="5 Mins", val="Ban5Min"}, {txt="15 Mins", val="Ban15Min"},
+    {txt="30 Mins", val="Ban30Min"}, {txt="1 Hour", val="Ban1Hour"},
+    {txt="1 Day", val="Ban1Day"}, {txt="30 Days", val="Ban30Days"},
+    {txt="365 Days", val="Ban365Days"}
+}
+
+CreateDropdown("Ban Duration", "5 Mins", banTimes, function(option)
     SelectedTimeArg = option.val
     SelectedTimeText = option.txt
 end)
 
-CreateSection("ACTIONS")
-
-CreateButton("Ban Player", function(btnStroke)
-    if not SelectedTarget then Notify("Please select a player!", CurrentTheme.danger); return false end
-    
+CreateButton("Ban Player Request", function(btnStroke)
+    if not SelectedTarget then Notify("Select a player!", CurrentTheme.danger); return false end
     if BanRemote then
-        -- Updated Logic with Argument Variable
-        local args = { SelectedTarget, SelectedTimeArg }
-        BanRemote:FireServer(unpack(args))
-        
-        Notify("Banned: " .. SelectedTarget .. " ("..SelectedTimeText..")", CurrentTheme.danger)
-        
-        doTween(btnStroke, {Color = CurrentTheme.danger}, 0.3)
-        task.delay(1.0, function() doTween(btnStroke, {Color = CurrentTheme.stroke}, 0.5) end)
+        BanRemote:FireServer(unpack({ SelectedTarget, SelectedTimeArg }))
+        Notify("Banning: " .. SelectedTarget, CurrentTheme.danger)
         return true
-    else
-        Notify("Ban Remote Not Found!", CurrentTheme.danger)
-        return false
-    end
+    else Notify("Ban Remote Missing", CurrentTheme.danger); return false end
+end)
+
+-- :: BAN SHOP SECTION ::
+CreateSection("BAN SHOP")
+
+CreateDropdown("Buy Ban Time", "5 Mins", banTimes, function(option)
+    SelectedBanShopArg = option.val
+    SelectedBanShopText = option.txt
+end)
+
+CreateButton("Purchase Ban", function(btnStroke)
+    if ShopBanRemote then
+        ShopBanRemote:FireServer(unpack({ SelectedBanShopArg }))
+        Notify("Bought: " .. SelectedBanShopText, CurrentTheme.success)
+        return true
+    else Notify("Shop Remote Missing", CurrentTheme.danger); return false end
+end)
+
+-- :: UNBAN SHOP SECTION (NEW) ::
+CreateSection("UNBAN SHOP")
+
+local unbanOptions = {
+    {txt="1 Unban", val="Unban1"},
+    {txt="3 Unbans", val="Unban3"},
+    {txt="5 Unbans", val="Unban5"},
+    {txt="10 Unbans", val="Unban10"}
+}
+
+CreateDropdown("Buy Quantity", "1 Unban", unbanOptions, function(option)
+    SelectedUnbanShopArg = option.val
+    SelectedUnbanShopText = option.txt
+end)
+
+CreateButton("Purchase Unban", function(btnStroke)
+    if ShopUnbanRemote then
+        ShopUnbanRemote:FireServer(unpack({ SelectedUnbanShopArg }))
+        Notify("Bought: " .. SelectedUnbanShopText, CurrentTheme.success)
+        return true
+    else Notify("Unban Shop Remote Missing", CurrentTheme.danger); return false end
 end)
 
 CreateSection("INTERFACE")
