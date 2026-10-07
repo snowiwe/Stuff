@@ -1,13 +1,8 @@
 --[[ 
-    LOOT HERO [ALPHA] v9.4 (FINAL FIXES)
-    --------------------------------------------------
-    - CRITICAL FIX: Restored missing 'switchOff' theme colors (Fixes error).
-    - LAYOUT FIX: Toggles now dynamically shift left if badges exist.
-    - VISUAL: "Rejoin After Purchase" text added to Store.
-    --------------------------------------------------
+    LOOT HERO [AUTUMN EDITION - COMPLETE SUITE]
+    Compact frame, boundary clamped, full original settings restored (no theme selector)
 ]]
 
--- // 1. SERVICES //
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -15,1969 +10,1122 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local MarketplaceService = game:GetService("MarketplaceService")
+local CoreGui = game:GetService("CoreGui")
 local Stats = game:GetService("Stats")
 
-local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    repeat task.wait() LocalPlayer = Players.LocalPlayer until LocalPlayer
+end
 
--- // 2. CONFIGURATION & SCALING //
-local isMobile = (UserInputService.TouchEnabled and not UserInputService.MouseEnabled)
-local isKeyboard = (UserInputService.KeyboardEnabled and not isMobile)
-local SCALE_FACTOR = isMobile and 1.2 or 1.0 
+local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera", 2)
+local ScreenName = "LootHero_Autumn"
 
-local DRAGGABLE_DEFAULT = true
-local NOTIFICATIONS_DEFAULT = true
-local ANIMATIONS_DEFAULT = true 
-local MOBILE_BTN_DRAG_DEFAULT = false
-local HIDE_PROFILE_DEFAULT = true
+-- // 1. SAFE CONTAINER RESOLUTION //
+local function getContainer()
+    if typeof(gethui) == "function" then
+        local h = gethui()
+        if h then return h end
+    end
+    local ok, cg = pcall(function() return CoreGui end)
+    if ok and cg then return cg end
+    return LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
+end
 
-local OPEN_SIZE = isMobile and UDim2.new(0, 280, 0.65, 0) or UDim2.new(0, 260, 0, 700) 
-local CLOSED_SIZE = UDim2.new(0, isMobile and 280 or 260, 0, 40)
+local TargetParent = getContainer()
+if not TargetParent then return end
 
--- // 3. THEME & FONTS //
-local UI_FONT = Enum.Font.SourceSansBold
-local DESC_FONT = Enum.Font.SourceSans
+local old = TargetParent:FindFirstChild(ScreenName)
+if old then old:Destroy() end
 
-local THEMES = {
-	Classic = {
-		name = "Classic Blue",
-		mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(92,110,200)), ColorSequenceKeypoint.new(1, Color3.fromRGB(40,50,125)) },
-		accent = Color3.fromRGB(105,160,255),
-		base = Color3.fromRGB(43,48,100),
-		text = Color3.fromRGB(255,255,255),
-		subtext = Color3.fromRGB(205,205,230),
-		stroke = Color3.fromRGB(60,70,140),
-		banner = Color3.fromRGB(70,85,160),
-		danger = Color3.fromRGB(170,60,60),
-		success = Color3.fromRGB(80,200,120),
-		warning = Color3.fromRGB(230, 140, 60),
-		switchOff = Color3.fromRGB(60, 65, 90) -- [FIXED] Added missing color
-	},
-	Midnight = {
-		name = "Midnight",
-		mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(40,40,50)), ColorSequenceKeypoint.new(1, Color3.fromRGB(20,20,25)) },
-		accent = Color3.fromRGB(140,140,255),
-		base = Color3.fromRGB(30,30,35),
-		text = Color3.fromRGB(240,240,255),
-		subtext = Color3.fromRGB(180,180,200),
-		stroke = Color3.fromRGB(60,60,80),
-		banner = Color3.fromRGB(50,50,70),
-		danger = Color3.fromRGB(200,50,50),
-		success = Color3.fromRGB(100,220,100),
-		warning = Color3.fromRGB(255, 180, 50),
-		switchOff = Color3.fromRGB(60, 60, 75) -- [FIXED]
-	},
-	Sunset = {
-		name = "Sunset",
-		mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(255,150,100)), ColorSequenceKeypoint.new(1, Color3.fromRGB(200,80,80)) },
-		accent = Color3.fromRGB(255,200,150),
-		base = Color3.fromRGB(80,40,40),
-		text = Color3.fromRGB(255,240,230),
-		subtext = Color3.fromRGB(255,200,200),
-		stroke = Color3.fromRGB(180,100,100),
-		banner = Color3.fromRGB(160,80,80),
-		danger = Color3.fromRGB(200,60,60),
-		success = Color3.fromRGB(120,220,120),
-		warning = Color3.fromRGB(255, 200, 80),
-		switchOff = Color3.fromRGB(90, 60, 60) -- [FIXED]
-	},
-	Forest = {
-		name = "Forest",
-		mainGrad = ColorSequence.new{ ColorSequenceKeypoint.new(0, Color3.fromRGB(60,120,80)), ColorSequenceKeypoint.new(1, Color3.fromRGB(30,60,40)) },
-		accent = Color3.fromRGB(100,200,120),
-		base = Color3.fromRGB(40,60,40),
-		text = Color3.fromRGB(230,255,230),
-		subtext = Color3.fromRGB(180,220,180),
-		stroke = Color3.fromRGB(80,140,80),
-		banner = Color3.fromRGB(50,100,60),
-		danger = Color3.fromRGB(180,60,60),
-		success = Color3.fromRGB(80,220,80),
-		warning = Color3.fromRGB(220, 200, 60),
-		switchOff = Color3.fromRGB(50, 70, 50) -- [FIXED]
-	}
+-- // 2. AUTUMN PALETTE //
+local C = {
+    Bg         = Color3.fromRGB(22, 18, 16),
+    Surface    = Color3.fromRGB(32, 26, 23),
+    Hover      = Color3.fromRGB(44, 35, 30),
+    Border     = Color3.fromRGB(60, 48, 40),
+    Accent     = Color3.fromRGB(224, 112, 43),
+    AccentGlow = Color3.fromRGB(245, 148, 68),
+    PillActive = Color3.fromRGB(48, 38, 32),
+    Text       = Color3.fromRGB(250, 244, 238),
+    Muted      = Color3.fromRGB(186, 172, 162),
+    Dim        = Color3.fromRGB(128, 114, 104),
+    Red        = Color3.fromRGB(217, 68, 54),
+    RedDark    = Color3.fromRGB(138, 32, 25),
+    Green      = Color3.fromRGB(64, 192, 110),
 }
 
-local CurrentTheme = THEMES.Classic
+local function tw(obj, props, dur, style, dir)
+    local t = TweenService:Create(obj, TweenInfo.new(dur or 0.18, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props)
+    t:Play()
+    return t
+end
 
--- // 4. VARIABLES //
--- Game Flags
+-- // 3. LOOT HERO GAME STATE & REMOTES //
 local GodModeEnabled = false
 local AutoCollectEnabled = false
 local AutoPickEnabled = false
--- New Stats Flags
 local InfDamageEnabled = false
 local InfRangeEnabled = false
 local InfSpeedEnabled = false
 local MaxHpEnabled = false
 
--- UI Flags
-local EspEnabled = false
-local DraggableEnabled = DRAGGABLE_DEFAULT
-local NotificationsEnabled = NOTIFICATIONS_DEFAULT
-local AnimationsEnabled = ANIMATIONS_DEFAULT
-local MobileBtnDraggable = MOBILE_BTN_DRAG_DEFAULT
-local HideProfileEnabled = HIDE_PROFILE_DEFAULT
-local FullHideEnabled = false
-
-local Minimized = true 
-
-local MonitorFPS = false
-local MonitorPing = false
-local MonitorMem = false 
-local MonitorRemotes = false
-
-local ActiveCheats = { 
-	StartGame = false 
-}
-
+local SelectedPlayer = nil
 local SelectedChest = "BasicChest"
-local SelectedPlayer = nil -- [NEW] Target Player for Party
+local EspEnabled = false
 local EspHighlights = {}
 local EspConnection = nil
 
--- // 5. REMOTE HANDLER //
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, JoinRemote
+-- Settings Flags
+local NotificationsEnabled = true
+local MonitorFPS = false
+local MonitorPing = false
+local MonitorMem = false
+local MonitorRemotes = false
 local RemotesActive = false
+
+local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, JoinRemote
 task.spawn(function()
-	pcall(function()
-		Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
-		if Remotes then
-			HealRemote = Remotes:WaitForChild("Heal", 3)
-			ChoiceRemote = Remotes:WaitForChild("Choice", 3)
-			MoneyRemote = Remotes:WaitForChild("Money", 3)
-			StartRemote = Remotes:WaitForChild("Start", 3)
-			PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
-			JoinRemote = Remotes:WaitForChild("Join", 3) 
-			RemotesActive = true
-		end
-	end)
-	if Remotes then print("Loot Hero: Remotes Active") else warn("Loot Hero: Remotes not found") end
+    pcall(function()
+        Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
+        if Remotes then
+            HealRemote = Remotes:WaitForChild("Heal", 3)
+            ChoiceRemote = Remotes:WaitForChild("Choice", 3)
+            MoneyRemote = Remotes:WaitForChild("Money", 3)
+            StartRemote = Remotes:WaitForChild("Start", 3)
+            PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
+            JoinRemote = Remotes:WaitForChild("Join", 3)
+            RemotesActive = true
+        end
+    end)
 end)
 
--- // 6. UI SETUP //
-if PlayerGui:FindFirstChild("LootHero_v9_4") then
-	PlayerGui.LootHero_v9_4:Destroy()
-end
+local godConnection
+godConnection = RunService.RenderStepped:Connect(function()
+    if GodModeEnabled and HealRemote then
+        HealRemote:FireServer()
+    end
+end)
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "LootHero_v9_4"
-gui.ResetOnSpawn = false
-gui.Parent = PlayerGui
-gui.Enabled = true
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.IgnoreGuiInset = true 
-
-if SCALE_FACTOR ~= 1 then
-	local scaler = Instance.new("UIScale")
-	scaler.Scale = SCALE_FACTOR
-	scaler.Parent = gui
-end
-
--- // 7. ANIMATION UTILS //
-local function doTween(obj, props, time, style, dir)
-	if not AnimationsEnabled then
-		if obj then
-			for k,v in pairs(props) do obj[k] = v end
-		end
-		return
-	end
-	if obj then
-		TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
-	end
-end
-
--- // 8. THEME MANAGER //
-local ThemeableObjects = {
-	Frames = {}, Texts = {}, Strokes = {}, Gradients = {}, Images = {}
-}
-
-local ThemeLabelRef = nil 
-local LockedButtons = {} 
-
-local function RegisterThemeObj(obj, prop, key)
-	if not obj then return end
-	if obj:IsA("Frame") or obj:IsA("ScrollingFrame") or obj:IsA("TextButton") then
-		table.insert(ThemeableObjects.Frames, {obj, prop, key})
-	elseif obj:IsA("TextLabel") then
-		table.insert(ThemeableObjects.Texts, {obj, prop, key})
-	elseif obj:IsA("UIStroke") then
-		table.insert(ThemeableObjects.Strokes, {obj, prop, key})
-	elseif obj:IsA("UIGradient") then
-		table.insert(ThemeableObjects.Gradients, {obj, prop, key})
-	elseif obj:IsA("ImageButton") or obj:IsA("ImageLabel") then
-		table.insert(ThemeableObjects.Images, {obj, prop, key})
-	end
-end
-
-local function UpdateTheme(themeName)
-	if not THEMES[themeName] then return end
-	CurrentTheme = THEMES[themeName]
-
-	for _, item in ipairs(ThemeableObjects.Frames) do doTween(item[1], {[item[2]] = CurrentTheme[item[3]]}, 0.5) end
-	for _, item in ipairs(ThemeableObjects.Texts) do doTween(item[1], {[item[2]] = CurrentTheme[item[3]]}, 0.5) end
-	for _, item in ipairs(ThemeableObjects.Strokes) do doTween(item[1], {[item[2]] = CurrentTheme[item[3]]}, 0.5) end
-	for _, item in ipairs(ThemeableObjects.Gradients) do item[1][item[2]] = CurrentTheme[item[3]] end
-	for _, item in ipairs(ThemeableObjects.Images) do doTween(item[1], {[item[2]] = CurrentTheme[item[3]]}, 0.5) end
-
-	if ThemeLabelRef then ThemeLabelRef.Text = "Theme: " .. CurrentTheme.name end
-
-	for _, btn in pairs(LockedButtons) do
-		local s = btn:FindFirstChild("UIStroke")
-		local t = btn:FindFirstChild("TitleL")
-		if s then doTween(s, {Color = CurrentTheme.success}, 0.5) end
-		if t then doTween(t, {TextColor3 = CurrentTheme.success}, 0.5) end
-	end
-end
-
--- // 9. JOYFUL INTRO //
-local function PlayIntro()
-	if not AnimationsEnabled then return end
-	local IntroFrame = Instance.new("Frame")
-	IntroFrame.Size = UDim2.fromScale(1,1) 
-	IntroFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
-	IntroFrame.ZIndex = 500 
-	IntroFrame.Parent = gui
-
-	local BarBG = Instance.new("Frame")
-	BarBG.Size = UDim2.new(0, 0, 0, 8) 
-	BarBG.Position = UDim2.fromScale(0.5, 0.55)
-	BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
-	BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
-	BarBG.ZIndex = 501
-	BarBG.Parent = IntroFrame
-	Instance.new("UICorner", BarBG).CornerRadius = UDim.new(1,0)
-
-	local BarFill = Instance.new("Frame")
-	BarFill.Size = UDim2.new(0, 0, 1, 0)
-	BarFill.BackgroundColor3 = CurrentTheme.accent
-	BarFill.ZIndex = 502
-	BarFill.Parent = BarBG
-	Instance.new("UICorner", BarFill).CornerRadius = UDim.new(1,0)
-
-	local Logo = Instance.new("TextLabel")
-	Logo.Text = "Loot Hero"
-	Logo.Font = Enum.Font.GothamBlack
-	Logo.TextSize = 42
-	Logo.TextColor3 = CurrentTheme.text
-	Logo.Position = UDim2.fromScale(0.5, 0.45)
-	Logo.AnchorPoint = Vector2.new(0.5, 0.5)
-	Logo.BackgroundTransparency = 1
-	Logo.ZIndex = 502
-	Logo.Parent = IntroFrame
-
-	Logo.Size = UDim2.new(0, 0, 0, 0)
-	TweenService:Create(Logo, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 200, 0, 50)}):Play()
-
-	task.wait(0.4)
-	TweenService:Create(BarBG, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, 220, 0, 8)}):Play()
-	task.wait(0.2)
-	TweenService:Create(BarFill, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Size = UDim2.new(1,0,1,0)}):Play()
-	task.wait(1.0)
-
-	TweenService:Create(Logo, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
-	TweenService:Create(BarBG, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0,0,0,0)}):Play()
-	TweenService:Create(IntroFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
-
-	task.wait(0.5)
-	IntroFrame:Destroy()
-end
-
--- // 10. HELPER: CREATE BADGE //
-local function CreateBadge(parent, text, color, layoutOrder)
-	local badge = Instance.new("Frame")
-	badge.Size = UDim2.new(0, 24, 0, 24) 
-	badge.BackgroundColor3 = color or CurrentTheme.banner
-	badge.LayoutOrder = layoutOrder or 1
-	badge.ZIndex = 5 
-	badge.Parent = parent
-
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 6)
-	c.Parent = badge
-
-	local s = Instance.new("UIStroke")
-	s.Thickness = 1
-	s.Color = CurrentTheme.stroke
-	s.Parent = badge
-	RegisterThemeObj(s, "Color", "stroke")
-
-	local txt = Instance.new("TextLabel")
-	txt.Size = UDim2.fromScale(1,1)
-	txt.BackgroundTransparency = 1
-	txt.Text = text
-	txt.TextColor3 = CurrentTheme.text
-	txt.Font = UI_FONT
-	txt.TextSize = 12
-	txt.ZIndex = 6
-	txt.Parent = badge
-	RegisterThemeObj(txt, "TextColor3", "text")
-
-	return badge
-end
-
--- // 11. NOTIFICATION SYSTEM //
-local NotifContainer = Instance.new("Frame")
-NotifContainer.Size = UDim2.new(1, 0, 1, 0)
-NotifContainer.Position = UDim2.new(0, 0, 0, 0)
-NotifContainer.BackgroundTransparency = 1
-NotifContainer.ZIndex = 200
-NotifContainer.Parent = gui
+-- // 4. ROOT GUI //
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = ScreenName
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 9999
+ScreenGui.Enabled = true
+ScreenGui.Parent = TargetParent
 
 local function Notify(text, color)
-	if not NotificationsEnabled then return end
+    if not NotificationsEnabled then return end
+    task.spawn(function()
+        local toast = Instance.new("Frame")
+        toast.Size = UDim2.new(0, 190, 0, 30)
+        toast.Position = UDim2.new(0.5, -95, 0.9, 0)
+        toast.BackgroundColor3 = C.Surface
+        toast.BorderSizePixel = 0
+        toast.ZIndex = 1000
+        toast.Parent = ScreenGui
 
-	local banner = Instance.new("Frame")
-	banner.Size = UDim2.new(0, 220, 0, 34)
-	banner.Position = UDim2.new(0.5, -110, 0.9, 0) 
-	banner.BackgroundColor3 = color or CurrentTheme.banner
-	banner.BackgroundTransparency = 1
-	banner.BorderSizePixel = 0
-	banner.Parent = NotifContainer
+        Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 6)
+        local s = Instance.new("UIStroke"); s.Color = color or C.Accent; s.Thickness = 1; s.Parent = toast
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = banner
+        local lbl = Instance.new("TextLabel")
+        lbl.Size = UDim2.fromScale(1, 1)
+        lbl.BackgroundTransparency = 1
+        lbl.Text = text
+        lbl.TextColor3 = C.Text
+        lbl.Font = Enum.Font.GothamMedium
+        lbl.TextSize = 11
+        lbl.ZIndex = 1001
+        lbl.Parent = toast
 
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(1,1)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = CurrentTheme.text
-	label.Font = UI_FONT
-	label.TextSize = 14
-	label.Text = text
-	label.TextTransparency = 1
-	label.Parent = banner
-
-	doTween(banner, {BackgroundTransparency = 0, Position = UDim2.new(0.5, -110, 0.85, 0)}, 0.3)
-	doTween(label, {TextTransparency = 0}, 0.3)
-
-	task.delay(2, function()
-		doTween(banner, {BackgroundTransparency = 1, Position = UDim2.new(0.5, -110, 0.9, 0)}, 0.5)
-		doTween(label, {TextTransparency = 1}, 0.5)
-		task.wait(0.5)
-		banner:Destroy()
-	end)
+        tw(toast, {Position = UDim2.new(0.5, -95, 0.86, 0)}, 0.2)
+        task.wait(2)
+        tw(toast, {Position = UDim2.new(0.5, -95, 0.9, 0), BackgroundTransparency = 1}, 0.25)
+        tw(lbl, {TextTransparency = 1}, 0.25)
+        task.wait(0.25)
+        toast:Destroy()
+    end)
 end
 
--- // 12. MONITOR OVERLAY //
+-- // 5. STATS MONITOR OVERLAY //
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
-MonitorUI.Position = UDim2.new(1, -110, 0, 10) 
-MonitorUI.BackgroundColor3 = CurrentTheme.base 
-MonitorUI.BackgroundTransparency = 0.2
+MonitorUI.Size = UDim2.new(0, 95, 0, 0)
+MonitorUI.Position = UDim2.new(1, -105, 0, 12)
+MonitorUI.BackgroundColor3 = C.Surface
+MonitorUI.BackgroundTransparency = 0.15
 MonitorUI.Visible = false
-MonitorUI.Parent = gui
-RegisterThemeObj(MonitorUI, "BackgroundColor3", "base")
+MonitorUI.ZIndex = 900
+MonitorUI.Parent = ScreenGui
 
-local mCorner = Instance.new("UICorner"); mCorner.CornerRadius = UDim.new(0,6); mCorner.Parent = MonitorUI
-local mStroke = Instance.new("UIStroke"); mStroke.Color = CurrentTheme.stroke; mStroke.Thickness = 1; mStroke.Parent = MonitorUI
-RegisterThemeObj(mStroke, "Color", "stroke")
+Instance.new("UICorner", MonitorUI).CornerRadius = UDim.new(0, 6)
+local mStroke = Instance.new("UIStroke"); mStroke.Color = C.Border; mStroke.Thickness = 1; mStroke.Parent = MonitorUI
 
-local mList = Instance.new("UIListLayout")
-mList.Padding = UDim.new(0, 0)
-mList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-mList.VerticalAlignment = Enum.VerticalAlignment.Top
-mList.Parent = MonitorUI
+local mLayout = Instance.new("UIListLayout")
+mLayout.Padding = UDim.new(0, 2)
+mLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+mLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+mLayout.Parent = MonitorUI
 
-local function CreateMonitorLabel(text)
-	local Container = Instance.new("Frame")
-	Container.Size = UDim2.new(1, 0, 0, 0) 
-	Container.BackgroundTransparency = 1
-	Container.ClipsDescendants = true
-	Container.Parent = MonitorUI
-
-	local Lbl = Instance.new("TextLabel")
-	Lbl.Size = UDim2.new(1, 0, 0, 20)
-	Lbl.BackgroundTransparency = 1
-	Lbl.TextColor3 = CurrentTheme.text
-	Lbl.Font = DESC_FONT
-	Lbl.TextSize = 12
-	Lbl.Text = text
-	Lbl.TextTransparency = 1 
-	Lbl.Parent = Container
-	RegisterThemeObj(Lbl, "TextColor3", "text")
-
-	return Container, Lbl
+local function createMonitorRow()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -8, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Visible = false
+    lbl.ZIndex = 901
+    lbl.Parent = MonitorUI
+    return lbl
 end
 
-local FpsCont, FpsLabel = CreateMonitorLabel("FPS: --")
-local PingCont, PingLabel = CreateMonitorLabel("Ping: --")
-local MemCont, MemLabel = CreateMonitorLabel("Mem: --")
-local RemoteCont, RemoteLabel = CreateMonitorLabel("Remotes: --")
+local fpsRow = createMonitorRow()
+local pingRow = createMonitorRow()
+local memRow = createMonitorRow()
+local remoteRow = createMonitorRow()
 
-local function AnimateMonitor(container, label, enabled, content)
-	if enabled then
-		label.Text = content
-		if container.Size.Y.Offset == 0 then
-			doTween(container, {Size = UDim2.new(1, 0, 0, 20)}, 0.4, Enum.EasingStyle.Quart)
-			doTween(label, {TextTransparency = 0}, 0.3)
-		end
-	else
-		if container.Size.Y.Offset > 0 then
-			doTween(container, {Size = UDim2.new(1, 0, 0, 0)}, 0.4, Enum.EasingStyle.Quart)
-			doTween(label, {TextTransparency = 1}, 0.2)
-		end
-	end
-end
+local monitorConn
+monitorConn = RunService.RenderStepped:Connect(function(dt)
+    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorRemotes and 1 or 0)
+    if active == 0 then
+        MonitorUI.Visible = false
+    else
+        MonitorUI.Visible = true
+        MonitorUI.Size = UDim2.new(0, 95, 0, (active * 18) + 6)
 
-RunService.RenderStepped:Connect(function(dt)
-	local activeCount = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorRemotes and 1 or 0)
+        fpsRow.Visible = MonitorFPS
+        if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / dt) end
 
-	if activeCount == 0 then
-		MonitorUI.Visible = false
-		MonitorUI.Size = UDim2.new(0, 100, 0, 0) 
-	else
-		MonitorUI.Visible = true
+        pingRow.Visible = MonitorPing
+        if MonitorPing then
+            local p = math.floor(LocalPlayer:GetNetworkPing() * 1000)
+            pingRow.Text = "Ping: " .. p .. "ms"
+        end
 
-		local fpsVal = math.floor(1/dt)
-		AnimateMonitor(FpsCont, FpsLabel, MonitorFPS, "FPS: " .. fpsVal)
+        memRow.Visible = MonitorMem
+        if MonitorMem then
+            memRow.Text = "Mem: " .. math.floor(Stats:GetTotalMemoryUsageMb()) .. "MB"
+        end
 
-		local pingVal = math.floor(Players.LocalPlayer:GetNetworkPing() * 1000)
-		AnimateMonitor(PingCont, PingLabel, MonitorPing, "Ping: " .. pingVal .. "ms")
-
-		local memVal = math.floor(Stats:GetTotalMemoryUsageMb())
-		AnimateMonitor(MemCont, MemLabel, MonitorMem, "Mem: " .. memVal .. "MB")
-
-		local remText = RemotesActive and "Remotes: OK" or "Remotes: N/A"
-		AnimateMonitor(RemoteCont, RemoteLabel, MonitorRemotes, remText)
-		if RemotesActive then RemoteLabel.TextColor3 = CurrentTheme.success else RemoteLabel.TextColor3 = CurrentTheme.danger end
-
-		local targetH = (activeCount * 20) + 5 
-		doTween(MonitorUI, {Size = UDim2.new(0, 100, 0, targetH)}, 0.4, Enum.EasingStyle.Quart)
-	end
+        remoteRow.Visible = MonitorRemotes
+        if MonitorRemotes then
+            remoteRow.Text = RemotesActive and "Remotes: OK" or "Remotes: N/A"
+            remoteRow.TextColor3 = RemotesActive and C.Green or C.Red
+        end
+    end
 end)
 
--- // 13. MAIN FRAME //
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "Main"
-MainFrame.Size = CLOSED_SIZE 
-MainFrame.Position = UDim2.new(0.5, - (OPEN_SIZE.X.Offset/2), 0.4, 0) 
-MainFrame.BackgroundColor3 = CurrentTheme.base 
-MainFrame.BorderSizePixel = 0
-MainFrame.Active = true 
-MainFrame.Visible = false 
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = gui
-RegisterThemeObj(MainFrame, "BackgroundColor3", "base")
+-- // 6. MAIN WINDOW //
+local Frame = Instance.new("Frame")
+Frame.Name = "MainFrame"
+Frame.Size = UDim2.new(0, 275, 0, 315)
+Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+Frame.BackgroundColor3 = C.Bg
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.ClipsDescendants = true
+Frame.Visible = true
+Frame.Parent = ScreenGui
 
-local MainGrad = Instance.new("UIGradient")
-MainGrad.Color = CurrentTheme.mainGrad
-MainGrad.Rotation = 45
-MainGrad.Parent = MainFrame
-RegisterThemeObj(MainGrad, "Color", "mainGrad")
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+local fStroke = Instance.new("UIStroke")
+fStroke.Color = C.Border
+fStroke.Thickness = 1.2
+fStroke.Parent = Frame
 
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 14)
-UICorner.Parent = MainFrame
+local TopGrad = Instance.new("UIGradient")
+TopGrad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 34, 28)),
+    ColorSequenceKeypoint.new(0.25, C.Bg),
+    ColorSequenceKeypoint.new(1, C.Bg)
+}
+TopGrad.Rotation = 90
+TopGrad.Parent = Frame
 
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Thickness = 1.5
-UIStroke.Color = CurrentTheme.stroke
-UIStroke.Parent = MainFrame
-RegisterThemeObj(UIStroke, "Color", "stroke")
+-- // 7. HEADER //
+local Header = Instance.new("TextButton")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundTransparency = 1
+Header.Text = ""
+Header.AutoButtonColor = false
+Header.Parent = Frame
 
--- // HEADER //
-local TopBar = Instance.new("Frame")
-TopBar.Name = "Header"
-TopBar.Size = UDim2.new(1, 0, 0, 40)
-TopBar.BackgroundTransparency = 1
-TopBar.Parent = MainFrame
+local TitleDot = Instance.new("Frame")
+TitleDot.Size = UDim2.new(0, 6, 0, 6)
+TitleDot.Position = UDim2.new(0, 14, 0.5, -3)
+TitleDot.BackgroundColor3 = C.Accent
+Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
+TitleDot.Parent = Header
 
-local BackArrowBtn = Instance.new("ImageButton")
-BackArrowBtn.Name = "BackArrow"
-BackArrowBtn.Size = UDim2.new(0, 24, 0, 24)
-BackArrowBtn.Position = UDim2.new(0, 10, 0.5, 0) 
-BackArrowBtn.AnchorPoint = Vector2.new(0, 0.5)
-BackArrowBtn.BackgroundTransparency = 1
-BackArrowBtn.Image = "rbxassetid://6031091004" 
-BackArrowBtn.Rotation = 90
-BackArrowBtn.ImageColor3 = CurrentTheme.text
-BackArrowBtn.ImageTransparency = 1
-BackArrowBtn.Visible = false
-BackArrowBtn.ZIndex = 5 
-BackArrowBtn.Parent = TopBar
-RegisterThemeObj(BackArrowBtn, "ImageColor3", "text")
+local Title = Instance.new("TextLabel")
+Title.Text = "Loot Hero [Alpha]"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 13
+Title.TextColor3 = C.Text
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Size = UDim2.new(1, -60, 1, 0)
+Title.Position = UDim2.new(0, 28, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Parent = Header
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Text = "Loot Hero [Alpha]"
-TitleLabel.Font = UI_FONT 
-TitleLabel.TextSize = 18
-TitleLabel.TextColor3 = CurrentTheme.text
-TitleLabel.Size = UDim2.new(1, -100, 1, 0)
-TitleLabel.Position = UDim2.new(0.5, 0, 0.5, 0)
-TitleLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
-TitleLabel.BackgroundTransparency = 1
-TitleLabel.ZIndex = 1
-TitleLabel.Parent = TopBar
-RegisterThemeObj(TitleLabel, "TextColor3", "text")
+local SettingsBtn = Instance.new("TextButton")
+SettingsBtn.Name = "SettingsBtn"
+SettingsBtn.Size = UDim2.new(0, 26, 0, 26)
+SettingsBtn.Position = UDim2.new(1, -12, 0.5, 0)
+SettingsBtn.AnchorPoint = Vector2.new(1, 0.5)
+SettingsBtn.BackgroundColor3 = C.Surface
+SettingsBtn.Text = "⚙"
+SettingsBtn.TextColor3 = C.Muted
+SettingsBtn.Font = Enum.Font.GothamBold
+SettingsBtn.TextSize = 13
+SettingsBtn.AutoButtonColor = false
+SettingsBtn.ZIndex = 6
+SettingsBtn.Parent = Header
 
-local MinBtn = Instance.new("ImageButton")
-MinBtn.Name = "Minimize"
-MinBtn.BackgroundTransparency = 1
-MinBtn.Image = "rbxassetid://6031091004" 
-MinBtn.ImageColor3 = CurrentTheme.subtext
-MinBtn.Size = UDim2.new(0, 24, 0, 24)
-MinBtn.Position = UDim2.new(1, -35, 0.5, 0)
-MinBtn.AnchorPoint = Vector2.new(0, 0.5)
-MinBtn.ZIndex = 10 
-MinBtn.Parent = TopBar
-RegisterThemeObj(MinBtn, "ImageColor3", "subtext")
+Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
+local sStroke = Instance.new("UIStroke")
+sStroke.Color = C.Border
+sStroke.Thickness = 1
+sStroke.Parent = SettingsBtn
 
--- // CONTENT AREA //
-local ContentArea = Instance.new("Frame")
-ContentArea.Name = "ContentArea"
-ContentArea.Size = UDim2.new(1, 0, 1, -40)
-ContentArea.Position = UDim2.new(0, 0, 0, 40)
-ContentArea.BackgroundTransparency = 1
-ContentArea.ClipsDescendants = true
-ContentArea.Visible = false 
-ContentArea.Parent = MainFrame
+SettingsBtn.MouseEnter:Connect(function()
+    tw(SettingsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
+    tw(sStroke, {Color = C.Accent}, 0.15)
+end)
+SettingsBtn.MouseLeave:Connect(function()
+    tw(SettingsBtn, {BackgroundColor3 = C.Surface, TextColor3 = C.Muted}, 0.15)
+    tw(sStroke, {Color = C.Border}, 0.15)
+end)
 
-local TabContainer = Instance.new("Frame")
-TabContainer.Size = UDim2.new(1, 0, 0, 30)
-TabContainer.Position = UDim2.new(0, 0, 0, 5)
-TabContainer.BackgroundTransparency = 1
-TabContainer.Parent = ContentArea
+-- // 8. COMPONENT BUILDERS //
+local function AddSection(parent, text, order)
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = text
+    lbl.Size = UDim2.new(1, 0, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Accent
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.LayoutOrder = order or 0
+    lbl.ZIndex = parent.ZIndex + 1
+    lbl.Parent = parent
+    return lbl
+end
 
-local TabLayout = Instance.new("UIListLayout")
-TabLayout.FillDirection = Enum.FillDirection.Horizontal
-TabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-TabLayout.Padding = UDim.new(0, 5)
-TabLayout.Parent = TabContainer
+local function AddToggle(parent, title, sub, defaultState, layoutOrder, cb)
+    local state = defaultState or false
+
+    local card = Instance.new("TextButton")
+    card.Size = UDim2.new(1, 0, 0, 42)
+    card.BackgroundColor3 = C.Surface
+    card.AutoButtonColor = false
+    card.Text = ""
+    card.LayoutOrder = layoutOrder or 0
+    card.ZIndex = parent.ZIndex
+    card.Parent = parent
+
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
+    local s = Instance.new("UIStroke")
+    s.Color = C.Border
+    s.Thickness = 1
+    s.Parent = card
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Text = title
+    tLbl.Font = Enum.Font.GothamMedium
+    tLbl.TextSize = 12
+    tLbl.TextColor3 = C.Text
+    tLbl.Position = UDim2.new(0, 10, 0, 6)
+    tLbl.Size = UDim2.new(1, -55, 0, 15)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.BackgroundTransparency = 1
+    tLbl.ZIndex = card.ZIndex + 1
+    tLbl.Parent = card
+
+    local sLbl = Instance.new("TextLabel")
+    sLbl.Text = sub or ""
+    sLbl.Font = Enum.Font.Gotham
+    sLbl.TextSize = 10
+    sLbl.TextColor3 = C.Dim
+    sLbl.Position = UDim2.new(0, 10, 0, 21)
+    sLbl.Size = UDim2.new(1, -55, 0, 14)
+    sLbl.TextXAlignment = Enum.TextXAlignment.Left
+    sLbl.BackgroundTransparency = 1
+    sLbl.ZIndex = card.ZIndex + 1
+    sLbl.Parent = card
+
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(0, 32, 0, 18)
+    track.Position = UDim2.new(1, -42, 0.5, -9)
+    track.BackgroundColor3 = state and C.Accent or C.Border
+    track.BorderSizePixel = 0
+    track.ZIndex = card.ZIndex + 1
+    track.Parent = card
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = card.ZIndex + 2
+    knob.Parent = track
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    card.MouseEnter:Connect(function()
+        tw(card, {BackgroundColor3 = C.Hover}, 0.15)
+        tw(s, {Color = C.AccentGlow}, 0.15)
+    end)
+    card.MouseLeave:Connect(function()
+        tw(card, {BackgroundColor3 = C.Surface}, 0.15)
+        tw(s, {Color = C.Border}, 0.15)
+    end)
+
+    card.MouseButton1Click:Connect(function()
+        state = not state
+        tw(track, {BackgroundColor3 = state and C.Accent or C.Border}, 0.2)
+        tw(knob, {
+            Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        }, 0.15, Enum.EasingStyle.Back)
+        cb(state)
+    end)
+end
+
+local function AddButton(parent, title, sub, layoutOrder, cb)
+    local card = Instance.new("TextButton")
+    card.Size = UDim2.new(1, 0, 0, 42)
+    card.BackgroundColor3 = C.Surface
+    card.AutoButtonColor = false
+    card.Text = ""
+    card.LayoutOrder = layoutOrder or 0
+    card.ZIndex = parent.ZIndex
+    card.Parent = parent
+
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
+    local s = Instance.new("UIStroke")
+    s.Color = C.Border
+    s.Thickness = 1
+    s.Parent = card
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Text = title
+    tLbl.Font = Enum.Font.GothamMedium
+    tLbl.TextSize = 12
+    tLbl.TextColor3 = C.Text
+    tLbl.Position = UDim2.new(0, 10, 0, 6)
+    tLbl.Size = UDim2.new(1, -20, 0, 15)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.BackgroundTransparency = 1
+    tLbl.ZIndex = card.ZIndex + 1
+    tLbl.Parent = card
+
+    local sLbl = Instance.new("TextLabel")
+    sLbl.Text = sub or ""
+    sLbl.Font = Enum.Font.Gotham
+    sLbl.TextSize = 10
+    sLbl.TextColor3 = C.Dim
+    sLbl.Position = UDim2.new(0, 10, 0, 21)
+    sLbl.Size = UDim2.new(1, -20, 0, 14)
+    sLbl.TextXAlignment = Enum.TextXAlignment.Left
+    sLbl.BackgroundTransparency = 1
+    sLbl.ZIndex = card.ZIndex + 1
+    sLbl.Parent = card
+
+    card.MouseEnter:Connect(function()
+        tw(card, {BackgroundColor3 = C.Hover}, 0.12)
+        tw(s, {Color = C.AccentGlow}, 0.12)
+    end)
+    card.MouseLeave:Connect(function()
+        tw(card, {BackgroundColor3 = C.Surface}, 0.12)
+        tw(s, {Color = C.Border}, 0.12)
+    end)
+
+    card.MouseButton1Click:Connect(function()
+        tw(card, {Size = UDim2.new(1, -4, 0, 39)}, 0.06, Enum.EasingStyle.Quart)
+        task.delay(0.06, function()
+            tw(card, {Size = UDim2.new(1, 0, 0, 42)}, 0.14, Enum.EasingStyle.Back)
+        end)
+        cb(tLbl)
+    end)
+end
+
+local function AddDropdown(parent, title, options, layoutOrder, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 0, 42)
+    frame.BackgroundColor3 = C.Surface
+    frame.ClipsDescendants = true
+    frame.LayoutOrder = layoutOrder or 0
+    frame.Parent = parent
+
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 7)
+    local s = Instance.new("UIStroke"); s.Color = C.Border; s.Thickness = 1; s.Parent = frame
+
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, 0, 0, 42)
+    btn.BackgroundTransparency = 1
+    btn.Text = ""
+    btn.Parent = frame
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Text = title
+    tLbl.Font = Enum.Font.GothamMedium
+    tLbl.TextSize = 12
+    tLbl.TextColor3 = C.Text
+    tLbl.Position = UDim2.new(0, 10, 0, 0)
+    tLbl.Size = UDim2.new(1, -40, 0, 42)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.BackgroundTransparency = 1
+    tLbl.Parent = btn
+
+    local arrow = Instance.new("TextLabel")
+    arrow.Text = "▼"
+    arrow.Font = Enum.Font.GothamBold
+    arrow.TextSize = 10
+    arrow.TextColor3 = C.Dim
+    arrow.Position = UDim2.new(1, -24, 0, 0)
+    arrow.Size = UDim2.new(0, 14, 0, 42)
+    arrow.BackgroundTransparency = 1
+    arrow.Parent = btn
+
+    local optContainer = Instance.new("Frame")
+    optContainer.Size = UDim2.new(1, -12, 0, 0)
+    optContainer.Position = UDim2.new(0, 6, 0, 44)
+    optContainer.BackgroundTransparency = 1
+    optContainer.Parent = frame
+
+    local optList = Instance.new("UIListLayout")
+    optList.Padding = UDim.new(0, 4)
+    optList.Parent = optContainer
+
+    local isOpen = false
+    local function setOpen(open)
+        isOpen = open
+        tw(arrow, {Rotation = isOpen and 180 or 0}, 0.2)
+        local totalH = isOpen and (48 + (#options * 28)) or 42
+        tw(frame, {Size = UDim2.new(1, 0, 0, totalH)}, 0.22, Enum.EasingStyle.Quart)
+    end
+
+    btn.MouseButton1Click:Connect(function() setOpen(not isOpen) end)
+
+    for _, opt in ipairs(options) do
+        local optBtn = Instance.new("TextButton")
+        optBtn.Size = UDim2.new(1, 0, 0, 24)
+        optBtn.BackgroundColor3 = C.Hover
+        optBtn.Text = opt
+        optBtn.TextColor3 = C.Muted
+        optBtn.Font = Enum.Font.Gotham
+        optBtn.TextSize = 11
+        optBtn.AutoButtonColor = false
+        Instance.new("UICorner", optBtn).CornerRadius = UDim.new(0, 5)
+        optBtn.Parent = optContainer
+
+        optBtn.MouseButton1Click:Connect(function()
+            tLbl.Text = title .. ": " .. opt
+            setOpen(false)
+            callback(opt)
+        end)
+    end
+end
+
+-- // 9. SETTINGS DRAWER (ORIGINAL SUITE RESTORED) //
+local MobileToggle
+local setFloatingIconVisible
+
+local Drawer = Instance.new("Frame")
+Drawer.Size = UDim2.new(1, 0, 1, -40)
+Drawer.Position = UDim2.new(0, 0, 1, 0)
+Drawer.BackgroundColor3 = C.Bg
+Drawer.ZIndex = 30
+Drawer.BorderSizePixel = 0
+Drawer.Parent = Frame
+
+local DrawerScroll = Instance.new("ScrollingFrame")
+DrawerScroll.Size = UDim2.fromScale(1, 1)
+DrawerScroll.BackgroundTransparency = 1
+DrawerScroll.BorderSizePixel = 0
+DrawerScroll.ScrollBarThickness = 2
+DrawerScroll.ScrollBarImageColor3 = C.Border
+DrawerScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+DrawerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+DrawerScroll.ZIndex = 31
+DrawerScroll.Parent = Drawer
+
+local dPad = Instance.new("UIPadding")
+dPad.PaddingTop = UDim.new(0, 12)
+dPad.PaddingLeft = UDim.new(0, 12)
+dPad.PaddingRight = UDim.new(0, 12)
+dPad.PaddingBottom = UDim.new(0, 14)
+dPad.Parent = DrawerScroll
+
+local dList = Instance.new("UIListLayout")
+dList.Padding = UDim.new(0, 6)
+dList.SortOrder = Enum.SortOrder.LayoutOrder
+dList.Parent = DrawerScroll
+
+-- 1. MONITORING
+AddSection(DrawerScroll, "MONITORING", 1)
+
+AddToggle(DrawerScroll, "Show FPS", "Toggles FPS counter in overlay", false, 2, function(active)
+    MonitorFPS = active
+end)
+
+AddToggle(DrawerScroll, "Show Ping", "Toggles Ping counter in overlay", false, 3, function(active)
+    MonitorPing = active
+end)
+
+AddToggle(DrawerScroll, "Show Memory", "Displays client MB usage", false, 4, function(active)
+    MonitorMem = active
+end)
+
+AddToggle(DrawerScroll, "Remote Status", "Monitors game connection health", false, 5, function(active)
+    MonitorRemotes = active
+end)
+
+-- 2. PERFORMANCE
+AddSection(DrawerScroll, "PERFORMANCE", 6)
+
+AddToggle(DrawerScroll, "Low Performance", "Disables global shadows", false, 7, function(active)
+    Lighting.GlobalShadows = not active
+    Notify(active and "Low Performance: ON" or "Low Performance: OFF", C.Accent)
+end)
+
+-- 3. INTERFACE
+AddSection(DrawerScroll, "INTERFACE", 8)
+
+AddToggle(DrawerScroll, "Notifications", "Shows bottom toast banners", true, 9, function(active)
+    NotificationsEnabled = active
+end)
+
+AddToggle(DrawerScroll, "Show Floating Icon", "Shows 🍁 button (or RightCtrl)", false, 10, function(active)
+    if setFloatingIconVisible then setFloatingIconVisible(active) end
+end)
+
+AddButton(DrawerScroll, "Quit Game", "Closes and exits the game", 11, function()
+    game:Shutdown()
+end)
+
+-- 4. DANGER ZONE
+AddSection(DrawerScroll, "DANGER ZONE", 12)
+
+local DestroyBtn = Instance.new("TextButton")
+DestroyBtn.Size = UDim2.new(1, 0, 0, 42)
+DestroyBtn.BackgroundColor3 = C.Surface
+DestroyBtn.AutoButtonColor = false
+DestroyBtn.Text = ""
+DestroyBtn.ClipsDescendants = true
+DestroyBtn.ZIndex = 32
+DestroyBtn.LayoutOrder = 13
+DestroyBtn.Parent = DrawerScroll
+
+Instance.new("UICorner", DestroyBtn).CornerRadius = UDim.new(0, 8)
+local dBtnStroke = Instance.new("UIStroke"); dBtnStroke.Color = C.Border; dBtnStroke.Thickness = 1; dBtnStroke.Parent = DestroyBtn
+
+local FillBar = Instance.new("Frame")
+FillBar.Size = UDim2.new(0, 0, 1, 0)
+FillBar.BackgroundColor3 = C.RedDark
+FillBar.BorderSizePixel = 0
+FillBar.ZIndex = 33
+FillBar.Parent = DestroyBtn
+
+local DestroyLbl = Instance.new("TextLabel")
+DestroyLbl.Text = "Destroy Interface"
+DestroyLbl.Font = Enum.Font.GothamBold
+DestroyLbl.TextSize = 12
+DestroyLbl.TextColor3 = C.Red
+DestroyLbl.Size = UDim2.fromScale(1, 1)
+DestroyLbl.BackgroundTransparency = 1
+DestroyLbl.ZIndex = 34
+DestroyLbl.Parent = DestroyBtn
+
+local confirmState = false
+local timerThread = nil
+
+DestroyBtn.MouseButton1Click:Connect(function()
+    if not confirmState then
+        confirmState = true
+        DestroyLbl.Text = "Tap Again to Confirm"
+        DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(dBtnStroke, {Color = C.Red}, 0.2)
+        FillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(FillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        timerThread = task.delay(3, function()
+            if confirmState and ScreenGui.Parent then
+                confirmState = false
+                DestroyLbl.Text = "Destroy Interface"
+                DestroyLbl.TextColor3 = C.Red
+                tw(dBtnStroke, {Color = C.Border}, 0.2)
+                FillBar.Size = UDim2.new(0, 0, 1, 0)
+            end
+        end)
+    else
+        if timerThread then task.cancel(timerThread) end
+        GodModeEnabled = false
+        AutoCollectEnabled = false
+        AutoPickEnabled = false
+        InfDamageEnabled = false
+        InfRangeEnabled = false
+        InfSpeedEnabled = false
+        MaxHpEnabled = false
+        if godConnection then godConnection:Disconnect() end
+        if monitorConn then monitorConn:Disconnect() end
+        if EspConnection then EspConnection:Disconnect() end
+        for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
+        ScreenGui:Destroy()
+    end
+end)
+
+local drawerOpen = false
+local function toggleDrawer()
+    drawerOpen = not drawerOpen
+    tw(SettingsBtn, {Rotation = drawerOpen and 90 or 0}, 0.25, Enum.EasingStyle.Back)
+    tw(Drawer, {Position = drawerOpen and UDim2.new(0, 0, 0, 40) or UDim2.new(0, 0, 1, 0)}, 0.25, Enum.EasingStyle.Quart)
+end
+
+SettingsBtn.MouseButton1Click:Connect(function()
+    tw(SettingsBtn, {Size = UDim2.new(0, 23, 0, 23)}, 0.08, Enum.EasingStyle.Quart)
+    task.delay(0.08, function()
+        tw(SettingsBtn, {Size = UDim2.new(0, 26, 0, 26)}, 0.12, Enum.EasingStyle.Back)
+    end)
+    toggleDrawer()
+end)
+
+-- // 10. TABS & PAGES //
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1, -24, 0, 28)
+TabBar.Position = UDim2.new(0, 12, 0, 44)
+TabBar.BackgroundColor3 = C.Surface
+TabBar.Parent = Frame
+Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 7)
+local tbStroke = Instance.new("UIStroke"); tbStroke.Color = C.Border; tbStroke.Thickness = 1; tbStroke.Parent = TabBar
+
+local ActivePill = Instance.new("Frame")
+ActivePill.Size = UDim2.new(0.5, -4, 1, -4)
+ActivePill.Position = UDim2.new(0, 2, 0, 2)
+ActivePill.BackgroundColor3 = C.PillActive
+ActivePill.ZIndex = 2
+ActivePill.Parent = TabBar
+Instance.new("UICorner", ActivePill).CornerRadius = UDim.new(0, 5)
 
 local PageContainer = Instance.new("Frame")
-PageContainer.Size = UDim2.new(1, -10, 1, -45)
-PageContainer.Position = UDim2.new(0, 5, 0, 40)
+PageContainer.Size = UDim2.new(1, -24, 1, -84)
+PageContainer.Position = UDim2.new(0, 12, 0, 78)
 PageContainer.BackgroundTransparency = 1
-PageContainer.Parent = ContentArea
+PageContainer.Parent = Frame
 
--- Minimize Logic
-MinBtn.MouseButton1Click:Connect(function()
-	if Minimized then
-		Minimized = false
-		ContentArea.Visible = true
-		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = OPEN_SIZE}):Play()
-		TweenService:Create(MinBtn, TweenInfo.new(0.3), {Rotation = 180}):Play() 
-	else
-		Minimized = true
-		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = CLOSED_SIZE}):Play()
-		ContentArea.Visible = false
-		TweenService:Create(MinBtn, TweenInfo.new(0.3), {Rotation = 0}):Play() 
-	end
-end)
+local function createPage()
+    local page = Instance.new("ScrollingFrame")
+    page.Size = UDim2.fromScale(1, 1)
+    page.BackgroundTransparency = 1
+    page.BorderSizePixel = 0
+    page.ScrollBarThickness = 2
+    page.ScrollBarImageColor3 = C.Border
+    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    page.CanvasSize = UDim2.new(0, 0, 0, 0)
+    page.Parent = PageContainer
 
--- // TAB LOGIC //
-local Pages = {}
-
-local function ResetChangelogView()
-	if Pages["Changelog"] and Pages["Changelog"].Page and Pages["Changelog"].Page.Visible then
-		Pages["Changelog"].Page.Visible = false
-		doTween(BackArrowBtn, {ImageTransparency = 1, Position = UDim2.new(0, 0, 0.5, 0)}, 0.3)
-		task.wait(0.3)
-		BackArrowBtn.Visible = false
-	end
+    local l = Instance.new("UIListLayout")
+    l.Padding = UDim.new(0, 6)
+    l.SortOrder = Enum.SortOrder.LayoutOrder
+    l.Parent = page
+    return page
 end
 
-local function CreateTab(name)
-	local TabBtn = Instance.new("TextButton")
-	TabBtn.Size = UDim2.new(0, 75, 1, 0)
-	TabBtn.BackgroundColor3 = CurrentTheme.base
-	TabBtn.Text = name
-	TabBtn.TextColor3 = CurrentTheme.subtext
-	TabBtn.Font = UI_FONT
-	TabBtn.TextSize = 13
-	TabBtn.AutoButtonColor = false
-	TabBtn.Parent = TabContainer
+local MainPage = createPage()
+local ExtraPage = createPage()
+ExtraPage.Visible = false
 
-	RegisterThemeObj(TabBtn, "BackgroundColor3", "base")
-
-	local tCorner = Instance.new("UICorner")
-	tCorner.CornerRadius = UDim.new(0, 8)
-	tCorner.Parent = TabBtn
-
-	local tStroke = Instance.new("UIStroke")
-	tStroke.Color = CurrentTheme.stroke
-	tStroke.Thickness = 1
-	tStroke.Parent = TabBtn
-	RegisterThemeObj(tStroke, "Color", "stroke")
-
-	local Page = Instance.new("ScrollingFrame")
-	Page.Size = UDim2.new(1, 0, 1, 0)
-	Page.BackgroundTransparency = 1
-	Page.ScrollBarThickness = 0 
-	Page.ScrollingEnabled = true 
-	Page.AutomaticCanvasSize = Enum.AutomaticSize.Y 
-	Page.CanvasSize = UDim2.new(0,0,0,0)
-	Page.Visible = false
-	Page.Parent = PageContainer
-	RegisterThemeObj(Page, "ScrollBarImageColor3", "subtext")
-
-	local pLayout = Instance.new("UIListLayout")
-	pLayout.Padding = UDim.new(0, 8)
-	pLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	pLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	pLayout.Parent = Page
-
-	local pPad = Instance.new("UIPadding")
-	pPad.PaddingTop = UDim.new(0,5)
-	pPad.PaddingBottom = UDim.new(0,10)
-	pPad.Parent = Page
-
-	Pages[name] = {Btn = TabBtn, Page = Page}
-
-	TabBtn.MouseButton1Click:Connect(function()
-		ResetChangelogView()
-		for n, data in pairs(Pages) do
-			if data.Page then
-				if n == name then
-					data.Page.Visible = true
-					data.Page.CanvasPosition = Vector2.new(0, 10)
-					TweenService:Create(data.Page, TweenInfo.new(0.3), {CanvasPosition = Vector2.new(0,0)}):Play()
-					if data.Btn then
-						doTween(data.Btn, {TextColor3 = CurrentTheme.text, BackgroundColor3 = CurrentTheme.banner})
-					end
-				else
-					data.Page.Visible = false
-					if data.Btn then
-						doTween(data.Btn, {TextColor3 = CurrentTheme.subtext, BackgroundColor3 = CurrentTheme.base})
-					end
-				end
-			end
-		end
-	end)
-
-	return Page
+local function createTabBtn(label, targetPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.5, 0, 1, 0)
+    btn.Position = targetPos
+    btn.BackgroundTransparency = 1
+    btn.Text = label
+    btn.TextColor3 = C.Muted
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 11
+    btn.AutoButtonColor = false
+    btn.ZIndex = 3
+    btn.Parent = TabBar
+    return btn
 end
 
-local MainTab = CreateTab("Main")
-local SettingsTab = CreateTab("Settings")
-local InfoTab = CreateTab("Info")
+local mainTabBtn = createTabBtn("Main", UDim2.new(0, 0, 0, 0))
+local extraTabBtn = createTabBtn("Multi & Misc", UDim2.new(0.5, 0, 0, 0))
+mainTabBtn.TextColor3 = C.Text
 
-local ChangelogPage = Instance.new("ScrollingFrame")
-ChangelogPage.Size = UDim2.new(1, 0, 1, 0)
-ChangelogPage.BackgroundTransparency = 1
-ChangelogPage.ScrollBarThickness = 0
-ChangelogPage.ScrollingEnabled = true
-ChangelogPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
-ChangelogPage.Visible = false
-ChangelogPage.Parent = PageContainer
-Instance.new("UIListLayout", ChangelogPage).SortOrder = Enum.SortOrder.LayoutOrder
-Instance.new("UIPadding", ChangelogPage).PaddingTop = UDim.new(0,5)
-
-Pages["Changelog"] = {Btn = nil, Page = ChangelogPage}
-
-Pages["Main"].Page.Visible = true
-Pages["Main"].Btn.TextColor3 = CurrentTheme.text
-Pages["Main"].Btn.BackgroundColor3 = CurrentTheme.banner
-
--- // UI BUILDERS //
-
-local function CreateSection(parent, text)
-	local Label = Instance.new("TextLabel")
-	Label.Text = text
-	Label.Size = UDim2.new(1, -10, 0, 24)
-	Label.BackgroundTransparency = 1
-	Label.TextColor3 = CurrentTheme.accent
-	Label.Font = UI_FONT
-	Label.TextSize = 12
-	Label.TextXAlignment = Enum.TextXAlignment.Left
-	Label.Parent = parent
-	RegisterThemeObj(Label, "TextColor3", "accent")
-	return Label
+local function switchTab(toMain)
+    MainPage.Visible = toMain
+    ExtraPage.Visible = not toMain
+    tw(ActivePill, {Position = toMain and UDim2.new(0, 2, 0, 2) or UDim2.new(0.5, 2, 0, 2)}, 0.22, Enum.EasingStyle.Quart)
+    tw(mainTabBtn, {TextColor3 = toMain and C.Text or C.Muted}, 0.15)
+    tw(extraTabBtn, {TextColor3 = not toMain and C.Text or C.Muted}, 0.15)
 end
 
--- [NEW] CreatePlayerDropdown Builder (Live Player List)
-local function CreatePlayerDropdown(parent, callback)
-	local Frame = Instance.new("Frame")
-	Frame.Size = UDim2.new(1, -6, 0, 50)
-	Frame.BackgroundColor3 = CurrentTheme.base
-	Frame.ClipsDescendants = true
-	Frame.Parent = parent
-	RegisterThemeObj(Frame, "BackgroundColor3", "base")
+mainTabBtn.MouseButton1Click:Connect(function() switchTab(true) end)
+extraTabBtn.MouseButton1Click:Connect(function() switchTab(false) end)
 
-	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
-	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Frame
-	RegisterThemeObj(s, "Color", "stroke")
+-- // 11. CLAMPING & DRAGGING //
+local function clampPosition(posUDim, obj)
+    local view = (Camera and Camera.ViewportSize) or Vector2.new(800, 600)
+    if view.X <= 20 or view.Y <= 20 then return posUDim end
 
-	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
-	ToggleBtn.BackgroundTransparency = 1
-	ToggleBtn.Text = ""
-	ToggleBtn.Parent = Frame
+    local absX = (posUDim.X.Scale * view.X) + posUDim.X.Offset
+    local absY = (posUDim.Y.Scale * view.Y) + posUDim.Y.Offset
 
-	local TitleL = Instance.new("TextLabel")
-	TitleL.Text = "Select Player..."
-	TitleL.Size = UDim2.new(1, -40, 1, 0)
-	TitleL.Position = UDim2.new(0, 12, 0, 0)
-	TitleL.BackgroundTransparency = 1
-	TitleL.TextColor3 = CurrentTheme.text
-	TitleL.Font = UI_FONT
-	TitleL.TextSize = 14
-	TitleL.TextXAlignment = Enum.TextXAlignment.Left
-	TitleL.Parent = ToggleBtn
-	RegisterThemeObj(TitleL, "TextColor3", "text")
+    local w = obj.AbsoluteSize.X > 0 and obj.AbsoluteSize.X or 275
+    local h = obj.AbsoluteSize.Y > 0 and obj.AbsoluteSize.Y or 315
 
-	local Arrow = Instance.new("ImageLabel")
-	Arrow.Image = "rbxassetid://6031091004"
-	Arrow.Size = UDim2.new(0, 20, 0, 20)
-	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
-	Arrow.BackgroundTransparency = 1
-	Arrow.ImageColor3 = CurrentTheme.subtext
-	Arrow.Parent = ToggleBtn
-	RegisterThemeObj(Arrow, "ImageColor3", "subtext")
+    local halfW = w / 2
+    local halfH = h / 2
+    local pad = 6
 
-	local ListLayout = Instance.new("UIListLayout")
-	ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	ListLayout.Padding = UDim.new(0, 5)
-	ListLayout.Parent = Frame
+    local minX = halfW + pad
+    local maxX = math.max(minX, view.X - halfW - pad)
+    local minY = halfH + pad
+    local maxY = math.max(minY, view.Y - halfH - pad)
 
-	-- Using ScrollingFrame for players
-	local ItemContainer = Instance.new("ScrollingFrame")
-	ItemContainer.Size = UDim2.new(1, 0, 0, 0) -- H: 0 when closed
-	ItemContainer.BackgroundTransparency = 1
-	ItemContainer.LayoutOrder = 2
-	ItemContainer.Parent = Frame
-	ItemContainer.ScrollBarThickness = 2
-	RegisterThemeObj(ItemContainer, "ScrollBarImageColor3", "subtext")
-
-	local IList = Instance.new("UIListLayout")
-	IList.Padding = UDim.new(0, 5)
-	IList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	IList.Parent = ItemContainer
-
-	local isOpen = false
-
-	local function UpdateList()
-		-- Clear old buttons
-		for _, child in ipairs(ItemContainer:GetChildren()) do
-			if child:IsA("TextButton") then child:Destroy() end
-		end
-
-		local players = Players:GetPlayers()
-		local count = 0
-
-		for _, p in ipairs(players) do
-			if p ~= player then -- Don't add yourself
-				count = count + 1
-				local OptBtn = Instance.new("TextButton")
-				OptBtn.Size = UDim2.new(0.9, 0, 0, 30)
-				OptBtn.BackgroundColor3 = CurrentTheme.banner
-				OptBtn.Text = p.Name
-				OptBtn.TextColor3 = CurrentTheme.text
-				OptBtn.Font = DESC_FONT
-				OptBtn.TextSize = 12
-				OptBtn.Parent = ItemContainer
-				RegisterThemeObj(OptBtn, "BackgroundColor3", "banner")
-				RegisterThemeObj(OptBtn, "TextColor3", "text")
-				local oc = Instance.new("UICorner"); oc.CornerRadius = UDim.new(0, 6); oc.Parent = OptBtn
-
-				OptBtn.MouseButton1Click:Connect(function()
-					callback(p.Name)
-					TitleL.Text = "Player: " .. p.Name
-					isOpen = false
-					TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = 0}):Play()
-					TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
-				end)
-			end
-		end
-
-		-- Update Canvas Size
-		ItemContainer.CanvasSize = UDim2.new(0, 0, 0, count * 35)
-
-		-- If open, update frame height
-		if isOpen then
-			local listHeight = math.min(count * 35, 150) -- Max 150px height
-			TweenService:Create(ItemContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, listHeight)}):Play()
-			TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50 + listHeight + 10)}):Play()
-		end
-	end
-
-	ToggleBtn.MouseButton1Click:Connect(function()
-		isOpen = not isOpen
-		TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = isOpen and 180 or 0}):Play()
-
-		if isOpen then
-			UpdateList() -- Refresh list when opening
-		else
-			TweenService:Create(ItemContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-			TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
-		end
-	end)
-
-	-- Live Listeners
-	Players.PlayerAdded:Connect(function() if isOpen then UpdateList() end end)
-	Players.PlayerRemoving:Connect(function() if isOpen then UpdateList() end end)
-
-	-- [NEW] Leaver detection logic
-	Players.PlayerRemoving:Connect(function(removedPlayer)
-		if SelectedPlayer and removedPlayer.Name == SelectedPlayer then
-			SelectedPlayer = nil
-			TitleL.Text = "Select Player..."
-			callback(nil) -- Reset selection in main logic
-			Notify("Target Left: " .. removedPlayer.Name, CurrentTheme.danger)
-		end
-	end)
+    return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
 end
 
--- [UPDATED] CREATE TOGGLE: Now uses a Right-Aligned Layout System to prevent overlaps
-local function CreateToggle(parent, title, desc, default, callback)
-	local Frame = Instance.new("TextButton")
-	Frame.Size = UDim2.new(1, -6, 0, 50)
-	Frame.BackgroundColor3 = CurrentTheme.base
-	Frame.AutoButtonColor = false
-	Frame.Text = ""
-	Frame.Parent = parent
-	RegisterThemeObj(Frame, "BackgroundColor3", "base")
+local dragging = false
+local dragStart = nil
+local startPos = nil
 
-	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
-	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Frame
-	RegisterThemeObj(s, "Color", "stroke")
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
 
-	local TitleL = Instance.new("TextLabel")
-	TitleL.Text = title
-	TitleL.Size = UDim2.new(1, -120, 0, 20) -- Shortened
-	TitleL.Position = UDim2.new(0, 12, 0, 6)
-	TitleL.BackgroundTransparency = 1
-	TitleL.TextColor3 = CurrentTheme.text
-	TitleL.Font = UI_FONT
-	TitleL.TextSize = 14
-	TitleL.TextXAlignment = Enum.TextXAlignment.Left
-	TitleL.Parent = Frame
-	RegisterThemeObj(TitleL, "TextColor3", "text")
+        local moveConn
+        local endConn
 
-	local DescL = Instance.new("TextLabel")
-	DescL.Text = desc
-	DescL.Size = UDim2.new(1, -120, 0, 15) -- Shortened
-	DescL.Position = UDim2.new(0, 12, 0, 26)
-	DescL.BackgroundTransparency = 1
-	DescL.TextColor3 = CurrentTheme.subtext
-	DescL.Font = DESC_FONT
-	DescL.TextSize = 11
-	DescL.TextXAlignment = Enum.TextXAlignment.Left
-	DescL.Parent = Frame
-	RegisterThemeObj(DescL, "TextColor3", "subtext")
+        moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+            if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and dragging then
+                local delta = moveInput.Position - dragStart
+                local rawPos = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
+                Frame.Position = clampPosition(rawPos, Frame)
+            end
+        end)
 
-	-- // RIGHT SIDE HOLDER (Key for dynamic alignment) //
-	local RightControlHolder = Instance.new("Frame")
-	RightControlHolder.Size = UDim2.new(0, 120, 1, 0)
-	RightControlHolder.Position = UDim2.new(1, -10, 0, 0)
-	RightControlHolder.AnchorPoint = Vector2.new(1, 0)
-	RightControlHolder.BackgroundTransparency = 1
-	RightControlHolder.Parent = Frame
+        endConn = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+                if moveConn then moveConn:Disconnect() end
+                if endConn then endConn:Disconnect() end
+            end
+        end)
+    end
+end)
 
-	local RCLayout = Instance.new("UIListLayout")
-	RCLayout.FillDirection = Enum.FillDirection.Horizontal
-	RCLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	RCLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	RCLayout.Padding = UDim.new(0, 10)
-	RCLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	RCLayout.Parent = RightControlHolder
+-- // 12. FLOATING TOGGLE ICON //
+MobileToggle = Instance.new("TextButton")
+MobileToggle.Name = "Autumn_MobileToggle"
+MobileToggle.Size = UDim2.new(0, 0, 0, 0)
+MobileToggle.Position = UDim2.new(0, 30, 0.5, 0)
+MobileToggle.AnchorPoint = Vector2.new(0.5, 0.5)
+MobileToggle.BackgroundColor3 = C.Surface
+MobileToggle.Text = "🍁"
+MobileToggle.TextSize = 18
+MobileToggle.AutoButtonColor = false
+MobileToggle.Visible = false
+MobileToggle.ZIndex = 500
+MobileToggle.ClipsDescendants = true
+MobileToggle.Parent = ScreenGui
 
-	-- // BADGE CONTAINER (Order 2 - Far Right) //
-	local BadgeContainer = Instance.new("Frame")
-	BadgeContainer.Size = UDim2.new(0, 0, 1, 0) -- Auto Width
-	BadgeContainer.AutomaticSize = Enum.AutomaticSize.X
-	BadgeContainer.BackgroundTransparency = 1
-	BadgeContainer.LayoutOrder = 2
-	BadgeContainer.Parent = RightControlHolder
+Instance.new("UICorner", MobileToggle).CornerRadius = UDim.new(0, 10)
+local mtStroke = Instance.new("UIStroke"); mtStroke.Color = C.Border; mtStroke.Thickness = 1.2; mtStroke.Parent = MobileToggle
 
-	local BadgeLayout = Instance.new("UIListLayout")
-	BadgeLayout.FillDirection = Enum.FillDirection.Horizontal
-	BadgeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	BadgeLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
-	BadgeLayout.Padding = UDim.new(0, 5)
-	BadgeLayout.Parent = BadgeContainer
-
-	-- // TOGGLE SWITCH UI (Order 1 - Left of Badges) //
-	local SwitchContainer = Instance.new("Frame")
-	SwitchContainer.Size = UDim2.new(0, 42, 0, 22) -- Exact dimensions
-	SwitchContainer.BackgroundTransparency = 0
-	SwitchContainer.BackgroundColor3 = default and CurrentTheme.success or CurrentTheme.switchOff
-	SwitchContainer.LayoutOrder = 1
-	SwitchContainer.Parent = RightControlHolder
-
-	local swCorner = Instance.new("UICorner"); swCorner.CornerRadius = UDim.new(1,0); swCorner.Parent = SwitchContainer
-
-	local SwitchKnob = Instance.new("Frame")
-	SwitchKnob.Size = UDim2.new(0, 18, 0, 18) 
-	local knobOnPos = UDim2.new(1, -20, 0.5, 0)
-	local knobOffPos = UDim2.new(0, 2, 0.5, 0)
-
-	SwitchKnob.Position = default and knobOnPos or knobOffPos
-	SwitchKnob.AnchorPoint = Vector2.new(0, 0.5)
-	SwitchKnob.BackgroundColor3 = CurrentTheme.text 
-	SwitchKnob.Parent = SwitchContainer
-
-	local kCorner = Instance.new("UICorner"); kCorner.CornerRadius = UDim.new(1,0); kCorner.Parent = SwitchKnob
-
-	local state = default
-
-	Frame.MouseButton1Click:Connect(function()
-		local nextState = not state
-		local success = callback(nextState) 
-		if success == false then return end
-		state = nextState
-
-		-- Animate Switch
-		if state then
-			doTween(SwitchContainer, {BackgroundColor3 = CurrentTheme.success})
-			doTween(SwitchKnob, {Position = knobOnPos})
-
-			doTween(s, {Color = CurrentTheme.success}, 0.5)
-			doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
-		else
-			doTween(SwitchContainer, {BackgroundColor3 = CurrentTheme.switchOff})
-			doTween(SwitchKnob, {Position = knobOffPos})
-
-			doTween(s, {Color = CurrentTheme.stroke}, 0.5)
-			doTween(TitleL, {TextColor3 = CurrentTheme.text}, 0.5)
-		end
-	end)
-
-	return BadgeContainer 
+setFloatingIconVisible = function(visible)
+    if visible then
+        MobileToggle.Visible = true
+        MobileToggle.Size = UDim2.new(0, 0, 0, 0)
+        tw(MobileToggle, {Size = UDim2.new(0, 36, 0, 36), Rotation = 0}, 0.25, Enum.EasingStyle.Back)
+    else
+        local t = tw(MobileToggle, {Size = UDim2.new(0, 0, 0, 0), Rotation = -90}, 0.2, Enum.EasingStyle.Quart)
+        t.Completed:Connect(function()
+            if not MobileToggle.Visible or MobileToggle.Size.X.Offset == 0 then
+                MobileToggle.Visible = false
+            end
+        end)
+    end
 end
 
-local function CreateButton(parent, title, desc, callback)
-	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(1, -6, 0, 50)
-	Btn.BackgroundColor3 = CurrentTheme.base
-	Btn.AutoButtonColor = false
-	Btn.Text = ""
-	Btn.Parent = parent
-	RegisterThemeObj(Btn, "BackgroundColor3", "base")
-
-	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Btn
-	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Btn
-	RegisterThemeObj(s, "Color", "stroke")
-
-	local TitleL = Instance.new("TextLabel")
-	TitleL.Name = "TitleL"
-	TitleL.Text = title
-	TitleL.Size = UDim2.new(1, -10, 0, 20)
-	TitleL.Position = UDim2.new(0, 12, 0, 6)
-	TitleL.BackgroundTransparency = 1
-	TitleL.TextColor3 = CurrentTheme.text
-	TitleL.Font = UI_FONT
-	TitleL.TextSize = 14
-	TitleL.TextXAlignment = Enum.TextXAlignment.Left
-	TitleL.Parent = Btn
-	RegisterThemeObj(TitleL, "TextColor3", "text")
-
-	local DescL = Instance.new("TextLabel")
-	DescL.Text = desc
-	DescL.Size = UDim2.new(1, -10, 0, 15)
-	DescL.Position = UDim2.new(0, 12, 0, 26)
-	DescL.BackgroundTransparency = 1
-	DescL.TextColor3 = CurrentTheme.subtext
-	DescL.Font = DESC_FONT
-	DescL.TextSize = 11
-	DescL.TextXAlignment = Enum.TextXAlignment.Left
-	DescL.Parent = Btn
-	RegisterThemeObj(DescL, "TextColor3", "subtext")
-
-	local fill = Instance.new("Frame")
-	fill.Size = UDim2.new(0, 0, 1, 0)
-	fill.BackgroundColor3 = CurrentTheme.accent
-	fill.BackgroundTransparency = 0.8
-	fill.BorderSizePixel = 0
-	fill.Parent = Btn
-	local fc = Instance.new("UICorner"); fc.CornerRadius = UDim.new(0,10); fc.Parent = fill
-	RegisterThemeObj(fill, "BackgroundColor3", "accent")
-
-	-- // RIGHT SIDE HOLDER (Same as toggle for consistency) //
-	local RightControlHolder = Instance.new("Frame")
-	RightControlHolder.Size = UDim2.new(0, 100, 1, 0)
-	RightControlHolder.Position = UDim2.new(1, -10, 0, 0)
-	RightControlHolder.AnchorPoint = Vector2.new(1, 0)
-	RightControlHolder.BackgroundTransparency = 1
-	RightControlHolder.Parent = Btn
-
-	local RCLayout = Instance.new("UIListLayout")
-	RCLayout.FillDirection = Enum.FillDirection.Horizontal
-	RCLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	RCLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	RCLayout.Padding = UDim.new(0, 10)
-	RCLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	RCLayout.Parent = RightControlHolder
-
-	-- // BADGE CONTAINER //
-	local BadgeContainer = Instance.new("Frame")
-	BadgeContainer.Size = UDim2.new(0, 0, 1, 0) 
-	BadgeContainer.AutomaticSize = Enum.AutomaticSize.X
-	BadgeContainer.BackgroundTransparency = 1
-	BadgeContainer.Parent = RightControlHolder
-
-	local BadgeLayout = Instance.new("UIListLayout")
-	BadgeLayout.FillDirection = Enum.FillDirection.Horizontal
-	BadgeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	BadgeLayout.VerticalAlignment = Enum.VerticalAlignment.Center 
-	BadgeLayout.Padding = UDim.new(0, 5)
-	BadgeLayout.Parent = BadgeContainer
-
-	local function setExecutedStyle()
-		doTween(s, {Color = CurrentTheme.success}, 0.5)
-		doTween(TitleL, {TextColor3 = CurrentTheme.success}, 0.5)
-
-		for _, child in ipairs(BadgeContainer:GetChildren()) do
-			if child:IsA("Frame") then child:Destroy() end
-		end
-
-		CreateBadge(BadgeContainer, "✓", CurrentTheme.success, 1)
-		table.insert(LockedButtons, Btn)
-	end
-
-	local function setDangerStyle()
-		doTween(s, {Color = CurrentTheme.danger}, 0.5)
-		doTween(TitleL, {TextColor3 = CurrentTheme.danger}, 0.5)
-	end
-
-	local function resetStyle()
-		doTween(s, {Color = CurrentTheme.stroke}, 0.5)
-		doTween(TitleL, {TextColor3 = CurrentTheme.text}, 0.5)
-	end
-
-	Btn.MouseButton1Click:Connect(function()
-		doTween(Btn, {Size = UDim2.new(1, -12, 0, 48)}, 0.1)
-		task.delay(0.1, function() doTween(Btn, {Size = UDim2.new(1, -6, 0, 50)}, 0.1) end)
-		callback(setExecutedStyle, setDangerStyle, resetStyle, TitleL, BadgeContainer)
-	end)
-
-	Btn:SetAttribute("HasContainer", true)
-	return Btn, BadgeContainer 
+local isMenuVisible = true
+local function toggleMenu()
+    isMenuVisible = not isMenuVisible
+    Frame.Visible = isMenuVisible
+    if MobileToggle.Visible then
+        tw(MobileToggle, {Rotation = isMenuVisible and 0 or -45}, 0.2)
+    end
 end
 
-local function CreateDropdown(parent, title, options, callback)
-	local Frame = Instance.new("Frame")
-	Frame.Size = UDim2.new(1, -6, 0, 50)
-	Frame.BackgroundColor3 = CurrentTheme.base
-	Frame.ClipsDescendants = true
-	Frame.Parent = parent
-	RegisterThemeObj(Frame, "BackgroundColor3", "base")
+local iconDragging = false
+local iconDragStart = nil
+local iconStartPos = nil
 
-	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
-	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Frame
-	RegisterThemeObj(s, "Color", "stroke")
+MobileToggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        iconDragging = false
+        iconDragStart = input.Position
+        iconStartPos = MobileToggle.Position
 
-	local ToggleBtn = Instance.new("TextButton")
-	ToggleBtn.Size = UDim2.new(1, 0, 0, 50)
-	ToggleBtn.BackgroundTransparency = 1
-	ToggleBtn.Text = ""
-	ToggleBtn.Parent = Frame
+        local moveConn
+        local endConn
 
-	local TitleL = Instance.new("TextLabel")
-	TitleL.Text = title
-	TitleL.Size = UDim2.new(1, -40, 1, 0)
-	TitleL.Position = UDim2.new(0, 12, 0, 0)
-	TitleL.BackgroundTransparency = 1
-	TitleL.TextColor3 = CurrentTheme.text
-	TitleL.Font = UI_FONT
-	TitleL.TextSize = 14
-	TitleL.TextXAlignment = Enum.TextXAlignment.Left
-	TitleL.Parent = ToggleBtn
-	RegisterThemeObj(TitleL, "TextColor3", "text")
+        moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+            if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and iconDragStart then
+                local delta = moveInput.Position - iconDragStart
+                if delta.Magnitude > 6 then
+                    iconDragging = true
+                    local rawPos = UDim2.new(
+                        iconStartPos.X.Scale,
+                        iconStartPos.X.Offset + delta.X,
+                        iconStartPos.Y.Scale,
+                        iconStartPos.Y.Offset + delta.Y
+                    )
+                    MobileToggle.Position = clampPosition(rawPos, MobileToggle)
+                end
+            end
+        end)
 
-	local Arrow = Instance.new("ImageLabel")
-	Arrow.Image = "rbxassetid://6031091004"
-	Arrow.Size = UDim2.new(0, 20, 0, 20)
-	Arrow.Position = UDim2.new(1, -30, 0.5, -10)
-	Arrow.BackgroundTransparency = 1
-	Arrow.ImageColor3 = CurrentTheme.subtext
-	Arrow.Parent = ToggleBtn
-	RegisterThemeObj(Arrow, "ImageColor3", "subtext")
+        endConn = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                if moveConn then moveConn:Disconnect() end
+                if endConn then endConn:Disconnect() end
 
-	local ListLayout = Instance.new("UIListLayout")
-	ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	ListLayout.Padding = UDim.new(0, 5)
-	ListLayout.Parent = Frame
+                if not iconDragging then
+                    toggleMenu()
+                end
+                iconDragging = false
+                iconDragStart = nil
+            end
+        end)
+    end
+end)
 
-	local ItemContainer = Instance.new("Frame")
-	ItemContainer.Size = UDim2.new(1, 0, 0, 0)
-	ItemContainer.BackgroundTransparency = 1
-	ItemContainer.LayoutOrder = 2
-	ItemContainer.Parent = Frame
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if not gpe and inp.KeyCode == Enum.KeyCode.RightControl then
+        toggleMenu()
+    end
+end)
 
-	local IList = Instance.new("UIListLayout")
-	IList.Padding = UDim.new(0, 5)
-	IList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	IList.Parent = ItemContainer
+-- // 13. REGISTER LOOT HERO FEATURES //
 
-	local isOpen = false
+-- TAB 1: MAIN GAME LOOP & COMBAT
+AddSection(MainPage, "GAME LOOP", 1)
 
-	ToggleBtn.MouseButton1Click:Connect(function()
-		isOpen = not isOpen
-		TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = isOpen and 180 or 0}):Play()
-		local targetHeight = isOpen and (50 + (#options * 35) + 10) or 50
-		TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, targetHeight)}):Play()
-	end)
+AddButton(MainPage, "Start Game", "Begins the match instantly", 2, function()
+    if StartRemote then
+        StartRemote:FireServer()
+        Notify("Game Started!", C.Green)
+    else
+        Notify("Error: Start remote missing", C.Red)
+    end
+end)
 
-	for _, opt in ipairs(options) do
-		local OptBtn = Instance.new("TextButton")
-		OptBtn.Size = UDim2.new(0.9, 0, 0, 30)
-		OptBtn.BackgroundColor3 = CurrentTheme.banner
-		OptBtn.Text = opt
-		OptBtn.TextColor3 = CurrentTheme.text
-		OptBtn.Font = DESC_FONT
-		OptBtn.TextSize = 12
-		OptBtn.Parent = ItemContainer
-		RegisterThemeObj(OptBtn, "BackgroundColor3", "banner")
-		RegisterThemeObj(OptBtn, "TextColor3", "text")
+AddToggle(MainPage, "Auto Collect", "Collects Sapphire, Gold & Amethyst", false, 3, function(active)
+    AutoCollectEnabled = active
+    if active then
+        Notify("Auto Collect: ON", C.Green)
+        task.spawn(function()
+            while AutoCollectEnabled do
+                if MoneyRemote then
+                    MoneyRemote:FireServer("Sapphire")
+                    MoneyRemote:FireServer("Gold")
+                    MoneyRemote:FireServer("Amethyst")
+                end
+                task.wait(0.25)
+            end
+        end)
+    else
+        Notify("Auto Collect: OFF", C.Red)
+    end
+end)
 
-		local oc = Instance.new("UICorner"); oc.CornerRadius = UDim.new(0, 6); oc.Parent = OptBtn
+AddToggle(MainPage, "Auto Pick", "Picks cards automatically", false, 4, function(active)
+    AutoPickEnabled = active
+    if active then
+        Notify("Auto Pick: ON", C.Green)
+        task.spawn(function()
+            while AutoPickEnabled do
+                if ChoiceRemote then
+                    ChoiceRemote:FireServer("")
+                end
+                task.wait(1)
+            end
+        end)
+    else
+        Notify("Auto Pick: OFF", C.Red)
+    end
+end)
 
-		OptBtn.MouseButton1Click:Connect(function()
-			callback(opt)
-			TitleL.Text = title .. ": " .. opt 
-			isOpen = false
-			TweenService:Create(Arrow, TweenInfo.new(0.3), {Rotation = 0}):Play()
-			TweenService:Create(Frame, TweenInfo.new(0.3), {Size = UDim2.new(1, -6, 0, 50)}):Play()
-		end)
-	end
+AddToggle(MainPage, "God Mode", "Rapid loop heal", false, 5, function(active)
+    GodModeEnabled = active
+    Notify(active and "God Mode: ON" or "God Mode: OFF", active and C.Green or C.Red)
+end)
+
+AddSection(MainPage, "STATS (LVL 2+)", 6)
+
+AddToggle(MainPage, "Inf Damage", "Loops Skull & Toxin", false, 7, function(active)
+    InfDamageEnabled = active
+    if active then
+        task.spawn(function()
+            while InfDamageEnabled do
+                if ChoiceRemote then
+                    ChoiceRemote:FireServer("Skull")
+                    ChoiceRemote:FireServer("Toxin")
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+AddToggle(MainPage, "Inf Range", "Loops Trident", false, 8, function(active)
+    InfRangeEnabled = active
+    if active then
+        task.spawn(function()
+            while InfRangeEnabled do
+                if ChoiceRemote then ChoiceRemote:FireServer("Trident") end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+AddToggle(MainPage, "Attack Speed", "Loops Firework", false, 9, function(active)
+    InfSpeedEnabled = active
+    if active then
+        task.spawn(function()
+            while InfSpeedEnabled do
+                if ChoiceRemote then ChoiceRemote:FireServer("Firework") end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+AddToggle(MainPage, "Max Health Boost", "Loops Apple", false, 10, function(active)
+    MaxHpEnabled = active
+    if active then
+        task.spawn(function()
+            while MaxHpEnabled do
+                if ChoiceRemote then ChoiceRemote:FireServer("Apple") end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+AddButton(MainPage, "Inf Projectiles (+)", "Adds 100 Ammo", 11, function()
+    if ChoiceRemote then
+        for i = 1, 100 do ChoiceRemote:FireServer("Ammo") end
+        Notify("Added 100 Ammo!", C.Green)
+    end
+end)
+
+AddButton(MainPage, "Inf Luck", "Spams Spades 100x", 12, function()
+    if ChoiceRemote then
+        for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
+        Notify("Added 100 Luck!", C.Green)
+    end
+end)
+
+-- TAB 2: MULTI & MISC
+AddSection(ExtraPage, "MULTIPLAYER & STORE", 1)
+
+local function getOnlinePlayerNames()
+    local names = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(names, p.Name) end
+    end
+    if #names == 0 then table.insert(names, "No other players") end
+    return names
 end
 
-local function CreateInfoLabel(parent, title, desc, rightObj)
-	local Frame = Instance.new("Frame")
-	Frame.Size = UDim2.new(1, -6, 0, 50)
-	Frame.BackgroundColor3 = CurrentTheme.base
-	Frame.Parent = parent
-	RegisterThemeObj(Frame, "BackgroundColor3", "base")
-
-	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 10); c.Parent = Frame
-	local s = Instance.new("UIStroke"); s.Color = CurrentTheme.stroke; s.Thickness = 1; s.Parent = Frame
-	RegisterThemeObj(s, "Color", "stroke")
-
-	local TitleL = Instance.new("TextLabel")
-	TitleL.Text = title
-	TitleL.Size = UDim2.new(1, -20, 0, 20)
-	TitleL.Position = UDim2.new(0, 12, 0, 6)
-	TitleL.BackgroundTransparency = 1
-	TitleL.TextColor3 = CurrentTheme.text
-	TitleL.Font = UI_FONT
-	TitleL.TextSize = 14
-	TitleL.TextXAlignment = Enum.TextXAlignment.Left
-	TitleL.Parent = Frame
-	RegisterThemeObj(TitleL, "TextColor3", "text")
-
-	local DescL = Instance.new("TextLabel")
-	DescL.Text = desc
-	DescL.Size = UDim2.new(1, -20, 0, 15)
-	DescL.Position = UDim2.new(0, 12, 0, 26)
-	DescL.BackgroundTransparency = 1
-	DescL.TextColor3 = CurrentTheme.subtext
-	DescL.Font = DESC_FONT
-	DescL.TextSize = 11
-	DescL.TextXAlignment = Enum.TextXAlignment.Left
-	DescL.Parent = Frame
-	RegisterThemeObj(DescL, "TextColor3", "subtext")
-
-	if rightObj then
-		rightObj.Position = UDim2.new(1, -30, 0.5, 0)
-		rightObj.AnchorPoint = Vector2.new(1, 0.5)
-		rightObj.Parent = Frame
-	end
-
-	return Frame
-end
-
--- // 1. MAIN SECTION //
-
-CreateSection(MainTab, "GAME LOOP")
-
-CreateButton(MainTab, "Start Game", "Begins the match instantly", function(success, danger, reset, label)
-	if ActiveCheats.StartGame then return end
-
-	if StartRemote then
-		StartRemote:FireServer()
-		Notify("Game Started!", CurrentTheme.success)
-		ActiveCheats.StartGame = true
-		success()
-	else
-		Notify("Error: Game Remotes not found!", THEMES.Classic.danger)
-	end
+AddDropdown(ExtraPage, "Target Player", getOnlinePlayerNames(), 2, function(selected)
+    SelectedPlayer = selected
 end)
 
--- [FIXED] Updated to 0.25s speed (Safer)
-CreateToggle(MainTab, "Auto Collect", "Collects Gold, Sapphire & Amethyst", false, function(value)
-	if value then
-		if not MoneyRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		AutoCollectEnabled = true
-		Notify("Auto Collect Enabled", CurrentTheme.success)
-		task.spawn(function()
-			while AutoCollectEnabled do
-				if MoneyRemote then
-					MoneyRemote:FireServer("Sapphire")
-					MoneyRemote:FireServer("Gold")
-					MoneyRemote:FireServer("Amethyst") 
-				end
-				task.wait(0.25) -- Safe Speed
-			end
-		end)
-	else
-		AutoCollectEnabled = false
-		Notify("Auto Collect Disabled", CurrentTheme.danger)
-	end
+AddButton(ExtraPage, "Join Party", "Joins selected player", 3, function()
+    if not SelectedPlayer or SelectedPlayer == "No other players" then
+        Notify("Select a player first!", C.Red)
+        return
+    end
+    if JoinRemote then
+        JoinRemote:InvokeServer(SelectedPlayer)
+        Notify("Joining: " .. SelectedPlayer, C.Green)
+    else
+        Notify("Error: Join Remote missing", C.Red)
+    end
 end)
 
-CreateToggle(MainTab, "Auto Pick", "Auto-selects random card", false, function(value)
-	if value then
-		if not ChoiceRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		AutoPickEnabled = true
-		Notify("Auto Pick Enabled", CurrentTheme.success)
-		task.spawn(function()
-			while AutoPickEnabled do
-				if ChoiceRemote then
-					local args = { "" }
-					ChoiceRemote:FireServer(unpack(args))
-				end
-				task.wait(1) 
-			end
-		end)
-	else
-		AutoPickEnabled = false
-		Notify("Auto Pick Disabled", CurrentTheme.danger)
-	end
+AddDropdown(ExtraPage, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest", "DivineChest"}, 4, function(chest)
+    SelectedChest = chest
 end)
 
--- [NEW] MULTIPLAYER BETA SECTION
-local mpLabel = CreateSection(MainTab, "MULTIPLAYER")
-local betaTag = Instance.new("TextLabel")
-betaTag.Text = "[BETA]"
-betaTag.Font = UI_FONT
-betaTag.TextSize = 11
-betaTag.TextColor3 = CurrentTheme.accent
-betaTag.BackgroundTransparency = 1
-betaTag.Size = UDim2.new(0, 50, 1, 0)
-betaTag.Position = UDim2.new(0, 85, 0, 0)
-betaTag.TextXAlignment = Enum.TextXAlignment.Left
-betaTag.Parent = mpLabel
-RegisterThemeObj(betaTag, "TextColor3", "accent")
+local buyCooldown = false
+AddButton(ExtraPage, "Buy Chest", "Rejoin after purchase", 5, function(lbl)
+    if buyCooldown then return end
+    buyCooldown = true
 
--- Warning Text "(Be Careful)"
-local warnMP = Instance.new("TextLabel")
-warnMP.Text = "(Be Careful)"
-warnMP.Font = DESC_FONT
-warnMP.TextSize = 11
-warnMP.TextColor3 = CurrentTheme.warning 
-warnMP.TextTransparency = 0.2
-warnMP.BackgroundTransparency = 1
-warnMP.Size = UDim2.new(0, 100, 1, 0)
-warnMP.Position = UDim2.new(0, 125, 0, 0) 
-warnMP.TextXAlignment = Enum.TextXAlignment.Left
-warnMP.Parent = mpLabel
-RegisterThemeObj(warnMP, "TextColor3", "warning")
-
--- [NEW] LIVE PLAYER DROPDOWN
-CreatePlayerDropdown(MainTab, function(username)
-	SelectedPlayer = username
+    if PurchaseRemote then
+        PurchaseRemote:InvokeServer(SelectedChest, 2.133333444595337)
+        Notify("Purchased " .. SelectedChest, C.Green)
+        local orig = lbl.Text
+        lbl.Text = "Cooldown (1s)..."
+        task.wait(1)
+        lbl.Text = orig
+    else
+        Notify("Error: Purchase remote missing", C.Red)
+    end
+    buyCooldown = false
 end)
 
--- Join Button
-CreateButton(MainTab, "Join Party", "Joins Selected Player", function(success, danger, reset, label)
-	if not SelectedPlayer then
-		Notify("Please select a player first!", CurrentTheme.danger)
-		danger()
-		task.delay(1, reset)
-		return
-	end
+AddSection(ExtraPage, "VISUALS", 6)
 
-	if JoinRemote then
-		JoinRemote:InvokeServer(SelectedPlayer)
-		Notify("Joining " .. SelectedPlayer .. "...", CurrentTheme.success)
-		success()
-		task.delay(2, reset) -- Reset button state after 2s
-	else
-		Notify("Error: Join Remote not found!", THEMES.Classic.danger)
-		danger()
-	end
+AddToggle(ExtraPage, "Player ESP", "Highlights entity outlines", false, 7, function(active)
+    EspEnabled = active
+    if active then
+        Notify("ESP: ON", C.Green)
+        local function highlight(v)
+            if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= LocalPlayer.Character then
+                if not v:FindFirstChild("LootESP") then
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "LootESP"
+                    hl.FillTransparency = 0.5
+                    hl.OutlineTransparency = 0
+                    hl.FillColor = C.Accent
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.Parent = v
+                    table.insert(EspHighlights, hl)
+                end
+            end
+        end
+
+        for _, v in ipairs(Workspace:GetDescendants()) do highlight(v) end
+        EspConnection = Workspace.DescendantAdded:Connect(function(v)
+            task.delay(0.5, function() highlight(v) end)
+        end)
+    else
+        Notify("ESP: OFF", C.Red)
+        if EspConnection then EspConnection:Disconnect() end
+        for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
+        EspHighlights = {}
+    end
 end)
 
--- [NEW] STORE SECTION (WITH WARNING)
-local storeLabel = CreateSection(MainTab, "STORE")
-local warnStore = Instance.new("TextLabel")
-warnStore.Text = "(Rejoin After Purchase)"
-warnStore.Font = DESC_FONT
-warnStore.TextSize = 11
-warnStore.TextColor3 = CurrentTheme.warning 
-warnStore.TextTransparency = 0.2
-warnStore.BackgroundTransparency = 1
-warnStore.Size = UDim2.new(0, 150, 1, 0) -- Adjusted width
-warnStore.Position = UDim2.new(0, 45, 0, 0) -- Positioned next to "STORE"
-warnStore.TextXAlignment = Enum.TextXAlignment.Left
-warnStore.Parent = storeLabel
-RegisterThemeObj(warnStore, "TextColor3", "warning")
-
-CreateDropdown(MainTab, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest", "DivineChest"}, function(option)
-	SelectedChest = option
-end)
-
-local buyDebounce = false
-CreateButton(MainTab, "Buy Selected Chest", "Purchases chosen chest", function(success, danger, reset, label)
-	if buyDebounce then return end
-	buyDebounce = true
-
-	if PurchaseRemote then
-		local args = { SelectedChest, 2.133333444595337 }
-		PurchaseRemote:InvokeServer(unpack(args))
-		Notify("Bought: "..SelectedChest, CurrentTheme.success)
-
-		local originalText = label.Text
-		label.TextColor3 = CurrentTheme.warning
-
-		for i = 10, 1, -1 do
-			label.Text = "Cooldown ("..(i/10).."s)"
-			task.wait(0.1)
-		end
-
-		label.Text = originalText
-		label.TextColor3 = CurrentTheme.text
-	else
-		Notify("Error: Purchase Remote not found!", THEMES.Classic.danger)
-	end
-	buyDebounce = false
-end)
-
-CreateSection(MainTab, "SURVIVAL")
-
-CreateToggle(MainTab, "God Mode", "Loops Heal Only", false, function(value)
-	if value then
-		if not HealRemote then -- Changed to check HealRemote
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		GodModeEnabled = true
-		Notify("God Mode Enabled", CurrentTheme.success)
-	else
-		GodModeEnabled = false
-		Notify("God Mode Disabled", CurrentTheme.danger)
-	end
-end)
-
-local statsLabel = CreateSection(MainTab, "STATS")
-local warn = Instance.new("TextLabel")
-warn.Text = "(Must be Level 2)"
-warn.Font = DESC_FONT
-warn.TextSize = 12 -- Larger text
-warn.TextColor3 = CurrentTheme.warning 
-warn.TextTransparency = 0.2 -- Less transparent
-warn.BackgroundTransparency = 1
-warn.Size = UDim2.new(0, 100, 1, 0)
-warn.Position = UDim2.new(0, 50, 0, 0) -- Adjusted Position
-warn.TextXAlignment = Enum.TextXAlignment.Left
-warn.Parent = statsLabel
-RegisterThemeObj(warn, "TextColor3", "warning")
-
-local function AddLevelBadge(container)
-	return CreateBadge(container, "2+", CurrentTheme.banner, 2)
-end
-
-local cont_dmg = CreateToggle(MainTab, "Inf Damage", "Loops Skull & Toxin", false, function(value)
-	if value then
-		if not ChoiceRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false 
-		end
-		InfDamageEnabled = true
-		Notify("Inf Damage Active", CurrentTheme.success)
-		task.spawn(function()
-			while InfDamageEnabled do
-				if ChoiceRemote then
-					ChoiceRemote:FireServer("Skull")
-					ChoiceRemote:FireServer("Toxin")
-				end
-				task.wait(0.1)
-			end
-		end)
-	else
-		InfDamageEnabled = false
-		Notify("Inf Damage Disabled", CurrentTheme.danger)
-	end
-end)
-AddLevelBadge(cont_dmg)
-
-local cont_range = CreateToggle(MainTab, "Inf Range", "Loops Trident", false, function(value)
-	if value then
-		if not ChoiceRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		InfRangeEnabled = true
-		Notify("Inf Range Active", CurrentTheme.success)
-		task.spawn(function()
-			while InfRangeEnabled do
-				if ChoiceRemote then
-					ChoiceRemote:FireServer("Trident")
-				end
-				task.wait(0.1)
-			end
-		end)
-	else
-		InfRangeEnabled = false
-		Notify("Inf Range Disabled", CurrentTheme.danger)
-	end
-end)
-AddLevelBadge(cont_range)
-
-local cont_speed = CreateToggle(MainTab, "Attack Speed", "Loops Firework", false, function(value)
-	if value then
-		if not ChoiceRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		InfSpeedEnabled = true
-		Notify("Attack Speed Active", CurrentTheme.success)
-		task.spawn(function()
-			while InfSpeedEnabled do
-				if ChoiceRemote then
-					ChoiceRemote:FireServer("Firework")
-				end
-				task.wait(0.1)
-			end
-		end)
-	else
-		InfSpeedEnabled = false
-		Notify("Attack Speed Disabled", CurrentTheme.danger)
-	end
-end)
-AddLevelBadge(cont_speed)
-
--- [RESTORED] Max Health Toggle
-local cont_hp = CreateToggle(MainTab, "Max Health Boost", "Loops Apple", false, function(value)
-	if value then
-		if not ChoiceRemote then
-			Notify("Error: Remotes not found!", THEMES.Classic.danger)
-			return false
-		end
-		MaxHpEnabled = true
-		Notify("Max HP Boost Active", CurrentTheme.success)
-		task.spawn(function()
-			while MaxHpEnabled do
-				if ChoiceRemote then
-					ChoiceRemote:FireServer("Apple")
-				end
-				task.wait(0.1)
-			end
-		end)
-	else
-		MaxHpEnabled = false
-		Notify("Max HP Boost Disabled", CurrentTheme.danger)
-	end
-end)
-AddLevelBadge(cont_hp)
-
-local btn_proj, cont_proj = CreateButton(MainTab, "Inf Projectiles (+)", "Adds 100 Ammo", function(success, danger, reset)
-	if ChoiceRemote then
-		for i = 1, 100 do ChoiceRemote:FireServer("Ammo") end
-		Notify("Added 100 Ammo!", CurrentTheme.success)
-		success()
-	else
-		Notify("Error: Remotes not found!", THEMES.Classic.danger)
-	end
-end)
-AddLevelBadge(cont_proj)
-
-local btn_luck, cont_luck = CreateButton(MainTab, "Inf Luck", "Spams Spades 100x", function(success, danger, reset)
-	if ChoiceRemote then
-		for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
-		Notify("Added Infinite Luck!", CurrentTheme.success)
-		success()
-	else
-		Notify("Error: Remotes not found!", THEMES.Classic.danger)
-	end
-end)
-AddLevelBadge(cont_luck)
-
--- // 2. SETTINGS SECTION //
-
-CreateSection(SettingsTab, "MONITORING")
-
-CreateToggle(SettingsTab, "Show FPS", "Toggles FPS Counter", false, function(value)
-	MonitorFPS = value
-end)
-
-CreateToggle(SettingsTab, "Show Ping", "Toggles Ping Counter", false, function(value)
-	MonitorPing = value
-end)
-
-CreateToggle(SettingsTab, "Show Memory", "Toggles Memory Usage", false, function(value)
-	MonitorMem = value
-end)
-
-CreateToggle(SettingsTab, "Remote Status", "Checks game connection", false, function(value)
-	MonitorRemotes = value
-end)
-
-CreateSection(SettingsTab, "PERFORMANCE")
-
-CreateToggle(SettingsTab, "Low Performance", "Disables Shadows & Effects", false, function(value)
-	Lighting.GlobalShadows = not value
-	if value then
-		Notify("Low Performance Mode On", CurrentTheme.success)
-	else
-		Notify("Low Performance Mode Off", CurrentTheme.danger)
-	end
-end)
-
-CreateToggle(SettingsTab, "ESP", "Highlight Players/Enemies", false, function(value)
-	EspEnabled = value
-	if EspEnabled then
-		Notify("ESP Enabled (Live)", CurrentTheme.success)
-		local function highlight(v)
-			if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= player.Character then
-				if not v:FindFirstChild("LootESP") then
-					local hl = Instance.new("Highlight")
-					hl.Name = "LootESP"
-					hl.FillTransparency = 0.5
-					hl.OutlineTransparency = 0
-					hl.FillColor = Color3.fromRGB(255, 0, 0)
-					hl.Parent = v
-					table.insert(EspHighlights, hl)
-				end
-			end
-		end
-		for _, v in ipairs(Workspace:GetDescendants()) do highlight(v) end
-		EspConnection = Workspace.DescendantAdded:Connect(function(v)
-			task.delay(0.5, function() highlight(v) end) 
-		end)
-	else
-		Notify("ESP Disabled", CurrentTheme.danger)
-		if EspConnection then EspConnection:Disconnect() end
-		for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
-		EspHighlights = {}
-	end
-end)
-
-CreateSection(SettingsTab, "APPEARANCE")
-
-CreateDropdown(SettingsTab, "Select Theme", {"Classic", "Midnight", "Sunset", "Forest"}, function(option)
-	UpdateTheme(option)
-	Notify("Theme: "..option, CurrentTheme.success)
-end)
-
-CreateSection(SettingsTab, "INTERFACE")
-
-CreateToggle(SettingsTab, "Hide User Profile", "Shows 'Unknown' in Info", true, function(value)
-	HideProfileEnabled = value
-	Notify(value and "Profile Hidden" or "Profile Visible", CurrentTheme.success)
-	if _G.UpdateProfileInfo then _G.UpdateProfileInfo() end 
-end)
-
-CreateToggle(SettingsTab, "Disable Animations", "Makes UI instant", false, function(value)
-	AnimationsEnabled = not value
-end)
-
-CreateToggle(SettingsTab, "Draggable UI", "Allows dragging the window", true, function(value)
-	DraggableEnabled = value
-	Notify(value and "Dragging Enabled" or "Dragging Disabled", CurrentTheme.success)
-end)
-
-if isMobile then
-	CreateSection(SettingsTab, "MOBILE EXCLUSIVE")
-	CreateToggle(SettingsTab, "Draggable Button", "Move the toggle button", false, function(value)
-		MobileBtnDraggable = value
-		Notify(value and "Button Dragging Enabled" or "Button Dragging Disabled", CurrentTheme.success)
-	end)
-end
-
-if isKeyboard then
-	CreateSection(SettingsTab, "PC EXCLUSIVE")
-	CreateToggle(SettingsTab, "Hide Completely (RightAlt)", "Hides UI + Button", false, function(value)
-		FullHideEnabled = value
-		if value then
-			Notify("Press RightAlt to Toggle Visibility", CurrentTheme.success)
-		end
-	end)
-
-	UserInputService.InputBegan:Connect(function(input, processed)
-		if FullHideEnabled and input.KeyCode == Enum.KeyCode.RightAlt then
-			gui.Enabled = not gui.Enabled
-		end
-	end)
-end
-
-CreateToggle(SettingsTab, "Notifications", "Show banners at the bottom", true, function(value)
-	NotificationsEnabled = value
-end)
-
-CreateSection(SettingsTab, "DANGER ZONE")
-
-local destroyConfirm = false
-CreateButton(SettingsTab, "Destroy UI", "Removes script completely", function(success, danger, reset, label)
-	if not destroyConfirm then
-		destroyConfirm = true
-		danger() -- Turn Red
-		label.Text = "Confirm (1/2)"
-		task.delay(3, function() 
-			destroyConfirm = false 
-			reset()
-			label.Text = "Destroy UI"
-		end)
-	else
-		GodModeEnabled = false
-		AutoCollectEnabled = false
-		AutoPickEnabled = false
-		if EspConnection then EspConnection:Disconnect() end
-		for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
-		gui:Destroy()
-	end
-end)
-
-local quitConfirm = false
-CreateButton(SettingsTab, "Quit Game", "Exits the experience", function(success, danger, reset, label)
-	if not quitConfirm then
-		quitConfirm = true
-		danger() -- Turn Red
-		label.Text = "Confirm (1/2)"
-		task.delay(3, function() 
-			quitConfirm = false 
-			reset()
-			label.Text = "Quit Game"
-		end)
-	else
-		game:Shutdown()
-	end
-end)
-
--- // 3. INFO SECTION //
-
-local ProfileFrame = Instance.new("Frame")
-ProfileFrame.Size = UDim2.new(1, -10, 0, 115) 
-ProfileFrame.BackgroundColor3 = CurrentTheme.base
-ProfileFrame.Parent = InfoTab
-Instance.new("UICorner", ProfileFrame).CornerRadius = UDim.new(0,10)
-Instance.new("UIStroke", ProfileFrame).Color = CurrentTheme.stroke
-RegisterThemeObj(ProfileFrame, "BackgroundColor3", "base")
-RegisterThemeObj(ProfileFrame:FindFirstChild("UIStroke"), "Color", "stroke")
-
-local Avatar = Instance.new("ImageLabel")
-Avatar.Name = "Avatar"
-Avatar.Size = UDim2.new(0, 50, 0, 50)
-Avatar.Position = UDim2.new(0, 10, 0, 10)
-Avatar.BackgroundColor3 = CurrentTheme.accent
-Avatar.Parent = ProfileFrame
-Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1,0)
-RegisterThemeObj(Avatar, "BackgroundColor3", "accent")
-
-local NameL = Instance.new("TextLabel")
-NameL.Name = "NameL"
-NameL.Text = "Loading..."
-NameL.Size = UDim2.new(1, -70, 0, 18)
-NameL.Position = UDim2.new(0, 70, 0, 10)
-NameL.BackgroundTransparency = 1
-NameL.TextColor3 = CurrentTheme.text
-NameL.Font = UI_FONT
-NameL.TextSize = 16
-NameL.TextXAlignment = Enum.TextXAlignment.Left
-NameL.Parent = ProfileFrame
-RegisterThemeObj(NameL, "TextColor3", "text")
-
-local IDL = Instance.new("TextLabel")
-IDL.Name = "IDL"
-IDL.Text = "ID: ..."
-IDL.Size = UDim2.new(1, -70, 0, 15)
-IDL.Position = UDim2.new(0, 70, 0, 28)
-IDL.BackgroundTransparency = 1
-IDL.TextColor3 = CurrentTheme.subtext
-IDL.Font = DESC_FONT
-IDL.TextSize = 12
-IDL.TextXAlignment = Enum.TextXAlignment.Left
-IDL.Parent = ProfileFrame
-RegisterThemeObj(IDL, "TextColor3", "subtext")
-
-local ServerIDL = Instance.new("TextLabel")
-ServerIDL.Name = "ServerIDL"
-ServerIDL.Text = "Server: ..."
-ServerIDL.Size = UDim2.new(1, -70, 0, 15)
-ServerIDL.Position = UDim2.new(0, 70, 0, 44)
-ServerIDL.BackgroundTransparency = 1
-ServerIDL.TextColor3 = CurrentTheme.subtext
-ServerIDL.Font = DESC_FONT
-ServerIDL.TextSize = 12
-ServerIDL.TextXAlignment = Enum.TextXAlignment.Left
-ServerIDL.TextTruncate = Enum.TextTruncate.AtEnd
-ServerIDL.Parent = ProfileFrame
-RegisterThemeObj(ServerIDL, "TextColor3", "subtext")
-
-local GameUpdatedL = Instance.new("TextLabel")
-GameUpdatedL.Name = "GameUpdatedL"
-GameUpdatedL.Text = "Updated: ..."
-GameUpdatedL.Size = UDim2.new(1, -70, 0, 15)
-GameUpdatedL.Position = UDim2.new(0, 70, 0, 60)
-GameUpdatedL.BackgroundTransparency = 1
-GameUpdatedL.TextColor3 = CurrentTheme.subtext
-GameUpdatedL.Font = DESC_FONT
-GameUpdatedL.TextSize = 12
-GameUpdatedL.TextXAlignment = Enum.TextXAlignment.Left
-GameUpdatedL.Parent = ProfileFrame
-RegisterThemeObj(GameUpdatedL, "TextColor3", "subtext")
-
-ThemeLabelRef = Instance.new("TextLabel")
-ThemeLabelRef.Text = "Theme: Classic Blue"
-ThemeLabelRef.Size = UDim2.new(1, -70, 0, 15)
-ThemeLabelRef.Position = UDim2.new(0, 70, 0, 76)
-ThemeLabelRef.BackgroundTransparency = 1
-ThemeLabelRef.TextColor3 = CurrentTheme.accent
-ThemeLabelRef.Font = DESC_FONT
-ThemeLabelRef.TextSize = 12
-ThemeLabelRef.TextXAlignment = Enum.TextXAlignment.Left
-ThemeLabelRef.Parent = ProfileFrame
-RegisterThemeObj(ThemeLabelRef, "TextColor3", "accent")
-
-_G.UpdateProfileInfo = function()
-	if HideProfileEnabled then
-		Avatar.Image = "rbxassetid://0"
-		NameL.Text = "Hidden User"
-		IDL.Text = "ID: Hidden"
-		ServerIDL.Text = "Server: Hidden"
-		GameUpdatedL.Text = "Updated: Hidden"
-	else
-		task.spawn(function()
-			local content = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-			Avatar.Image = content
-		end)
-		NameL.Text = player.DisplayName
-		IDL.Text = "ID: " .. player.UserId
-		ServerIDL.Text = "Server: " .. game.JobId
-
-		-- [FIXED] SAFE API CALL (NO WARNING)
-		task.spawn(function()
-			pcall(function()
-				local info = MarketplaceService:GetProductInfoAsync(game.PlaceId)
-				local dateStr = string.sub(info.Updated, 1, 10)
-				GameUpdatedL.Text = "Updated: " .. dateStr
-			end)
-		end)
-	end
-end
-_G.UpdateProfileInfo()
-
-local Spacer = Instance.new("Frame")
-Spacer.Size = UDim2.new(1,0,0,10)
-Spacer.BackgroundTransparency = 1
-Spacer.Parent = InfoTab
-
--- [NEW] Script Info Sub-Section
-CreateSection(InfoTab, "SCRIPT INFO")
-
-local StatusBadge = CreateBadge(nil, "", CurrentTheme.base)
-StatusBadge.Size = UDim2.new(0, 20, 0, 20) 
-StatusBadge.Parent = nil 
-
-local StatusFrame = CreateInfoLabel(InfoTab, "Script Status", "Checking...", StatusBadge)
-local function UpdateStatusLabel(text)
-	local lbl = StatusFrame:FindFirstChild("TextLabel") 
-	if lbl then lbl.Text = text end
-end
-
--- [NEW] Added Game ID Info
-local GameIdBadge = CreateBadge(nil, "", CurrentTheme.base)
-GameIdBadge.Size = UDim2.new(0, 0, 0, 0) -- Hidden badge, just text
-GameIdBadge.Parent = nil 
-local GameIdFrame = CreateInfoLabel(InfoTab, "Game ID", tostring(game.PlaceId))
-
-task.spawn(function()
-	while gui.Parent do
-		if ReplicatedStorage:FindFirstChild("Remotes") then
-			StatusBadge.BackgroundColor3 = THEMES.Classic.success 
-			UpdateStatusLabel("Running")
-		else
-			StatusBadge.BackgroundColor3 = THEMES.Classic.danger 
-			UpdateStatusLabel("Fault (No Remotes)")
-		end
-		task.wait(3)
-	end
-end)
-
-local VersionFrame = CreateInfoLabel(InfoTab, "Script Version", "v8.8")
-local VersionBtn = Instance.new("TextButton")
-VersionBtn.Size = UDim2.fromScale(1,1)
-VersionBtn.BackgroundTransparency = 1
-VersionBtn.Text = ""
-VersionBtn.Parent = VersionFrame
-
-local ChangelogTitle = Instance.new("TextLabel")
-ChangelogTitle.Text = "Changelog"
-ChangelogTitle.Size = UDim2.new(1, -10, 0, 24)
-ChangelogTitle.BackgroundTransparency = 1
-ChangelogTitle.TextColor3 = CurrentTheme.accent
-ChangelogTitle.Font = UI_FONT
-ChangelogTitle.TextSize = 16
-ChangelogTitle.TextXAlignment = Enum.TextXAlignment.Center 
-ChangelogTitle.Parent = ChangelogPage
-RegisterThemeObj(ChangelogTitle, "TextColor3", "accent")
-
-BackArrowBtn.MouseButton1Click:Connect(function()
-	ChangelogPage.Visible = false
-	Pages["Info"].Page.Visible = true
-	doTween(Pages["Info"].Btn, {TextColor3 = CurrentTheme.text, BackgroundColor3 = CurrentTheme.banner})
-
-	doTween(BackArrowBtn, {ImageTransparency = 1, Position = UDim2.new(0, 0, 0.5, 0)}, 0.3)
-	task.wait(0.2)
-	BackArrowBtn.Visible = false
-end)
-
-local ChangelogText = Instance.new("TextLabel")
-ChangelogText.Size = UDim2.new(1, -10, 0, 500)
-ChangelogText.Position = UDim2.new(0, 5, 0, 30) 
-ChangelogText.BackgroundTransparency = 1
-ChangelogText.TextColor3 = CurrentTheme.text
-ChangelogText.Font = DESC_FONT
-ChangelogText.TextSize = 13
-ChangelogText.TextXAlignment = Enum.TextXAlignment.Left
-ChangelogText.TextYAlignment = Enum.TextYAlignment.Top
-ChangelogText.TextWrapped = true
-ChangelogText.Text = [[
-v8.8 (Party Beta):
-- NEW: Live Party List
-- UPDATE: [BETA] tag on Multiplayer
-- POLISH: Neater input UI
-
-v8.3:
-- Stable build
-- No Key System
-]]
-ChangelogText.Parent = ChangelogPage
-RegisterThemeObj(ChangelogText, "TextColor3", "text")
-
-VersionBtn.MouseButton1Click:Connect(function()
-	for n, data in pairs(Pages) do
-		data.Page.Visible = false
-		if data.Btn then
-			doTween(data.Btn, {TextColor3 = CurrentTheme.subtext, BackgroundColor3 = CurrentTheme.base})
-		end
-	end
-	ChangelogPage.Visible = true
-	BackArrowBtn.Visible = true
-	BackArrowBtn.Position = UDim2.new(0, 0, 0.5, 0)
-	doTween(BackArrowBtn, {ImageTransparency = 0, Position = UDim2.new(0, 10, 0.5, 0)}, 0.3)
-end)
-
-CreateSection(InfoTab, "CREDITS")
-CreateInfoLabel(InfoTab, "Interface", "LumaCore")
-CreateInfoLabel(InfoTab, "Logic", "Neutral")
-
--- // DRAGGABLE LOGIC //
-local dragging, dragInput, dragStart, startPos
-
-local function clampToScreen(position)
-	local viewport = Workspace.CurrentCamera.ViewportSize
-	local size = MainFrame.AbsoluteSize
-	local x = math.clamp(position.X.Offset, 0, viewport.X - size.X)
-	local y = math.clamp(position.Y.Offset, 0, viewport.Y - size.Y)
-	return UDim2.new(0, x, 0, y)
-end
-
-TopBar.InputBegan:Connect(function(input)
-	if not DraggableEnabled then return end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = MainFrame.Position
-		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
-	end
-end)
-
-TopBar.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		local delta = input.Position - dragStart
-		local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		MainFrame.Position = clampToScreen(newPos)
-	end
-end)
-
-Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-	MainFrame.Position = clampToScreen(MainFrame.Position)
-end)
-
--- // LOOP //
-RunService.RenderStepped:Connect(function()
-	if GodModeEnabled and HealRemote then
-		HealRemote:FireServer()
-	end
-end)
-
--- // TOGGLE UI //
-local function ToggleUI()
-	if MainFrame.Visible then
-		if AnimationsEnabled then
-			TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1}):Play()
-			task.wait(0.3)
-			MainFrame.Visible = false
-		else
-			MainFrame.Visible = false
-		end
-	else
-		MainFrame.Visible = true
-		local TargetSize = Minimized and CLOSED_SIZE or OPEN_SIZE
-		ContentArea.Visible = not Minimized 
-		MinBtn.Rotation = Minimized and 0 or 180
-
-		if AnimationsEnabled then
-			MainFrame.Size = UDim2.new(0, 0, 0, 0)
-			MainFrame.BackgroundTransparency = 1
-			TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = TargetSize, BackgroundTransparency = 0}):Play()
-		else
-			MainFrame.Size = TargetSize
-			MainFrame.BackgroundTransparency = 0
-		end
-	end
-end
-
--- // MOBILE TOGGLE //
-local ToggleIcon = Instance.new("ImageButton")
-ToggleIcon.Name = "ToggleIcon"
-ToggleIcon.Size = UDim2.new(0, 50, 0, 50)
-ToggleIcon.Position = UDim2.new(0, 10, 0.5, -25)
-ToggleIcon.BackgroundColor3 = CurrentTheme.base
-ToggleIcon.Image = "rbxassetid://3944676352" 
-ToggleIcon.ImageColor3 = CurrentTheme.text 
-ToggleIcon.Visible = true 
-ToggleIcon.ZIndex = 1000 
-ToggleIcon.Parent = gui
-RegisterThemeObj(ToggleIcon, "BackgroundColor3", "base")
-RegisterThemeObj(ToggleIcon, "ImageColor3", "text") 
-
-local tc = Instance.new("UICorner"); tc.CornerRadius = UDim.new(0, 12); tc.Parent = ToggleIcon
-local ts = Instance.new("UIStroke"); ts.Color = CurrentTheme.stroke; ts.Thickness = 1.5; ts.Parent = ToggleIcon
-RegisterThemeObj(ts, "Color", "stroke")
-
-ToggleIcon.MouseButton1Click:Connect(ToggleUI)
-UserInputService.InputBegan:Connect(function(input) if input.KeyCode == Enum.KeyCode.RightControl then ToggleUI() end end)
-
--- Mobile Button Drag
-local btnDragging, btnDragStart, btnStartPos
-ToggleIcon.InputBegan:Connect(function(input)
-	if not MobileBtnDraggable then return end
-	if input.UserInputType == Enum.UserInputType.Touch then
-		btnDragging = true
-		btnDragStart = input.Position
-		btnStartPos = ToggleIcon.Position
-		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then btnDragging = false end end)
-	end
-end)
-ToggleIcon.InputChanged:Connect(function(input)
-	if btnDragging and input.UserInputType == Enum.UserInputType.Touch then
-		local delta = input.Position - btnDragStart
-		ToggleIcon.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
-	end
-end)
-
-PlayIntro()
--- [NEW] Auto-Open Sequence
-task.delay(3.5, function() 
-	ToggleUI() -- Force open on load
-end)
-
-print("Loot Hero [Alpha] - v9.4 (Final Fixes)")
+print("[Loot Hero] Autumn Edition Loaded with Full Settings Suite.")
