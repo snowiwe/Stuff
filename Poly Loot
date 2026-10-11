@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local PathfindingService = game:GetService("PathfindingService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
@@ -130,14 +129,26 @@ task.spawn(function()
     end)
 end)
 
--- 6. STATS MONITOR OVERLAY
+-- 6. STATS & TELEMETRY MONITORS
 local MonitorFPS = false
 local MonitorPing = false
 local MonitorMem = false
+local MonitorUptime = false
+local MonitorGhostCount = false
+
+local GhostCaptures = 0
+local StartEpoch = os.time()
+
+local function formatUptime(seconds)
+    local hrs = math.floor(seconds / 3600)
+    local mins = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hrs, mins, secs)
+end
 
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 95, 0, 0)
-MonitorUI.Position = UDim2.new(1, -105, 0, 12)
+MonitorUI.Size = UDim2.new(0, 115, 0, 0)
+MonitorUI.Position = UDim2.new(1, -125, 0, 12)
 MonitorUI.BackgroundColor3 = C.Surface
 MonitorUI.BackgroundTransparency = 0.15
 MonitorUI.Visible = false
@@ -173,20 +184,26 @@ end
 local fpsRow = createMonitorRow()
 local pingRow = createMonitorRow()
 local memRow = createMonitorRow()
+local upRow = createMonitorRow()
+local ghostRow = createMonitorRow()
 
 local monitorConn = RunService.RenderStepped:Connect(function(dt)
-    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0)
+    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorUptime and 1 or 0) + (MonitorGhostCount and 1 or 0)
     if active == 0 then
         MonitorUI.Visible = false
     else
         MonitorUI.Visible = true
-        MonitorUI.Size = UDim2.new(0, 95, 0, (active * 18) + 6)
+        MonitorUI.Size = UDim2.new(0, 115, 0, (active * 18) + 6)
         fpsRow.Visible = MonitorFPS
         if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / math.max(dt, 0.001)) end
         pingRow.Visible = MonitorPing
         if MonitorPing then pingRow.Text = "Ping: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms" end
         memRow.Visible = MonitorMem
         if MonitorMem then memRow.Text = "Mem: " .. math.floor(Stats:GetTotalMemoryUsageMb()) .. "MB" end
+        upRow.Visible = MonitorUptime
+        if MonitorUptime then upRow.Text = "Time: " .. formatUptime(os.time() - StartEpoch) end
+        ghostRow.Visible = MonitorGhostCount
+        if MonitorGhostCount then ghostRow.Text = "Ghosts: " .. tostring(GhostCaptures) end
     end
 end)
 
@@ -296,28 +313,7 @@ SubTitle.Size = UDim2.new(0, 180, 0, 14)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Parent = Header
 
--- PC KEYBIND BADGE IN HEADER
-local KeybindHint = Instance.new("TextLabel")
-KeybindHint.Name = "KeybindHint"
-KeybindHint.Size = UDim2.new(0, 92, 0, 20)
-KeybindHint.Position = UDim2.new(1, -170, 0.5, -10)
-KeybindHint.BackgroundColor3 = C.Surface
-KeybindHint.Text = "[RightCtrl] Toggle"
-KeybindHint.TextColor3 = C.Muted
-KeybindHint.Font = Enum.Font.GothamBold
-KeybindHint.TextSize = 9
-KeybindHint.BorderSizePixel = 0
-KeybindHint.ZIndex = 65
-KeybindHint.Parent = Header
-
-Instance.new("UICorner", KeybindHint).CornerRadius = UDim.new(0, 6)
-local kbStroke = Instance.new("UIStroke")
-kbStroke.Color = C.Border
-kbStroke.Thickness = 1
-kbStroke.Parent = KeybindHint
-
 -- HIGH-CONTRAST IN-UI NOTIFICATION BANNER
-local NotificationsEnabled = true
 local NotificationBanner = Instance.new("Frame")
 NotificationBanner.Name = "InUINotifier"
 NotificationBanner.Size = UDim2.new(0, 230, 0, 34)
@@ -510,7 +506,7 @@ rStroke.Parent = RightCol
 
 local AvatarHolder = Instance.new("Frame")
 AvatarHolder.Size = UDim2.new(0, 90, 0, 90)
-AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
+AvatarHolder.Position = UDim2.new(0.5, 0, 0, 8)
 AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
 AvatarHolder.BackgroundColor3 = C.Surface
 AvatarHolder.ClipsDescendants = true
@@ -528,6 +524,25 @@ AvatarImage.BackgroundTransparency = 1
 AvatarImage.ScaleType = Enum.ScaleType.Fit
 AvatarImage.Parent = AvatarHolder
 
+-- Censor Blur Overlay for Profile Picture
+local AvatarCensorMask = Instance.new("Frame")
+AvatarCensorMask.Size = UDim2.fromScale(1, 1)
+AvatarCensorMask.BackgroundColor3 = Color3.fromRGB(15, 12, 12)
+AvatarCensorMask.BackgroundTransparency = 1
+AvatarCensorMask.BorderSizePixel = 0
+AvatarCensorMask.ZIndex = 5
+AvatarCensorMask.Visible = false
+AvatarCensorMask.Parent = AvatarHolder
+
+local CensorIcon = Instance.new("TextLabel")
+CensorIcon.Size = UDim2.fromScale(1, 1)
+CensorIcon.BackgroundTransparency = 1
+CensorIcon.Text = "🔒"
+CensorIcon.TextSize = 24
+CensorIcon.TextColor3 = C.Muted
+CensorIcon.ZIndex = 6
+CensorIcon.Parent = AvatarCensorMask
+
 local function updateProfilePicture()
     local ok, content = pcall(function()
         return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
@@ -540,13 +555,12 @@ local function updateProfilePicture()
 end
 task.spawn(updateProfilePicture)
 
--- TELEMETRY DATA PANEL WITH LIVE UPTIME
+-- TELEMETRY DATA PANEL (WITH EMBEDDED KEYBIND HINT)
 local SensorInfoActive = false
-local StartEpoch = os.time()
 
 local TelemetryFrame = Instance.new("Frame")
-TelemetryFrame.Size = UDim2.new(1, -12, 1, -112)
-TelemetryFrame.Position = UDim2.new(0, 6, 0, 106)
+TelemetryFrame.Size = UDim2.new(1, -12, 1, -106)
+TelemetryFrame.Position = UDim2.new(0, 6, 0, 102)
 TelemetryFrame.BackgroundColor3 = C.Surface
 TelemetryFrame.Parent = RightCol
 Instance.new("UICorner", TelemetryFrame).CornerRadius = UDim.new(0, 8)
@@ -573,12 +587,21 @@ local userRow = createInfoLabel()
 local placeRow = createInfoLabel()
 local jobRow = createInfoLabel()
 local uptimeRow = createInfoLabel()
+local keybindRow = createInfoLabel()
 
-local function formatUptime(seconds)
-    local hrs = math.floor(seconds / 3600)
-    local mins = math.floor((seconds % 3600) / 60)
-    local secs = seconds % 60
-    return string.format("%02d:%02d:%02d", hrs, mins, secs)
+keybindRow.Text = "Keybind: [RightCtrl]"
+keybindRow.TextColor3 = C.AccentGlow
+
+local function setCensorState(censor)
+    SensorInfoActive = censor
+    if censor then
+        AvatarCensorMask.Visible = true
+        AvatarCensorMask.BackgroundTransparency = 0.2
+        AvatarImage.ImageTransparency = 0.7
+    else
+        AvatarCensorMask.Visible = false
+        AvatarImage.ImageTransparency = 0
+    end
 end
 
 RunService.Heartbeat:Connect(function()
@@ -594,7 +617,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (INCLUDES CARD CONTROLLER EXPORT)
+-- 10. REUSABLE ACTION CARD BUILDER
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -787,7 +810,6 @@ local autoCandyFarm = false     -- Underground TP Mode
 local SafeAIActive = false      -- Safe Walking/Leaping Mode
 local isUnderground = false
 
--- Card controller references for Mutual Interlock states
 local tpCardCtrl = nil
 local safeCardCtrl = nil
 
@@ -816,8 +838,10 @@ local function restoreSurface()
     end
 end
 
+local activeStrikingGhost = nil
 local function executeGhostSwing(ghost)
     resolveRemotes()
+    activeStrikingGhost = ghost
     if GhostSwingRemote and ghost and ghost.Parent then
         pcall(function() GhostSwingRemote:FireServer(ghost.Name) end)
         pcall(function() GhostSwingRemote:FireServer(ghost) end)
@@ -829,13 +853,44 @@ local function executeGhostSwing(ghost)
     end
 end
 
--- Pathfinding & Jump Raycasting for Safe AI
-local function navigateSafelyTo(humanoid, hrp, targetPos)
+-- Hook ghost folder removal to increment capture counter
+task.spawn(function()
+    while true do
+        local folder = locateGhostFolder()
+        if folder then
+            folder.ChildRemoved:Connect(function(child)
+                if activeStrikingGhost and child == activeStrikingGhost then
+                    GhostCaptures = GhostCaptures + 1
+                    activeStrikingGhost = nil
+                end
+            end)
+            break
+        end
+        task.wait(1)
+    end
+end)
+
+-- Safe Pathing & Stuck Detection Helper
+local lastPositionCheck = Vector3.new(0, 0, 0)
+local lastPositionTick = tick()
+
+local function handleSafeNavigation(humanoid, hrp, targetPos)
     local myPos = hrp.Position
     local dist = (targetPos - myPos).Magnitude
 
-    -- Immediate jump check for obstacles and elevation
-    local dir = (targetPos - myPos).Unit * 5
+    -- Check if physically stuck
+    if tick() - lastPositionTick >= 0.5 then
+        local moved = (myPos - lastPositionCheck).Magnitude
+        if moved < 1.0 and dist > 3 then
+            humanoid.Jump = true
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+        lastPositionCheck = myPos
+        lastPositionTick = tick()
+    end
+
+    -- Forward elevation / wall jump detection
+    local dir = (targetPos - myPos).Unit * 5.5
     local rParams = RaycastParams.new()
     rParams.FilterDescendantsInstances = {LocalPlayer.Character}
     rParams.FilterType = RaycastFilterType.Exclude
@@ -844,37 +899,11 @@ local function navigateSafelyTo(humanoid, hrp, targetPos)
     if hit and hit.Instance and hit.Instance.CanCollide then
         humanoid.Jump = true
     end
-    if targetPos.Y > myPos.Y + 2.2 then
+    if targetPos.Y > myPos.Y + 2.0 then
         humanoid.Jump = true
     end
 
-    if dist < 30 then
-        humanoid:MoveTo(targetPos)
-    else
-        local path = PathfindingService:CreatePath({
-            AgentRadius = 2.5,
-            AgentHeight = 5,
-            AgentCanJump = true,
-            WaypointSpacing = 4
-        })
-        local success = pcall(function()
-            path:ComputeAsync(myPos, targetPos)
-        end)
-        if success and path.Status == Enum.PathStatus.Success then
-            local waypoints = path:GetWaypoints()
-            if waypoints and #waypoints >= 2 then
-                local nextPoint = waypoints[2]
-                if nextPoint.Action == Enum.PathWaypointAction.Jump then
-                    humanoid.Jump = true
-                end
-                humanoid:MoveTo(nextPoint.Position)
-            else
-                humanoid:MoveTo(targetPos)
-            end
-        else
-            humanoid:MoveTo(targetPos)
-        end
-    end
+    humanoid:MoveTo(targetPos)
 end
 
 -- Thread 1: Fast Underground TP
@@ -922,7 +951,7 @@ task.spawn(function()
 
             if ghost and ghostPart and humanoid and hrp then
                 local dist = (ghostPart.Position - hrp.Position).Magnitude
-                navigateSafelyTo(humanoid, hrp, ghostPart.Position)
+                handleSafeNavigation(humanoid, hrp, ghostPart.Position)
 
                 if dist <= 8.5 then
                     executeGhostSwing(ghost)
@@ -1114,7 +1143,7 @@ AddSection(LeftCol, "AUTOMATION", 1)
 -- 1. Fast TP Mode Card
 tpCardCtrl = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Fast sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     if SafeAIActive then
-        Notify("Mode Interlock", "Turn OFF Safe Auto Farm before using TP Mode", C.Red)
+        Notify("Safety Lock", "Disable Safe Auto Farm before starting TP Farm", C.Red)
         return
     end
 
@@ -1125,7 +1154,7 @@ tpCardCtrl = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm �
         sLbl.Text = "Active • Sweeping nearest ghosts underground"
         setActive(true, C.Accent)
 
-        -- Lock out the Safe AI card
+        -- Lock out Safe AI
         if safeCardCtrl then
             safeCardCtrl.badgeText.Text = "LOCKED"
             safeCardCtrl.badgeText.TextColor3 = C.Red
@@ -1141,7 +1170,7 @@ tpCardCtrl = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm �
         setActive(false)
         restoreSurface()
 
-        -- Restore Safe AI card to ready state
+        -- Restore Safe AI
         if safeCardCtrl then
             safeCardCtrl.badgeText.Text = "OFF"
             safeCardCtrl.badgeText.TextColor3 = C.Muted
@@ -1156,7 +1185,7 @@ end)
 -- 2. Safe Auto Farm Card
 safeCardCtrl = CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous pathfinding & jump chase", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
     if autoCandyFarm then
-        Notify("Mode Interlock", "Turn OFF Underground TP Farm first", C.Red)
+        Notify("Safety Lock", "Disable TP Auto Farm before starting Safe Farm", C.Red)
         return
     end
 
@@ -1164,10 +1193,10 @@ safeCardCtrl = CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous pathfindi
     if SafeAIActive then
         bText.Text = "RUNNING"
         bText.TextColor3 = C.Green
-        sLbl.Text = "Active • Chasing ghosts with pathing & jump assist"
+        sLbl.Text = "Active • Chasing ghosts with jump assist"
         setActive(true, C.Green)
 
-        -- Lock out the TP Farm card
+        -- Lock out TP Farm
         if tpCardCtrl then
             tpCardCtrl.badgeText.Text = "LOCKED"
             tpCardCtrl.badgeText.TextColor3 = C.Red
@@ -1175,7 +1204,7 @@ safeCardCtrl = CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous pathfindi
             tpCardCtrl.subLabel.Text = "Disabled (Turn off Safe Farm first)"
             tpCardCtrl.setActive(false)
         end
-        Notify("Safe Auto Farm", "Pathfinding & Jump AI Chase Active", C.Green)
+        Notify("Safe Auto Farm", "Safe AI Jump & Chase Active", C.Green)
     else
         bText.Text = "OFF"
         bText.TextColor3 = C.Muted
@@ -1187,7 +1216,7 @@ safeCardCtrl = CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous pathfindi
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hum and hrp then hum:MoveTo(hrp.Position) end
 
-        -- Restore TP Farm card to ready state
+        -- Restore TP Farm
         if tpCardCtrl then
             tpCardCtrl.badgeText.Text = "OFF"
             tpCardCtrl.badgeText.TextColor3 = C.Muted
@@ -1263,15 +1292,15 @@ CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disco
 end)
 
 AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", false, 4, function(bText, bStroke, _, setActive)
-    SensorInfoActive = not SensorInfoActive
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & hides IDs on profile", "OFF", false, 4, function(bText, bStroke, _, setActive)
+    setCensorState(not SensorInfoActive)
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
     setActive(SensorInfoActive)
-    Notify("Privacy Mode", SensorInfoActive and "IDs Censored" or "IDs Exposed", C.Accent)
+    Notify("Privacy Mode", SensorInfoActive and "Avatar & IDs Censored" or "Censorship Removed", C.Accent)
 end)
 
-AddSection(DrawerScroll, "MONITORING", 5)
+AddSection(DrawerScroll, "MONITORING OVERLAYS", 5)
 CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false, 6, function(bText, bStroke, _, setActive)
     MonitorFPS = not MonitorFPS
     bText.Text = MonitorFPS and "ON" or "OFF"
@@ -1293,8 +1322,22 @@ CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF",
     setActive(MonitorMem)
 end)
 
-AddSection(DrawerScroll, "INTERFACE & VISUALS", 9)
-CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing animations", "ON", true, 10, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW UPTIME", "Displays session time counter", "OFF", false, 9, function(bText, bStroke, _, setActive)
+    MonitorUptime = not MonitorUptime
+    bText.Text = MonitorUptime and "ON" or "OFF"
+    bText.TextColor3 = MonitorUptime and C.Green or C.Muted
+    setActive(MonitorUptime)
+end)
+
+CreateActionCard(DrawerScroll, "SHOW GHOST CAPTURES", "Displays captured ghost count", "OFF", false, 10, function(bText, bStroke, _, setActive)
+    MonitorGhostCount = not MonitorGhostCount
+    bText.Text = MonitorGhostCount and "ON" or "OFF"
+    bText.TextColor3 = MonitorGhostCount and C.Green or C.Muted
+    setActive(MonitorGhostCount)
+end)
+
+AddSection(DrawerScroll, "INTERFACE & VISUALS", 11)
+CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing animations", "ON", true, 12, function(bText, bStroke, _, setActive)
     AnimationsEnabled = not AnimationsEnabled
     bText.Text = AnimationsEnabled and "ON" or "OFF"
     bText.TextColor3 = AnimationsEnabled and C.Green or C.Muted
@@ -1302,7 +1345,7 @@ CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing anim
     Notify("Animations", AnimationsEnabled and "Spring Easing Enabled" or "Instant Snapping Enabled", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", true, 11, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", true, 13, function(bText, bStroke, _, setActive)
     local nextState = not (MobileToggle and MobileToggle.Visible)
     if setFloatingIconVisible then setFloatingIconVisible(nextState) end
     bText.Text = nextState and "ON" or "OFF"
@@ -1311,7 +1354,7 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", false, 12, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", false, 14, function(bText, bStroke, _, setActive)
     local active = not Lighting.GlobalShadows
     Lighting.GlobalShadows = not active
     bText.Text = active and "ON" or "OFF"
@@ -1320,26 +1363,91 @@ CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OF
     Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", true, 13, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", true, 15, function(bText, bStroke, _, setActive)
     NotificationsEnabled = not NotificationsEnabled
     bText.Text = NotificationsEnabled and "ON" or "OFF"
     bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
     setActive(NotificationsEnabled)
 end)
 
-AddSection(DrawerScroll, "DANGER ZONE", 14)
-CreateActionCard(DrawerScroll, "FAST RESPAWN", "Triggers Death_Engine reset remote", "RESET", false, 15, function()
-    resolveRemotes()
-    if ResetRequestedRemote then
-        pcall(function() ResetRequestedRemote:FireServer() end)
+AddSection(DrawerScroll, "DANGER ZONE", 16)
+
+-- Fast Respawn Card with Double-Click Protection
+local RespawnCard = Instance.new("TextButton")
+RespawnCard.Size = UDim2.new(1, 0, 0, 48)
+RespawnCard.BackgroundColor3 = C.CardBg
+RespawnCard.AutoButtonColor = false
+RespawnCard.Text = ""
+RespawnCard.ClipsDescendants = true
+RespawnCard.ZIndex = 52
+RespawnCard.LayoutOrder = 17
+RespawnCard.Parent = DrawerScroll
+
+Instance.new("UICorner", RespawnCard).CornerRadius = UDim.new(0, 8)
+local rCardStroke = Instance.new("UIStroke")
+rCardStroke.Color = C.Border
+rCardStroke.Thickness = 1
+rCardStroke.Parent = RespawnCard
+
+local RespawnFillBar = Instance.new("Frame")
+RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+RespawnFillBar.BackgroundColor3 = C.RedDark
+RespawnFillBar.BorderSizePixel = 0
+RespawnFillBar.ZIndex = 53
+RespawnFillBar.Parent = RespawnCard
+
+local RespawnLbl = Instance.new("TextLabel")
+RespawnLbl.Text = "Fast Respawn"
+RespawnLbl.Font = Enum.Font.GothamBold
+RespawnLbl.TextSize = 12
+RespawnLbl.TextColor3 = C.Red
+RespawnLbl.Size = UDim2.fromScale(1, 1)
+RespawnLbl.BackgroundTransparency = 1
+RespawnLbl.ZIndex = 54
+RespawnLbl.Parent = RespawnCard
+
+local respawnConfirmState = false
+local respawnTimerThread = nil
+
+RespawnCard.MouseButton1Click:Connect(function()
+    if not respawnConfirmState then
+        respawnConfirmState = true
+        RespawnLbl.Text = "Tap Again to Confirm Respawn"
+        RespawnLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(rCardStroke, {Color = C.Red}, 0.2)
+        RespawnFillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(RespawnFillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        respawnTimerThread = task.delay(3, function()
+            if respawnConfirmState and ScreenGui.Parent then
+                respawnConfirmState = false
+                RespawnLbl.Text = "Fast Respawn"
+                RespawnLbl.TextColor3 = C.Red
+                tw(rCardStroke, {Color = C.Border}, 0.2)
+                RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+            end
+        end)
     else
-        local char = LocalPlayer.Character
-        local hum = char and char:FindFirstChildOfClass("Humanoid")
-        if hum then hum.Health = 0 end
+        if respawnTimerThread then task.cancel(respawnTimerThread) end
+        respawnConfirmState = false
+        RespawnLbl.Text = "Fast Respawn"
+        RespawnLbl.TextColor3 = C.Red
+        tw(rCardStroke, {Color = C.Border}, 0.2)
+        RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+
+        resolveRemotes()
+        if ResetRequestedRemote then
+            pcall(function() ResetRequestedRemote:FireServer() end)
+        else
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+        end
+        Notify("Character", "Clean Respawn Executed", C.Red)
     end
-    Notify("Character", "Clean Respawn Requested", C.Red)
 end)
 
+-- Destroy Interface Card
 local DestroyCard = Instance.new("TextButton")
 DestroyCard.Size = UDim2.new(1, 0, 0, 48)
 DestroyCard.BackgroundColor3 = C.CardBg
@@ -1347,7 +1455,7 @@ DestroyCard.AutoButtonColor = false
 DestroyCard.Text = ""
 DestroyCard.ClipsDescendants = true
 DestroyCard.ZIndex = 52
-DestroyCard.LayoutOrder = 16
+DestroyCard.LayoutOrder = 18
 DestroyCard.Parent = DrawerScroll
 
 Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
