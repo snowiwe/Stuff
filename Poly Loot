@@ -749,8 +749,9 @@ local function autoEquipNet()
     end
 end
 
--- 13. DIRECT CANDY CORN AUTO-FARM (FAST UNDERGROUND TP)
-local autoCandyFarm = false
+-- 13. INDEPENDENT CANDY CORN FARM ENGINES (WITH SAFETY INTERLOCK)
+local autoCandyFarm = false     -- Underground TP Mode
+local SafeAIActive = false      -- Safe Walking/Leaping Mode
 local isUnderground = false
 
 RunService.Stepped:Connect(function()
@@ -791,6 +792,23 @@ local function executeGhostSwing(ghost)
     end
 end
 
+local function checkObstaclesAndJump(hrp, humanoid, targetPos)
+    local origin = hrp.Position
+    local dir = (targetPos - origin).Unit * 5
+    local rParams = RaycastParams.new()
+    rParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    rParams.FilterType = RaycastFilterType.Exclude
+
+    local hit = Workspace:Raycast(origin, dir, rParams)
+    if hit and hit.Instance and hit.Instance.CanCollide then
+        humanoid.Jump = true
+    end
+    if targetPos.Y > origin.Y + 2.5 then
+        humanoid.Jump = true
+    end
+end
+
+-- Thread 1: Fast Underground TP
 task.spawn(function()
     while true do
         if autoCandyFarm then
@@ -814,7 +832,36 @@ task.spawn(function()
             end
             task.wait(0.1)
         else
+            if not SafeAIActive then
+                restoreSurface()
+            end
+            task.wait(0.2)
+        end
+    end
+end)
+
+-- Thread 2: Safe AI Chase & Jump
+task.spawn(function()
+    while true do
+        if SafeAIActive then
             restoreSurface()
+            autoEquipNet()
+            local ghost, ghostPart = getNearestGhost()
+            local char = LocalPlayer.Character
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+            if ghost and ghostPart and humanoid and hrp then
+                local dist = (ghostPart.Position - hrp.Position).Magnitude
+                humanoid:MoveTo(ghostPart.Position)
+                checkObstaclesAndJump(hrp, humanoid, ghostPart.Position)
+
+                if dist <= 7.5 then
+                    executeGhostSwing(ghost)
+                end
+            end
+            task.wait(0.12)
+        else
             task.wait(0.2)
         end
     end
@@ -996,19 +1043,46 @@ end
 -- 16. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Auto-equips net", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+-- Auto Candy Corn (Underground TP)
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Fast sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+    if SafeAIActive then
+        Notify("Safety Lock", "Disable Safe Auto Farm before using TP Mode", C.Red)
+        return
+    end
+
     autoCandyFarm = not autoCandyFarm
     bText.Text = autoCandyFarm and "RUNNING" or "OFF"
     bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Underground TP farm • Auto-equips net"
+    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Underground TP farm • Fast sweep"
     setActive(autoCandyFarm)
     if not autoCandyFarm then restoreSurface() end
-    Notify("Auto Candy Corn", autoCandyFarm and "TP Farm Activated" or "TP Farm Disabled", autoCandyFarm and C.Green or C.Red)
+    Notify("Auto Candy Corn", autoCandyFarm and "Underground TP Farm Active" or "TP Farm Disabled", autoCandyFarm and C.Green or C.Red)
 end)
 
-AddSection(LeftCol, "VISUALS", 3)
+-- Safe Auto Farm (Natural AI Walking/Leaping)
+CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous AI chase • Runs & leaps", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
+    if autoCandyFarm then
+        autoCandyFarm = false
+        restoreSurface()
+    end
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+    SafeAIActive = not SafeAIActive
+    bText.Text = SafeAIActive and "RUNNING" or "OFF"
+    bText.TextColor3 = SafeAIActive and C.Green or C.Muted
+    sLbl.Text = SafeAIActive and "Active • Chasing ghosts with jump assist" or "Autonomous AI chase • Runs & leaps"
+    setActive(SafeAIActive, C.Green)
+    if not SafeAIActive then
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp then hum:MoveTo(hrp.Position) end
+    end
+    Notify("Safe Auto Farm", SafeAIActive and "AI Chase Active (Protects TP lock)" or "Safe AI Farm Stopped", SafeAIActive and C.Green or C.Red)
+end)
+
+AddSection(LeftCol, "VISUALS", 4)
+
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1017,7 +1091,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1204,6 +1278,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     else
         if timerThread then task.cancel(timerThread) end
         autoCandyFarm = false
+        SafeAIActive = false
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
