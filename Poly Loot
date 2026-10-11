@@ -1,11 +1,11 @@
--- // POLY LOOT - COMPLETE POLISHED EDITION //
+-- // LUMACORE - POLY LOOT SUITE //
+-- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local VirtualInputManager = game:GetService("VirtualInputManager")
-local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
@@ -13,7 +13,7 @@ local Stats = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
 local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera", 3)
-local ScreenName = "PolyLoot_FinalEdition"
+local ScreenName = "Lumacore_PolyLoot"
 
 -- 1. CONTAINER MOUNTING
 local function resolveContainer()
@@ -48,7 +48,15 @@ local C = {
     Green      = Color3.fromRGB(64, 192, 110),
 }
 
+-- ANIMATION TOGGLE SUPPORT
+local AnimationsEnabled = true
 local function tw(obj, props, dur, style, dir)
+    if not AnimationsEnabled then
+        for prop, val in pairs(props) do
+            pcall(function() obj[prop] = val end)
+        end
+        return {Completed = {Wait = function() end, Connect = function(_, fn) fn() end}}
+    end
     local t = TweenService:Create(
         obj,
         TweenInfo.new(dur or 0.22, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out),
@@ -93,20 +101,33 @@ task.spawn(function()
     end)
 end)
 
--- 5. TOAST NOTIFICATIONS
+-- 5. POLISHED TOAST NOTIFICATION STACK
 local NotificationsEnabled = true
+local ToastContainer = Instance.new("Frame")
+ToastContainer.Name = "ToastContainer"
+ToastContainer.Size = UDim2.new(0, 240, 0.4, 0)
+ToastContainer.Position = UDim2.new(0.5, 0, 0.88, 0)
+ToastContainer.AnchorPoint = Vector2.new(0.5, 1)
+ToastContainer.BackgroundTransparency = 1
+ToastContainer.Parent = ScreenGui
+
+local toastLayout = Instance.new("UIListLayout")
+toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+toastLayout.Padding = UDim.new(0, 6)
+toastLayout.Parent = ToastContainer
+
 local function Notify(titleText, subText, color)
     if not NotificationsEnabled then return end
     task.spawn(function()
         local toast = Instance.new("Frame")
-        toast.Size = UDim2.new(0, 220, 0, 42)
-        toast.Position = UDim2.new(0.5, 0, 0.92, 0)
-        toast.AnchorPoint = Vector2.new(0.5, 0)
+        toast.Size = UDim2.new(1, 0, 0, 42)
         toast.BackgroundColor3 = C.CardBg
+        toast.BackgroundTransparency = 0.05
         toast.BorderSizePixel = 0
         toast.ClipsDescendants = true
         toast.ZIndex = 5000
-        toast.Parent = ScreenGui
+        toast.Parent = ToastContainer
 
         Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 10)
         local s = Instance.new("UIStroke")
@@ -144,18 +165,26 @@ local function Notify(titleText, subText, color)
         sLbl.TextXAlignment = Enum.TextXAlignment.Left
         sLbl.Parent = toast
 
-        tw(toast, {Position = UDim2.new(0.5, 0, 0.86, 0)}, 0.28, Enum.EasingStyle.Back)
-        task.wait(2.2)
-        local exit = tw(toast, {Position = UDim2.new(0.5, 0, 0.92, 0), BackgroundTransparency = 1}, 0.24, Enum.EasingStyle.Quart)
-        tw(tLbl, {TextTransparency = 1}, 0.2)
-        tw(sLbl, {TextTransparency = 1}, 0.2)
-        tw(s, {Transparency = 1}, 0.2)
-        exit.Completed:Wait()
+        if AnimationsEnabled then
+            toast.Position = UDim2.new(0, 0, 0.3, 0)
+            tw(toast, {Position = UDim2.new(0, 0, 0, 0)}, 0.22, Enum.EasingStyle.Back)
+        end
+
+        task.wait(2.4)
+
+        if AnimationsEnabled then
+            local exit = tw(toast, {BackgroundTransparency = 1}, 0.22)
+            tw(tLbl, {TextTransparency = 1}, 0.2)
+            tw(sLbl, {TextTransparency = 1}, 0.2)
+            tw(s, {Transparency = 1}, 0.2)
+            tw(bar, {BackgroundTransparency = 1}, 0.2)
+            exit.Completed:Wait()
+        end
         toast:Destroy()
     end)
 end
 
--- 6. STATS MONITOR OVERLAY
+-- 6. STATS OVERLAY
 local MonitorFPS = false
 local MonitorPing = false
 local MonitorMem = false
@@ -227,7 +256,7 @@ Backdrop.Visible = false
 Backdrop.Parent = ScreenGui
 
 local LoaderPill = Instance.new("Frame")
-LoaderPill.Size = UDim2.new(0, 160, 0, 44)
+LoaderPill.Size = UDim2.new(0, 170, 0, 44)
 LoaderPill.Position = UDim2.new(0.5, 0, 0.5, 0)
 LoaderPill.AnchorPoint = Vector2.new(0.5, 0.5)
 LoaderPill.BackgroundColor3 = C.CardBg
@@ -256,7 +285,7 @@ local LoadingText = Instance.new("TextLabel")
 LoadingText.Size = UDim2.new(1, -48, 1, 0)
 LoadingText.Position = UDim2.new(0, 44, 0, 0)
 LoadingText.BackgroundTransparency = 1
-LoadingText.Text = "INITIALIZING..."
+LoadingText.Text = "LUMACORE INIT..."
 LoadingText.Font = Enum.Font.GothamBold
 LoadingText.TextSize = 10
 LoadingText.TextColor3 = C.Text
@@ -283,7 +312,7 @@ cStroke.Color = C.Border
 cStroke.Thickness = 1.3
 cStroke.Parent = Card
 
--- HEADER BAR (DRAGGABLE)
+-- HEADER BAR
 local Header = Instance.new("TextButton")
 Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, 48)
@@ -311,10 +340,10 @@ Title.BackgroundTransparency = 1
 Title.Parent = Header
 
 local SubTitle = Instance.new("TextLabel")
-SubTitle.Text = "Tactical Suite & Profile Dashboard"
-SubTitle.Font = Enum.Font.Gotham
+SubTitle.Text = "Credit: Lumacore"
+SubTitle.Font = Enum.Font.GothamMedium
 SubTitle.TextSize = 10
-SubTitle.TextColor3 = C.Dim
+SubTitle.TextColor3 = C.AccentGlow
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
 SubTitle.Position = UDim2.new(0, 32, 0, 26)
 SubTitle.Size = UDim2.new(0, 280, 0, 14)
@@ -393,7 +422,7 @@ leftLayout.Padding = UDim.new(0, 6)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
--- RIGHT COLUMN (CIRCULAR PROFILE PICTURE & TELEMETRY)
+-- RIGHT COLUMN (PROFILE & TELEMETRY)
 local RightCol = Instance.new("Frame")
 RightCol.Size = UDim2.new(0.42, -6, 1, 0)
 RightCol.Position = UDim2.new(0.58, 6, 0, 0)
@@ -408,8 +437,8 @@ rStroke.Thickness = 1
 rStroke.Parent = RightCol
 
 local AvatarHolder = Instance.new("Frame")
-AvatarHolder.Size = UDim2.new(0, 96, 0, 96)
-AvatarHolder.Position = UDim2.new(0.5, 0, 0, 14)
+AvatarHolder.Size = UDim2.new(0, 90, 0, 90)
+AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
 AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
 AvatarHolder.BackgroundColor3 = C.Surface
 AvatarHolder.ClipsDescendants = true
@@ -428,38 +457,37 @@ AvatarImage.ScaleType = Enum.ScaleType.Fit
 AvatarImage.Parent = AvatarHolder
 
 local function updateProfilePicture()
-    local thumbType = Enum.ThumbnailType.AvatarHeadShot
-    local thumbSize = Enum.ThumbnailSize.Size420x420
     local ok, content = pcall(function()
-        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, thumbType, thumbSize)
+        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
     end)
-    if ok and content then
+    if ok and content and content ~= "" then
         AvatarImage.Image = content
     else
-        AvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=420&h=420"
+        AvatarImage.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
     end
 end
 task.spawn(updateProfilePicture)
 
--- TELEMETRY DATA PANEL
+-- TELEMETRY DATA PANEL WITH LIVE UPTIME
 local SensorInfoActive = false
+local StartEpoch = os.time()
 
 local TelemetryFrame = Instance.new("Frame")
-TelemetryFrame.Size = UDim2.new(1, -12, 1, -126)
-TelemetryFrame.Position = UDim2.new(0, 6, 0, 118)
+TelemetryFrame.Size = UDim2.new(1, -12, 1, -112)
+TelemetryFrame.Position = UDim2.new(0, 6, 0, 106)
 TelemetryFrame.BackgroundColor3 = C.Surface
 TelemetryFrame.Parent = RightCol
 Instance.new("UICorner", TelemetryFrame).CornerRadius = UDim.new(0, 8)
 
 local tLayout = Instance.new("UIListLayout")
-tLayout.Padding = UDim.new(0, 3)
+tLayout.Padding = UDim.new(0, 2)
 tLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 tLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 tLayout.Parent = TelemetryFrame
 
 local function createInfoLabel()
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -12, 0, 16)
+    lbl.Size = UDim2.new(1, -12, 0, 15)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Muted
     lbl.Font = Enum.Font.Gotham
@@ -472,24 +500,29 @@ end
 local userRow = createInfoLabel()
 local placeRow = createInfoLabel()
 local jobRow = createInfoLabel()
-local pingRow2 = createInfoLabel()
+local uptimeRow = createInfoLabel()
 
-local function updateTelemetry()
+local function formatUptime(seconds)
+    local hrs = math.floor(seconds / 3600)
+    local mins = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hrs, mins, secs)
+end
+
+RunService.Heartbeat:Connect(function()
     if SensorInfoActive then
         userRow.Text = "User: [HIDDEN]"
         placeRow.Text = "Place ID: [HIDDEN]"
         jobRow.Text = "Server: [HIDDEN]"
     else
         userRow.Text = "User: @" .. LocalPlayer.Name
-        placeRow.Text = "Place ID: " .. tostring(game.PlaceId)
-        jobRow.Text = "Job: " .. string.sub(game.JobId, 1, 12) .. "..."
+        placeRow.Text = "Place: " .. tostring(game.PlaceId)
+        jobRow.Text = "Job: " .. string.sub(game.JobId, 1, 10) .. "..."
     end
-    pingRow2.Text = "Latency: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms"
-end
+    uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
+end)
 
-RunService.Heartbeat:Connect(updateTelemetry)
-
--- 10. REUSABLE ACTION CARD BUILDER
+-- 10. REUSABLE ACTION CARD BUILDER (WITH ACTIVE OUTLINE GLOW)
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -569,153 +602,66 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ord
     bText.ZIndex = row.ZIndex + 2
     bText.Parent = badge
 
+    local isCardActive = false
+    local function setCardActiveState(active)
+        isCardActive = active
+        if isCardActive then
+            tw(s, {Color = C.Accent, Thickness = 1.4}, 0.15)
+            tw(row, {BackgroundColor3 = C.Hover}, 0.15)
+        else
+            tw(s, {Color = C.Border, Thickness = 1}, 0.15)
+            tw(row, {BackgroundColor3 = C.CardBg}, 0.15)
+        end
+    end
+
     row.MouseEnter:Connect(function()
-        tw(row, {BackgroundColor3 = C.Hover}, 0.14)
-        tw(s, {Color = C.BorderHot}, 0.14)
+        if not isCardActive then
+            tw(row, {BackgroundColor3 = C.Hover}, 0.14)
+            tw(s, {Color = C.BorderHot}, 0.14)
+        end
     end)
     row.MouseLeave:Connect(function()
-        tw(row, {BackgroundColor3 = C.CardBg}, 0.14)
-        tw(s, {Color = C.Border}, 0.14)
+        if not isCardActive then
+            tw(row, {BackgroundColor3 = C.CardBg}, 0.14)
+            tw(s, {Color = C.Border}, 0.14)
+        end
     end)
 
     row.MouseButton1Click:Connect(function()
-        tw(row, {Size = UDim2.new(1, -4, 0, 46)}, 0.06)
-        task.delay(0.06, function()
-            tw(row, {Size = UDim2.new(1, 0, 0, 48)}, 0.12, Enum.EasingStyle.Back)
-        end)
-        callback(bText, bStroke, sLbl)
+        if AnimationsEnabled then
+            tw(row, {Size = UDim2.new(1, -4, 0, 46)}, 0.06)
+            task.delay(0.06, function()
+                tw(row, {Size = UDim2.new(1, 0, 0, 48)}, 0.12, Enum.EasingStyle.Back)
+            end)
+        end
+        callback(bText, bStroke, sLbl, setCardActiveState)
     end)
 end
 
--- 11. UNIVERSAL AUTO-ATTACK ENGINE (PC CLICK & MOBILE TAP)
-local HitReplayEvent = nil
-local AttackRemotesFound = {}
+-- 11. LEGIT MODE TOGGLE
+local LegitModeActive = false
 
-task.spawn(function()
-    pcall(function()
-        local ch = ReplicatedStorage:WaitForChild("ChickenOrHero", 4)
-        if ch then
-            local g = ch:WaitForChild("Game", 4)
-            if g then HitReplayEvent = g:WaitForChild("HitReplayEvent", 3) end
-        end
-    end)
-    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") then
-            local n = string.lower(obj.Name)
-            if string.find(n, "attack") or string.find(n, "swing") or string.find(n, "hit") or string.find(n, "tackle") then
-                table.insert(AttackRemotesFound, obj)
-            end
-        end
-    end
-end)
-
-local function resolveTargetIds(maxRadius)
+-- 12. NATURAL AUTO-ATTACK ENGINE (CLEAN PC/MOBILE NATIVE CLICK)
+local AutoAttackActive = false
+local function executeNaturalClick()
     local char = LocalPlayer.Character
-    if not (char and char:FindFirstChild("HumanoidRootPart")) then return {-1006, -1011} end
-    local pPos = char.HumanoidRootPart.Position
-    local ids = {}
+    if not char then return end
 
-    for _, model in ipairs(Workspace:GetDescendants()) do
-        if model:IsA("Model") and model ~= char then
-            local hum = model:FindFirstChildOfClass("Humanoid")
-            local root = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
-            if hum and hum.Health > 0 and root and not Players:GetPlayerFromCharacter(model) then
-                local dist = (root.Position - pPos).Magnitude
-                if dist <= (maxRadius or 25) then
-                    local idAttr = model:GetAttribute("Id") or model:GetAttribute("targetId") or model:GetAttribute("ID")
-                    if idAttr then
-                        table.insert(ids, idAttr)
-                    else
-                        local idChild = model:FindFirstChild("Id") or model:FindFirstChild("targetId")
-                        if idChild and idChild:IsA("ValueBase") then
-                            table.insert(ids, idChild.Value)
-                        end
-                    end
-                end
-            end
-        end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool then
+        pcall(function() tool:Activate() end)
     end
 
-    if #ids == 0 then ids = {-1006, -1011} end
-    return ids
-end
-
-local lastTackleTick = 0
-local function executeAttackCycle()
-    if tick() - lastTackleTick < 0.16 then return end
-    lastTackleTick = tick()
-
-    task.spawn(function()
-        local char = LocalPlayer.Character
-        if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
-
-        local targetList = resolveTargetIds(28)
-        local lookDir = char.HumanoidRootPart.CFrame.LookVector
-        local attackUuid = HttpService:GenerateGUID(false)
-        local now = os.time()
-
-        -- 1. Virtual Mouse/Touch Click (Simulates PC Click & Mobile Tap)
-        pcall(function()
-            local vSize = Camera and Camera.ViewportSize or Vector2.new(800, 600)
-            local midX, midY = math.floor(vSize.X * 0.5), math.floor(vSize.Y * 0.5)
-            VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, true, game, 1)
-            task.wait(0.02)
-            VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, false, game, 1)
-        end)
-
-        -- 2. Tool Activation
-        local tool = char:FindFirstChildOfClass("Tool")
-        if tool then
-            pcall(function()
-                tool:Activate()
-            end)
-        end
-
-        -- 3. Game Replay Packet
-        if HitReplayEvent then
-            local attackData = {
-                ["manual"] = true,
-                ["direction"] = lookDir,
-                ["id"] = attackUuid,
-                ["targets"] = {},
-                ["box"] = {["height"] = 16, ["far"] = 26, ["near"] = 0, ["width"] = 28},
-                ["character"] = char,
-                ["startedAt"] = now,
-                ["ends"] = now + 0.45,
-                ["starts"] = now,
-                ["kind"] = "Tackle",
-                ["canonicalId"] = attackUuid,
-                ["targetIds"] = targetList
-            }
-            pcall(function()
-                HitReplayEvent:FireServer("Attack", attackData)
-            end)
-
-            for _, tid in ipairs(targetList) do
-                local verdictData = {
-                    ["source"] = "Server",
-                    ["targetId"] = tid,
-                    ["id"] = HttpService:GenerateGUID(false),
-                    ["kind"] = "Tackle",
-                    ["reason"] = "resolved",
-                    ["accepted"] = true
-                }
-                pcall(function()
-                    HitReplayEvent:FireServer("Verdict", verdictData)
-                end)
-            end
-        end
-
-        -- 4. Auxiliary Remotes
-        for _, remote in ipairs(AttackRemotesFound) do
-            pcall(function()
-                remote:FireServer()
-            end)
-        end
+    pcall(function()
+        local vSize = Camera and Camera.ViewportSize or Vector2.new(800, 600)
+        local midX, midY = math.floor(vSize.X * 0.5), math.floor(vSize.Y * 0.5)
+        VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, true, game, 1)
+        task.wait(0.02)
+        VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, false, game, 1)
     end)
 end
 
--- 12. CANDY CORN AUTO-FARM ENGINE
+-- 13. CANDY CORN AUTO-FARM ENGINE
 local autoCandyFarm = false
 local isUnderground = false
 local GhostSwingRemote = nil
@@ -809,7 +755,7 @@ task.spawn(function()
                     hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -7, 0)
                 end
 
-                task.wait(0.04)
+                task.wait(LegitModeActive and 0.08 or 0.04)
                 if GhostSwingRemote and ghost.Parent then
                     pcall(function()
                         GhostSwingRemote:FireServer(ghost.Name)
@@ -821,11 +767,11 @@ task.spawn(function()
         else
             restoreSurface()
         end
-        task.wait(0.1)
+        task.wait(LegitModeActive and 0.18 or 0.1)
     end
 end)
 
--- 13. PLAYER ESP ENGINE
+-- 14. PLAYER ESP ENGINE (CLEAN DISTANCE & HP %)
 local ESPActive = false
 local ESPStorage = {}
 
@@ -847,52 +793,46 @@ local function applyESP(player)
     local root = char:FindFirstChild("HumanoidRootPart")
 
     local hl = Instance.new("Highlight")
-    hl.Name = "PolyLoot_Highlight"
+    hl.Name = "Lumacore_Highlight"
     hl.Adornee = char
     hl.FillColor = C.Accent
     hl.FillTransparency = 0.5
     hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-    hl.OutlineTransparency = 0.2
+    hl.OutlineTransparency = 0.15
     hl.Parent = ScreenGui
 
     local bb = Instance.new("BillboardGui")
-    bb.Name = "PolyLoot_ESP"
+    bb.Name = "Lumacore_ESP"
     bb.Adornee = root
-    bb.Size = UDim2.new(0, 100, 0, 36)
+    bb.Size = UDim2.new(0, 160, 0, 24)
     bb.StudsOffset = Vector3.new(0, 3.2, 0)
     bb.AlwaysOnTop = true
     bb.Parent = ScreenGui
 
-    local nameLbl = Instance.new("TextLabel")
-    nameLbl.Size = UDim2.new(1, 0, 0, 14)
-    nameLbl.BackgroundTransparency = 1
-    nameLbl.Text = player.DisplayName
-    nameLbl.TextColor3 = C.Text
-    nameLbl.Font = Enum.Font.GothamBold
-    nameLbl.TextSize = 10
-    nameLbl.Parent = bb
+    local infoLbl = Instance.new("TextLabel")
+    infoLbl.Size = UDim2.fromScale(1, 1)
+    infoLbl.BackgroundTransparency = 1
+    infoLbl.TextColor3 = C.Text
+    infoLbl.Font = Enum.Font.GothamBold
+    infoLbl.TextSize = 10
+    infoLbl.Parent = bb
 
-    local hpBarBg = Instance.new("Frame")
-    hpBarBg.Size = UDim2.new(0.8, 0, 0, 4)
-    hpBarBg.Position = UDim2.new(0.1, 0, 0, 16)
-    hpBarBg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    hpBarBg.BorderSizePixel = 0
-    hpBarBg.Parent = bb
-    Instance.new("UICorner", hpBarBg).CornerRadius = UDim.new(1, 0)
-
-    local hpFill = Instance.new("Frame")
-    hpFill.Size = UDim2.new(math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1), 0, 1, 0)
-    hpFill.BackgroundColor3 = C.Green
-    hpFill.BorderSizePixel = 0
-    hpFill.Parent = hpBarBg
-    Instance.new("UICorner", hpFill).CornerRadius = UDim.new(1, 0)
-
-    local conn = hum.HealthChanged:Connect(function(newHp)
-        hpFill.Size = UDim2.new(math.clamp(newHp / math.max(hum.MaxHealth, 1), 0, 1), 0, 1, 0)
-    end)
-
-    ESPStorage[player] = {Highlight = hl, Billboard = bb, Conn = conn}
+    ESPStorage[player] = {Highlight = hl, Billboard = bb, Label = infoLbl, Hum = hum, Root = root}
 end
+
+RunService.RenderStepped:Connect(function()
+    if not ESPActive then return end
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+    for player, data in pairs(ESPStorage) do
+        if data.Root and data.Hum and myRoot then
+            local dist = math.floor((data.Root.Position - myRoot.Position).Magnitude)
+            local hpPercent = math.clamp(math.floor((data.Hum.Health / math.max(data.Hum.MaxHealth, 1)) * 100), 0, 100)
+            data.Label.Text = string.format("%s • %dm • %d%%", player.DisplayName, dist, hpPercent)
+        end
+    end
+end)
 
 local function toggleESP(state)
     ESPActive = state
@@ -912,38 +852,38 @@ local function toggleESP(state)
         for p, data in pairs(ESPStorage) do
             if data.Highlight then data.Highlight:Destroy() end
             if data.Billboard then data.Billboard:Destroy() end
-            if data.Conn then data.Conn:Disconnect() end
         end
         table.clear(ESPStorage)
     end
 end
 
--- 14. POPULATE CONTROLS IN LEFT COLUMN
+-- 15. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Nearest swipe", "OFF", 2, function(bText, bStroke, sLbl)
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Nearest swipe", "OFF", 2, function(bText, bStroke, sLbl, setActive)
     autoCandyFarm = not autoCandyFarm
     bText.Text = autoCandyFarm and "RUNNING" or "OFF"
     bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
     bStroke.Color = autoCandyFarm and C.Green or C.Border
     sLbl.Text = autoCandyFarm and "Active • Ensure Ghost Net is equipped" or "Requires Ghost Net equipped • Nearest swipe"
+    setActive(autoCandyFarm)
     Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Activated (Net Required)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
 end)
 
-local AutoAttackActive = false
-CreateActionCard(LeftCol, "AUTO ATTACK LOOP", "Simulates Click/Tap & fires attack replays", "OFF", 3, function(bText, bStroke, sLbl)
+CreateActionCard(LeftCol, "NATURAL AUTO ATTACK", "Simulates player clicks & mobile taps", "OFF", 3, function(bText, bStroke, sLbl, setActive)
     AutoAttackActive = not AutoAttackActive
     bText.Text = AutoAttackActive and "ACTIVE" or "OFF"
     bText.TextColor3 = AutoAttackActive and C.Green or C.Muted
     bStroke.Color = AutoAttackActive and C.Green or C.Border
-    sLbl.Text = AutoAttackActive and "Continuous click/tap & remote strikes" or "Simulates Click/Tap & fires attack replays"
-    Notify("Combat Loop", AutoAttackActive and "Auto Attack Running" or "Auto Attack Stopped", AutoAttackActive and C.Green or C.Red)
+    sLbl.Text = AutoAttackActive and "Tapping screen & clicking weapon" or "Simulates player clicks & mobile taps"
+    setActive(AutoAttackActive)
+    Notify("Auto Attack", AutoAttackActive and "Tap Loop Active" or "Tap Loop Halted", AutoAttackActive and C.Green or C.Red)
 
     if AutoAttackActive then
         task.spawn(function()
             while AutoAttackActive do
-                executeAttackCycle()
-                task.wait(0.18)
+                executeNaturalClick()
+                task.wait(LegitModeActive and 0.28 or 0.16)
             end
         end)
     end
@@ -951,16 +891,29 @@ end)
 
 AddSection(LeftCol, "VISUALS", 4)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Chams highlight, nameplate & health", "OFF", 5, function(bText, bStroke, sLbl)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", 5, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
     bStroke.Color = ESPActive and C.Green or C.Border
-    sLbl.Text = ESPActive and "Showing player positions & vital stats" or "Chams highlight, nameplate & health"
-    Notify("Visual System", ESPActive and "ESP Highlights Enabled" or "ESP Highlights Disabled", ESPActive and C.Green or C.Red)
+    sLbl.Text = ESPActive and "Showing distance, outline & HP %" or "Outline chams, distance & HP %"
+    setActive(ESPActive)
+    Notify("ESP Visuals", ESPActive and "Chams & Distance Active" or "Chams Disabled", ESPActive and C.Green or C.Red)
 end)
 
--- 15. SETTINGS DRAWER OVERLAY
+AddSection(LeftCol, "SECURITY", 6)
+
+CreateActionCard(LeftCol, "LEGIT MODE", "Humanized delays to prevent kicks", "OFF", 7, function(bText, bStroke, sLbl, setActive)
+    LegitModeActive = not LegitModeActive
+    bText.Text = LegitModeActive and "SAFE" or "OFF"
+    bText.TextColor3 = LegitModeActive and C.Green or C.Muted
+    bStroke.Color = LegitModeActive and C.Green or C.Border
+    sLbl.Text = LegitModeActive and "Paced attacks & anti-detection delays" or "Humanized delays to prevent kicks"
+    setActive(LegitModeActive)
+    Notify("Legit Guard", LegitModeActive and "Safe Timing Enforced" or "Maximum Speed Restored", LegitModeActive and C.Green or C.Red)
+end)
+
+-- 16. SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -995,69 +948,86 @@ dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
 AddSection(DrawerScroll, "IDLE & AFK", 1)
-CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disconnect", "ON", 2, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disconnect", "ON", 2, function(bText, bStroke, _, setActive)
     AntiAFKActive = not AntiAFKActive
     bText.Text = AntiAFKActive and "ON" or "OFF"
     bText.TextColor3 = AntiAFKActive and C.Green or C.Muted
     bStroke.Color = AntiAFKActive and C.Green or C.Border
+    setActive(AntiAFKActive)
     Notify("Anti-AFK", AntiAFKActive and "Anti-AFK Protected" or "Anti-AFK Disabled", C.Accent)
 end)
 
 AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", 4, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", 4, function(bText, bStroke, _, setActive)
     SensorInfoActive = not SensorInfoActive
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
     bStroke.Color = SensorInfoActive and C.Green or C.Border
+    setActive(SensorInfoActive)
     Notify("Privacy Mode", SensorInfoActive and "IDs Censored" or "IDs Exposed", C.Accent)
 end)
 
 AddSection(DrawerScroll, "MONITORING", 5)
-CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", 6, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", 6, function(bText, bStroke, _, setActive)
     MonitorFPS = not MonitorFPS
     bText.Text = MonitorFPS and "ON" or "OFF"
     bText.TextColor3 = MonitorFPS and C.Green or C.Muted
     bStroke.Color = MonitorFPS and C.Green or C.Border
+    setActive(MonitorFPS)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", 7, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", 7, function(bText, bStroke, _, setActive)
     MonitorPing = not MonitorPing
     bText.Text = MonitorPing and "ON" or "OFF"
     bText.TextColor3 = MonitorPing and C.Green or C.Muted
     bStroke.Color = MonitorPing and C.Green or C.Border
+    setActive(MonitorPing)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", 8, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", 8, function(bText, bStroke, _, setActive)
     MonitorMem = not MonitorMem
     bText.Text = MonitorMem and "ON" or "OFF"
     bText.TextColor3 = MonitorMem and C.Green or C.Muted
     bStroke.Color = MonitorMem and C.Green or C.Border
+    setActive(MonitorMem)
 end)
 
-AddSection(DrawerScroll, "ENVIRONMENT & GRAPHICS", 9)
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", 10, function(bText, bStroke)
-    local active = not Lighting.GlobalShadows
-    Lighting.GlobalShadows = not active
-    bText.Text = active and "ON" or "OFF"
-    bText.TextColor3 = active and C.AccentGlow or C.Muted
-    bStroke.Color = active and C.AccentGlow or C.Border
-    Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
+AddSection(DrawerScroll, "INTERFACE & VISUALS", 9)
+CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing animations", "ON", 10, function(bText, bStroke, _, setActive)
+    AnimationsEnabled = not AnimationsEnabled
+    bText.Text = AnimationsEnabled and "ON" or "OFF"
+    bText.TextColor3 = AnimationsEnabled and C.Green or C.Muted
+    bStroke.Color = AnimationsEnabled and C.Green or C.Border
+    setActive(AnimationsEnabled)
+    Notify("Animations", AnimationsEnabled and "Easing Enabled" or "Instant Snapping Enabled", C.Accent)
 end)
 
-AddSection(DrawerScroll, "INTERFACE SETTINGS", 11)
-CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows status banners", "ON", 12, function(bText, bStroke)
-    NotificationsEnabled = not NotificationsEnabled
-    bText.Text = NotificationsEnabled and "ON" or "OFF"
-    bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
-    bStroke.Color = NotificationsEnabled and C.Green or C.Border
-end)
-
-CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Shows mobile 🍁 icon", "ON", 13, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", 11, function(bText, bStroke, _, setActive)
     local nextState = not (MobileToggle and MobileToggle.Visible)
     if setFloatingIconVisible then setFloatingIconVisible(nextState) end
     bText.Text = nextState and "ON" or "OFF"
     bText.TextColor3 = nextState and C.Green or C.Muted
     bStroke.Color = nextState and C.Green or C.Border
+    setActive(nextState)
+    Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
+end)
+
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", 12, function(bText, bStroke, _, setActive)
+    local active = not Lighting.GlobalShadows
+    Lighting.GlobalShadows = not active
+    bText.Text = active and "ON" or "OFF"
+    bText.TextColor3 = active and C.AccentGlow or C.Muted
+    bStroke.Color = active and C.AccentGlow or C.Border
+    setActive(active)
+    Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
+end)
+
+CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows status banner banners", "ON", 13, function(bText, bStroke, _, setActive)
+    NotificationsEnabled = not NotificationsEnabled
+    bText.Text = NotificationsEnabled and "ON" or "OFF"
+    bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
+    bStroke.Color = NotificationsEnabled and C.Green or C.Border
+    setActive(NotificationsEnabled)
 end)
 
 AddSection(DrawerScroll, "DANGER ZONE", 14)
@@ -1143,7 +1113,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 16. SAFE CLAMPING
+-- 17. SAFE CLAMPING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1164,7 +1134,7 @@ local function clampPosition(rawPos, obj)
     return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
 end
 
--- 17. HEADER DRAGGING
+-- 18. DRAGGING LOGIC
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -1194,7 +1164,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. ENTRANCE WITH INTRO LOADER (PREVENTS JITTER)
+-- 19. ENTRANCE & INTRO LOADER
 local isTransitioning = false
 local isOpen = false
 
@@ -1202,48 +1172,54 @@ local function openMenu()
     if isTransitioning or isOpen then return end
     isTransitioning = true
 
-    -- 1. Pulse floating icon
-    if MobileToggle and MobileToggle.Visible then
+    if MobileToggle and MobileToggle.Visible and AnimationsEnabled then
         tw(MobileToggle, {Size = UDim2.new(0, 32, 0, 32), Rotation = 20}, 0.1, Enum.EasingStyle.Quart)
         task.delay(0.1, function()
             tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.18, Enum.EasingStyle.Back)
         end)
     end
 
-    -- 2. Fade in backdrop & show loading pill
     Backdrop.Visible = true
     Backdrop.BackgroundTransparency = 1
     tw(Backdrop, {BackgroundTransparency = 0.5}, 0.2)
 
-    LoaderPill.Visible = true
-    LoaderPill.BackgroundTransparency = 0.4
-    Spinner.Rotation = 0
-    local spinTween = TweenService:Create(Spinner, TweenInfo.new(0.6, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
-    spinTween:Play()
+    if AnimationsEnabled then
+        LoaderPill.Visible = true
+        LoaderPill.BackgroundTransparency = 0.4
+        Spinner.Rotation = 0
+        local spinTween = TweenService:Create(Spinner, TweenInfo.new(0.6, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
+        spinTween:Play()
+        task.wait(0.2)
+        spinTween:Cancel()
+        LoaderPill.Visible = false
+    end
 
-    -- 3. Short asset settle delay
-    task.wait(0.24)
-    spinTween:Cancel()
-    LoaderPill.Visible = false
-
-    -- 4. Smooth modal glide-in
     isOpen = true
     Card.Visible = true
-    Card.Position = UDim2.new(0.5, 0, 0.54, 0)
-    Card.Size = UDim2.new(0, 520, 0, 290)
-    Card.Rotation = -8
-    Card.BackgroundTransparency = 0.4
 
-    local openAnim = tw(Card, {
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 580, 0, 345),
-        Rotation = 0,
-        BackgroundTransparency = 0
-    }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    if AnimationsEnabled then
+        Card.Position = UDim2.new(0.5, 0, 0.54, 0)
+        Card.Size = UDim2.new(0, 520, 0, 290)
+        Card.Rotation = -8
+        Card.BackgroundTransparency = 0.4
 
-    openAnim.Completed:Connect(function()
+        local openAnim = tw(Card, {
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 580, 0, 345),
+            Rotation = 0,
+            BackgroundTransparency = 0
+        }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+        openAnim.Completed:Connect(function()
+            isTransitioning = false
+        end)
+    else
+        Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+        Card.Size = UDim2.new(0, 580, 0, 345)
+        Card.Rotation = 0
+        Card.BackgroundTransparency = 0
         isTransitioning = false
-    end)
+    end
 end
 
 local function closeMenu()
@@ -1251,28 +1227,34 @@ local function closeMenu()
     isTransitioning = true
     isOpen = false
 
-    tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
-    local closeAnim = tw(Card, {
-        Position = UDim2.new(0.5, 0, 0.53, 0),
-        Size = UDim2.new(0, 500, 0, 280),
-        Rotation = 6,
-        BackgroundTransparency = 1
-    }, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    if AnimationsEnabled then
+        tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
+        local closeAnim = tw(Card, {
+            Position = UDim2.new(0.5, 0, 0.53, 0),
+            Size = UDim2.new(0, 500, 0, 280),
+            Rotation = 6,
+            BackgroundTransparency = 1
+        }, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
 
-    closeAnim.Completed:Connect(function()
+        closeAnim.Completed:Connect(function()
+            Backdrop.Visible = false
+            Card.Visible = false
+            Card.Rotation = 0
+            isTransitioning = false
+        end)
+    else
         Backdrop.Visible = false
         Card.Visible = false
-        Card.Rotation = 0
         isTransitioning = false
-    end)
+    end
 end
 
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 19. MOBILE FLOATING BUTTON (🍁)
+-- 20. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
-MobileToggle.Name = "PolyLoot_MobileToggle"
+MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
 MobileToggle.Position = UDim2.new(0, 30, 0.5, 0)
 MobileToggle.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1294,14 +1276,23 @@ mtStroke.Parent = MobileToggle
 setFloatingIconVisible = function(visible)
     if visible then
         MobileToggle.Visible = true
-        tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.25, Enum.EasingStyle.Back)
+        if AnimationsEnabled then
+            tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.25, Enum.EasingStyle.Back)
+        else
+            MobileToggle.Size = UDim2.new(0, 38, 0, 38)
+            MobileToggle.Rotation = 0
+        end
     else
-        local t = tw(MobileToggle, {Size = UDim2.new(0, 0, 0, 0), Rotation = -90}, 0.2, Enum.EasingStyle.Quart)
-        t.Completed:Connect(function()
-            if not MobileToggle.Visible or MobileToggle.Size.X.Offset == 0 then
-                MobileToggle.Visible = false
-            end
-        end)
+        if AnimationsEnabled then
+            local t = tw(MobileToggle, {Size = UDim2.new(0, 0, 0, 0), Rotation = -90}, 0.2, Enum.EasingStyle.Quart)
+            t.Completed:Connect(function()
+                if not MobileToggle.Visible or MobileToggle.Size.X.Offset == 0 then
+                    MobileToggle.Visible = false
+                end
+            end)
+        else
+            MobileToggle.Visible = false
+        end
     end
 end
 
@@ -1343,10 +1334,11 @@ MobileToggle.InputBegan:Connect(function(input)
     end
 end)
 
+-- PC KEYBOARD BIND (RightControl)
 UserInputService.InputBegan:Connect(function(inp, gpe)
     if not gpe and inp.KeyCode == Enum.KeyCode.RightControl then
         toggleMenu()
     end
 end)
 
-print("[Poly Loot] Polished Mobile Edition initialized. Tap 🍁 or press RightCtrl to open.")
+print("[Lumacore] Poly Loot Suite ready. Tap 🍁 or press RightControl to launch.")
