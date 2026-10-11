@@ -76,7 +76,6 @@ ScreenGui.Parent = TargetParent
 
 -- 4. DYNAMIC REMOTES RESOLVER
 local GhostSwingRemote = nil
-local WeaponAttackRemote = nil
 local ResetRequestedRemote = nil
 
 local function resolveRemotes()
@@ -90,19 +89,6 @@ local function resolveRemotes()
         end
         if not GhostSwingRemote then
             GhostSwingRemote = ReplicatedStorage:FindFirstChild("GhostSwing", true)
-        end
-    end)
-
-    pcall(function()
-        local wEngine = ReplicatedStorage:FindFirstChild("Weapon_Engine")
-        if wEngine then
-            local remotes = wEngine:FindFirstChild("Remotes")
-            if remotes then
-                WeaponAttackRemote = remotes:FindFirstChild("WeaponAttack")
-            end
-        end
-        if not WeaponAttackRemote then
-            WeaponAttackRemote = ReplicatedStorage:FindFirstChild("WeaponAttack", true)
         end
     end)
 
@@ -587,7 +573,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (IMMEDIATE OUTLINE PERSISTENCE)
+-- 10. REUSABLE ACTION CARD BUILDER
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -711,7 +697,7 @@ local function locateGhostFolder()
     local folder = Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
     if folder then return folder end
     for _, child in ipairs(Workspace:GetChildren()) do
-        if string.find(string.lower(child.Name), "ghost") and child:IsA("Folder") or child:IsA("Model") then
+        if string.find(string.lower(child.Name), "ghost") and (child:IsA("Folder") or child:IsA("Model")) then
             return child
         end
     end
@@ -763,8 +749,8 @@ local function autoEquipNet()
     end
 end
 
--- 13. CANDY CORN ENGINE (3-STATE: OFF -> SAFE AI -> TP SWEEP)
-local CandyFarmMode = "OFF"
+-- 13. DIRECT CANDY CORN AUTO-FARM (FAST UNDERGROUND TP)
+local autoCandyFarm = false
 local isUnderground = false
 
 RunService.Stepped:Connect(function()
@@ -798,30 +784,16 @@ local function executeGhostSwing(ghost)
         pcall(function() GhostSwingRemote:FireServer(ghost.Name) end)
         pcall(function() GhostSwingRemote:FireServer(ghost) end)
     end
-    if WeaponAttackRemote then
-        pcall(function() WeaponAttackRemote:FireServer() end)
-    end
-end
-
-local function checkObstaclesAndJump(hrp, humanoid, targetPos)
-    local origin = hrp.Position
-    local dir = (targetPos - origin).Unit * 5
-    local rParams = RaycastParams.new()
-    rParams.FilterDescendantsInstances = {LocalPlayer.Character}
-    rParams.FilterType = RaycastFilterType.Exclude
-
-    local hit = Workspace:Raycast(origin, dir, rParams)
-    if hit and hit.Instance and hit.Instance.CanCollide then
-        humanoid.Jump = true
-    end
-    if targetPos.Y > origin.Y + 2.5 then
-        humanoid.Jump = true
+    local char = LocalPlayer.Character
+    local tool = char and char:FindFirstChildWhichIsA("Tool")
+    if tool then
+        pcall(function() tool:Activate() end)
     end
 end
 
 task.spawn(function()
     while true do
-        if CandyFarmMode == "TP" then
+        if autoCandyFarm then
             autoEquipNet()
             local ghost, ghostPart = getNearestGhost()
             local char = LocalPlayer.Character
@@ -841,25 +813,6 @@ task.spawn(function()
                 restoreSurface()
             end
             task.wait(0.1)
-
-        elseif CandyFarmMode == "SAFE" then
-            restoreSurface()
-            autoEquipNet()
-            local ghost, ghostPart = getNearestGhost()
-            local char = LocalPlayer.Character
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-            if ghost and ghostPart and humanoid and hrp then
-                local dist = (ghostPart.Position - hrp.Position).Magnitude
-                humanoid:MoveTo(ghostPart.Position)
-                checkObstaclesAndJump(hrp, humanoid, ghostPart.Position)
-
-                if dist <= 7.5 then
-                    executeGhostSwing(ghost)
-                end
-            end
-            task.wait(0.12)
         else
             restoreSurface()
             task.wait(0.2)
@@ -1040,69 +993,22 @@ local function toggleESP(state)
     end
 end
 
--- 16. WEAPON ATTACK LOOP
-local WeaponAttackActive = false
-local function toggleWeaponAttack(state)
-    WeaponAttackActive = state
-    if WeaponAttackActive then
-        task.spawn(function()
-            while WeaponAttackActive do
-                resolveRemotes()
-                if WeaponAttackRemote then
-                    pcall(function() WeaponAttackRemote:FireServer() end)
-                end
-                local char = LocalPlayer.Character
-                local tool = char and char:FindFirstChildWhichIsA("Tool")
-                if tool then
-                    pcall(function() tool:Activate() end)
-                end
-                task.wait(0.12)
-            end
-        end)
-    end
-end
-
--- 17. POPULATE CONTROLS IN LEFT COLUMN
+-- 16. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Tap: Safe AI -> Underground TP -> OFF", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
-    if CandyFarmMode == "OFF" then
-        CandyFarmMode = "SAFE"
-        bText.Text = "SAFE AI"
-        bText.TextColor3 = C.Green
-        sLbl.Text = "Mode: Safe AI • Running & leaping after ghosts"
-        setActive(true, C.Green)
-        Notify("Auto Candy Corn", "Safe AI Mode Active (Walking/Jumping)", C.Green)
-    elseif CandyFarmMode == "SAFE" then
-        CandyFarmMode = "TP"
-        bText.Text = "TP SWEEP"
-        bText.TextColor3 = C.AccentGlow
-        sLbl.Text = "Mode: Fast TP • Sweeping underground"
-        setActive(true, C.Accent)
-        Notify("Auto Candy Corn", "Fast TP Mode Active (Underground)", C.Accent)
-    else
-        CandyFarmMode = "OFF"
-        bText.Text = "OFF"
-        bText.TextColor3 = C.Muted
-        sLbl.Text = "Tap: Safe AI -> Underground TP -> OFF"
-        setActive(false)
-        restoreSurface()
-        Notify("Auto Candy Corn", "Candy Corn Farming Disabled", C.Red)
-    end
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Auto-equips net", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+    autoCandyFarm = not autoCandyFarm
+    bText.Text = autoCandyFarm and "RUNNING" or "OFF"
+    bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
+    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Underground TP farm • Auto-equips net"
+    setActive(autoCandyFarm)
+    if not autoCandyFarm then restoreSurface() end
+    Notify("Auto Candy Corn", autoCandyFarm and "TP Farm Activated" or "TP Farm Disabled", autoCandyFarm and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "RAPID WEAPON ATTACK", "Direct WeaponAttack remote hit loop", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
-    toggleWeaponAttack(not WeaponAttackActive)
-    bText.Text = WeaponAttackActive and "ACTIVE" or "OFF"
-    bText.TextColor3 = WeaponAttackActive and C.Green or C.Muted
-    sLbl.Text = WeaponAttackActive and "Spamming server weapon attacks" or "Direct WeaponAttack remote hit loop"
-    setActive(WeaponAttackActive)
-    Notify("Weapon Engine", WeaponAttackActive and "Rapid Weapon Attack Active" or "Weapon Attack Halted", WeaponAttackActive and C.Green or C.Red)
-end)
+AddSection(LeftCol, "VISUALS", 3)
 
-AddSection(LeftCol, "VISUALS", 4)
-
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1111,7 +1017,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1120,7 +1026,7 @@ CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF
     Notify("Ghost Visuals", GhostESPActive and "Ghost ESP Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 18. SETTINGS DRAWER OVERLAY
+-- 17. SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -1297,8 +1203,7 @@ DestroyCard.MouseButton1Click:Connect(function()
         end)
     else
         if timerThread then task.cancel(timerThread) end
-        CandyFarmMode = "OFF"
-        WeaponAttackActive = false
+        autoCandyFarm = false
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
@@ -1324,7 +1229,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 19. SAFE CLAMPING & DRAGGING
+-- 18. SAFE CLAMPING & DRAGGING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1374,7 +1279,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 20. ENTRANCE & INTRO LOADER
+-- 19. ENTRANCE & INTRO LOADER
 local isTransitioning = false
 local isOpen = false
 
@@ -1462,7 +1367,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 21. MOBILE FLOATING BUTTON (🍁)
+-- 20. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
@@ -1551,4 +1456,4 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
-print("[Lumacore] Poly Loot Suite updated successfully.")
+print("[Lumacore] Poly Loot Definitive Suite loaded.")
