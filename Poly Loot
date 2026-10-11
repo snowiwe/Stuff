@@ -1,16 +1,19 @@
--- // POLY LOOT - PROFILE CARD & HALLOWEEN FARM SUITE //
+-- // POLY LOOT - CANDY FARM & SETTINGS ONLY //
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
+local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-local ScreenName = "PolyLoot_ProfileCard"
+local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera", 3)
+local ScreenName = "PolyLoot_CandyEdition"
 
+-- 1. CONTAINER MOUNTING
 local function resolveContainer()
     local okHui, h = pcall(function()
         if typeof(gethui) == "function" then return gethui() end
@@ -25,35 +28,30 @@ if not TargetParent then return end
 local oldUI = TargetParent:FindFirstChild(ScreenName)
 if oldUI then oldUI:Destroy() end
 
+-- 2. AUTUMN PALETTE
 local C = {
-    Bg         = Color3.fromRGB(18, 16, 15),
-    CardBg     = Color3.fromRGB(26, 23, 21),
-    Surface    = Color3.fromRGB(34, 30, 27),
-    Hover      = Color3.fromRGB(46, 40, 36),
-    Border     = Color3.fromRGB(56, 48, 44),
+    Bg         = Color3.fromRGB(22, 18, 16),
+    Surface    = Color3.fromRGB(32, 26, 23),
+    Hover      = Color3.fromRGB(44, 35, 30),
+    Border     = Color3.fromRGB(60, 48, 40),
     Accent     = Color3.fromRGB(224, 112, 43),
     AccentGlow = Color3.fromRGB(245, 148, 68),
+    PillActive = Color3.fromRGB(48, 38, 32),
     Text       = Color3.fromRGB(250, 244, 238),
     Muted      = Color3.fromRGB(186, 172, 162),
-    Dim        = Color3.fromRGB(130, 118, 110),
-    Red        = Color3.fromRGB(224, 64, 78),
+    Dim        = Color3.fromRGB(128, 114, 104),
+    Red        = Color3.fromRGB(217, 68, 54),
+    RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
 }
 
-local HitboxColors = {
-    {name = "Pumpkin Amber", color = Color3.fromRGB(224, 112, 43)},
-    {name = "Crimson Red",   color = Color3.fromRGB(224, 64, 78)},
-    {name = "Electric Green",color = Color3.fromRGB(64, 192, 110)},
-}
-local CurrentColorIndex = 1
-
 local function tw(obj, props, dur, style, dir)
-    local t = TweenService:Create(obj, TweenInfo.new(dur or 0.22, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props)
+    local t = TweenService:Create(obj, TweenInfo.new(dur or 0.18, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props)
     t:Play()
     return t
 end
 
--- 1. ROOT GUI
+-- 3. ROOT GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = ScreenName
 ScreenGui.ResetOnSpawn = false
@@ -67,8 +65,8 @@ local function Notify(text, color)
     if not NotificationsEnabled then return end
     task.spawn(function()
         local toast = Instance.new("Frame")
-        toast.Size = UDim2.new(0, 200, 0, 32)
-        toast.Position = UDim2.new(0.5, -100, 0.88, 0)
+        toast.Size = UDim2.new(0, 190, 0, 30)
+        toast.Position = UDim2.new(0.5, -95, 0.88, 0)
         toast.BackgroundColor3 = C.Surface
         toast.BorderSizePixel = 0
         toast.ZIndex = 2000
@@ -90,235 +88,270 @@ local function Notify(text, color)
         lbl.ZIndex = 2001
         lbl.Parent = toast
 
-        tw(toast, {Position = UDim2.new(0.5, -100, 0.84, 0)}, 0.2)
+        tw(toast, {Position = UDim2.new(0.5, -95, 0.84, 0)}, 0.2)
         task.wait(2)
-        tw(toast, {Position = UDim2.new(0.5, -100, 0.88, 0), BackgroundTransparency = 1}, 0.25)
+        tw(toast, {Position = UDim2.new(0.5, -95, 0.88, 0), BackgroundTransparency = 1}, 0.25)
         tw(lbl, {TextTransparency = 1}, 0.25)
         task.wait(0.25)
         toast:Destroy()
     end)
 end
 
--- 2. BACKDROP
-local Backdrop = Instance.new("TextButton")
-Backdrop.Name = "Backdrop"
-Backdrop.Size = UDim2.fromScale(1, 1)
-Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Backdrop.BackgroundTransparency = 1
-Backdrop.AutoButtonColor = false
-Backdrop.Text = ""
-Backdrop.Parent = ScreenGui
+-- 4. STATS MONITOR OVERLAY
+local MonitorFPS = false
+local MonitorPing = false
+local MonitorMem = false
 
--- 3. MAIN PROFILE CARD
-local Card = Instance.new("Frame")
-Card.Name = "ProfileCard"
-Card.Size = UDim2.new(0, 580, 0, 340)
-Card.Position = UDim2.new(0.5, 0, 0.5, 0)
-Card.AnchorPoint = Vector2.new(0.5, 0.5)
-Card.BackgroundColor3 = C.Bg
-Card.BorderSizePixel = 0
-Card.ClipsDescendants = true
-Card.Active = true
-Card.Parent = ScreenGui
+local MonitorUI = Instance.new("Frame")
+MonitorUI.Size = UDim2.new(0, 95, 0, 0)
+MonitorUI.Position = UDim2.new(1, -105, 0, 12)
+MonitorUI.BackgroundColor3 = C.Surface
+MonitorUI.BackgroundTransparency = 0.15
+MonitorUI.Visible = false
+MonitorUI.ZIndex = 900
+MonitorUI.Parent = ScreenGui
 
-Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 12)
-local cStroke = Instance.new("UIStroke")
-cStroke.Color = C.Border
-cStroke.Thickness = 1.2
-cStroke.Parent = Card
+Instance.new("UICorner", MonitorUI).CornerRadius = UDim.new(0, 6)
+local mStroke = Instance.new("UIStroke")
+mStroke.Color = C.Border
+mStroke.Thickness = 1
+mStroke.Parent = MonitorUI
 
--- HEADER
-local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 48)
+local mLayout = Instance.new("UIListLayout")
+mLayout.Padding = UDim.new(0, 2)
+mLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+mLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+mLayout.Parent = MonitorUI
+
+local function createMonitorRow()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -8, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Visible = false
+    lbl.ZIndex = 901
+    lbl.Parent = MonitorUI
+    return lbl
+end
+
+local fpsRow = createMonitorRow()
+local pingRow = createMonitorRow()
+local memRow = createMonitorRow()
+
+local monitorConn = RunService.RenderStepped:Connect(function(dt)
+    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0)
+    if active == 0 then
+        MonitorUI.Visible = false
+    else
+        MonitorUI.Visible = true
+        MonitorUI.Size = UDim2.new(0, 95, 0, (active * 18) + 6)
+        fpsRow.Visible = MonitorFPS
+        if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / math.max(dt, 0.001)) end
+        pingRow.Visible = MonitorPing
+        if MonitorPing then pingRow.Text = "Ping: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms" end
+        memRow.Visible = MonitorMem
+        if MonitorMem then memRow.Text = "Mem: " .. math.floor(Stats:GetTotalMemoryUsageMb()) .. "MB" end
+    end
+end)
+
+-- 5. MAIN WINDOW FRAME
+local Frame = Instance.new("Frame")
+Frame.Name = "MainFrame"
+Frame.Size = UDim2.new(0, 280, 0, 230)
+Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+Frame.BackgroundColor3 = C.Bg
+Frame.BorderSizePixel = 0
+Frame.ClipsDescendants = true
+Frame.Active = true
+Frame.Parent = ScreenGui
+
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+local fStroke = Instance.new("UIStroke")
+fStroke.Color = C.Border
+fStroke.Thickness = 1.2
+fStroke.Parent = Frame
+
+local TopGrad = Instance.new("UIGradient")
+TopGrad.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 34, 28)),
+    ColorSequenceKeypoint.new(0.25, C.Bg),
+    ColorSequenceKeypoint.new(1, C.Bg)
+}
+TopGrad.Rotation = 90
+TopGrad.Parent = Frame
+
+-- 6. HEADER
+local Header = Instance.new("TextButton")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 42)
 Header.BackgroundTransparency = 1
-Header.Parent = Card
+Header.Text = ""
+Header.AutoButtonColor = false
+Header.Parent = Frame
+
+local TitleDot = Instance.new("Frame")
+TitleDot.Size = UDim2.new(0, 6, 0, 6)
+TitleDot.Position = UDim2.new(0, 14, 0.5, -3)
+TitleDot.BackgroundColor3 = C.Accent
+Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
+TitleDot.Parent = Header
 
 local Title = Instance.new("TextLabel")
-Title.Text = "POLY LOOT"
+Title.Text = "Poly Loot"
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 16
+Title.TextSize = 13
 Title.TextColor3 = C.Text
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Position = UDim2.new(0, 20, 0, 10)
-Title.Size = UDim2.new(0, 200, 0, 18)
+Title.Size = UDim2.new(1, -65, 1, 0)
+Title.Position = UDim2.new(0, 28, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Parent = Header
 
-local SubTitle = Instance.new("TextLabel")
-SubTitle.Text = "Live tactical combat, evasion & candy farm"
-SubTitle.Font = Enum.Font.Gotham
-SubTitle.TextSize = 11
-SubTitle.TextColor3 = C.Dim
-SubTitle.TextXAlignment = Enum.TextXAlignment.Left
-SubTitle.Position = UDim2.new(0, 20, 0, 28)
-SubTitle.Size = UDim2.new(0, 300, 0, 14)
-SubTitle.BackgroundTransparency = 1
-SubTitle.Parent = Header
+local SettingsBtn = Instance.new("TextButton")
+SettingsBtn.Name = "SettingsBtn"
+SettingsBtn.Size = UDim2.new(0, 26, 0, 26)
+SettingsBtn.Position = UDim2.new(1, -12, 0.5, -13)
+SettingsBtn.BackgroundColor3 = C.Surface
+SettingsBtn.Text = "⚙"
+SettingsBtn.TextColor3 = C.Muted
+SettingsBtn.Font = Enum.Font.GothamBold
+SettingsBtn.TextSize = 13
+SettingsBtn.AutoButtonColor = false
+SettingsBtn.ZIndex = 60
+SettingsBtn.Parent = Header
 
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 28, 0, 28)
-CloseBtn.Position = UDim2.new(1, -20, 0.5, 0)
-CloseBtn.AnchorPoint = Vector2.new(1, 0.5)
-CloseBtn.BackgroundColor3 = C.Red
-CloseBtn.Text = "✕"
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 12
-CloseBtn.AutoButtonColor = false
-CloseBtn.Parent = Header
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
+Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
+local sStroke = Instance.new("UIStroke")
+sStroke.Color = C.Border
+sStroke.Thickness = 1
+sStroke.Parent = SettingsBtn
 
--- BODY CONTAINER
-local Body = Instance.new("Frame")
-Body.Size = UDim2.new(1, -36, 1, -58)
-Body.Position = UDim2.new(0, 18, 0, 48)
-Body.BackgroundTransparency = 1
-Body.Parent = Card
-
--- LEFT COLUMN (SCROLLING STAT/ACTION ROWS)
-local LeftCol = Instance.new("ScrollingFrame")
-LeftCol.Size = UDim2.new(0.58, -6, 1, 0)
-LeftCol.Position = UDim2.new(0, 0, 0, 0)
-LeftCol.BackgroundTransparency = 1
-LeftCol.BorderSizePixel = 0
-LeftCol.ScrollBarThickness = 2
-LeftCol.ScrollBarImageColor3 = C.Border
-LeftCol.AutomaticCanvasSize = Enum.AutomaticSize.Y
-LeftCol.CanvasSize = UDim2.new(0, 0, 0, 0)
-LeftCol.Parent = Body
-
-local leftLayout = Instance.new("UIListLayout")
-leftLayout.Padding = UDim.new(0, 6)
-leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
-leftLayout.Parent = LeftCol
-
--- RIGHT COLUMN (AVATAR VIEWPORT)
-local RightCol = Instance.new("Frame")
-RightCol.Size = UDim2.new(0.42, -6, 1, 0)
-RightCol.Position = UDim2.new(0.58, 6, 0, 0)
-RightCol.BackgroundColor3 = C.CardBg
-RightCol.BorderSizePixel = 0
-RightCol.Parent = Body
-
-Instance.new("UICorner", RightCol).CornerRadius = UDim.new(0, 10)
-local rStroke = Instance.new("UIStroke")
-rStroke.Color = C.Border
-rStroke.Thickness = 1
-rStroke.Parent = RightCol
-
-local Viewport = Instance.new("ViewportFrame")
-Viewport.Size = UDim2.new(1, -12, 1, -34)
-Viewport.Position = UDim2.new(0, 6, 0, 6)
-Viewport.BackgroundTransparency = 1
-Viewport.Parent = RightCol
-
-local vpCam = Instance.new("Camera")
-vpCam.Parent = Viewport
-Viewport.CurrentCamera = vpCam
-
-local NameTag = Instance.new("TextLabel")
-NameTag.Size = UDim2.new(1, -12, 0, 20)
-NameTag.Position = UDim2.new(0, 6, 1, -26)
-NameTag.BackgroundTransparency = 1
-NameTag.Text = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")"
-NameTag.Font = Enum.Font.GothamMedium
-NameTag.TextSize = 11
-NameTag.TextColor3 = C.Muted
-NameTag.Parent = RightCol
-
-local function mountAvatarModel()
-    Viewport:ClearAllChildren()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    char.Archivable = true
-    local clone = char:Clone()
-    char.Archivable = false
-
-    clone.Parent = Viewport
-    local root = clone:FindFirstChild("HumanoidRootPart") or clone:FindFirstChild("Head")
-    if root then
-        vpCam.CFrame = CFrame.new(root.Position + Vector3.new(0, 0.4, 4.2), root.Position + Vector3.new(0, 0.2, 0))
-    end
-end
-task.spawn(mountAvatarModel)
-LocalPlayer.CharacterAdded:Connect(function()
-    task.wait(0.5)
-    mountAvatarModel()
+SettingsBtn.MouseEnter:Connect(function()
+    tw(SettingsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
+    tw(sStroke, {Color = C.Accent}, 0.15)
+end)
+SettingsBtn.MouseLeave:Connect(function()
+    tw(SettingsBtn, {BackgroundColor3 = C.Surface, TextColor3 = C.Muted}, 0.15)
+    tw(sStroke, {Color = C.Border}, 0.15)
 end)
 
--- STAT/BUTTON ROW BUILDER
-local function CreateStatCard(title, defaultSub, initialBadgeText, callback)
-    local row = Instance.new("TextButton")
-    row.Size = UDim2.new(1, 0, 0, 46)
-    row.BackgroundColor3 = C.CardBg
-    row.AutoButtonColor = false
-    row.Text = ""
-    row.Parent = LeftCol
+-- 7. REUSABLE UI BUILDERS
+local function AddSection(parent, text, order)
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = text
+    lbl.Size = UDim2.new(1, 0, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Accent
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.LayoutOrder = order or 0
+    lbl.ZIndex = parent.ZIndex + 1
+    lbl.Parent = parent
+    return lbl
+end
 
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+local function AddToggle(parent, title, sub, defaultState, layoutOrder, cb)
+    local state = defaultState or false
+
+    local card = Instance.new("TextButton")
+    card.Size = UDim2.new(1, 0, 0, 42)
+    card.BackgroundColor3 = C.Surface
+    card.AutoButtonColor = false
+    card.Text = ""
+    card.LayoutOrder = layoutOrder or 0
+    card.ZIndex = parent.ZIndex
+    card.Parent = parent
+
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
     local s = Instance.new("UIStroke")
     s.Color = C.Border
     s.Thickness = 1
-    s.Parent = row
+    s.Parent = card
 
     local tLbl = Instance.new("TextLabel")
     tLbl.Text = title
-    tLbl.Font = Enum.Font.GothamBold
-    tLbl.TextSize = 11
+    tLbl.Font = Enum.Font.GothamMedium
+    tLbl.TextSize = 12
     tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 12, 0, 8)
-    tLbl.Size = UDim2.new(0.6, 0, 0, 14)
+    tLbl.Position = UDim2.new(0, 10, 0, 6)
+    tLbl.Size = UDim2.new(1, -55, 0, 15)
     tLbl.TextXAlignment = Enum.TextXAlignment.Left
     tLbl.BackgroundTransparency = 1
-    tLbl.Parent = row
+    tLbl.ZIndex = card.ZIndex + 1
+    tLbl.Parent = card
 
     local sLbl = Instance.new("TextLabel")
-    sLbl.Text = defaultSub
+    sLbl.Text = sub or ""
     sLbl.Font = Enum.Font.Gotham
     sLbl.TextSize = 10
     sLbl.TextColor3 = C.Dim
-    sLbl.Position = UDim2.new(0, 12, 0, 23)
-    sLbl.Size = UDim2.new(0.6, 0, 0, 14)
+    sLbl.Position = UDim2.new(0, 10, 0, 21)
+    sLbl.Size = UDim2.new(1, -55, 0, 14)
     sLbl.TextXAlignment = Enum.TextXAlignment.Left
     sLbl.BackgroundTransparency = 1
-    sLbl.Parent = row
+    sLbl.ZIndex = card.ZIndex + 1
+    sLbl.Parent = card
 
-    local badge = Instance.new("Frame")
-    badge.Size = UDim2.new(0, 78, 0, 22)
-    badge.Position = UDim2.new(1, -12, 0.5, 0)
-    badge.AnchorPoint = Vector2.new(1, 0.5)
-    badge.BackgroundColor3 = C.Surface
-    badge.Parent = row
-    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(0, 32, 0, 18)
+    track.Position = UDim2.new(1, -42, 0.5, -9)
+    track.BackgroundColor3 = state and C.Accent or C.Border
+    track.BorderSizePixel = 0
+    track.ZIndex = card.ZIndex + 1
+    track.Parent = card
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
 
-    local bStroke = Instance.new("UIStroke")
-    bStroke.Color = C.Border
-    bStroke.Thickness = 1
-    bStroke.Parent = badge
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = card.ZIndex + 2
+    knob.Parent = track
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
-    local bText = Instance.new("TextLabel")
-    bText.Size = UDim2.fromScale(1, 1)
-    bText.BackgroundTransparency = 1
-    bText.Text = initialBadgeText
-    bText.Font = Enum.Font.GothamBold
-    bText.TextSize = 10
-    bText.TextColor3 = C.Muted
-    bText.Parent = badge
-
-    row.MouseEnter:Connect(function()
-        tw(row, {BackgroundColor3 = C.Hover}, 0.15)
+    card.MouseEnter:Connect(function()
+        tw(card, {BackgroundColor3 = C.Hover}, 0.15)
         tw(s, {Color = C.AccentGlow}, 0.15)
     end)
-    row.MouseLeave:Connect(function()
-        tw(row, {BackgroundColor3 = C.CardBg}, 0.15)
+    card.MouseLeave:Connect(function()
+        tw(card, {BackgroundColor3 = C.Surface}, 0.15)
         tw(s, {Color = C.Border}, 0.15)
     end)
 
-    row.MouseButton1Click:Connect(function()
-        callback(bText, bStroke, sLbl)
+    card.MouseButton1Click:Connect(function()
+        state = not state
+        tw(track, {BackgroundColor3 = state and C.Accent or C.Border}, 0.2)
+        tw(knob, {
+            Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+        }, 0.15, Enum.EasingStyle.Back)
+        cb(state)
     end)
 end
 
--- 4. HALLOWEEN CANDY CORN / GHOST AUTO-FARM ENGINE
+-- 8. MAIN CONTENT CONTAINER
+local PageContainer = Instance.new("ScrollingFrame")
+PageContainer.Size = UDim2.new(1, -24, 1, -54)
+PageContainer.Position = UDim2.new(0, 12, 0, 48)
+PageContainer.BackgroundTransparency = 1
+PageContainer.BorderSizePixel = 0
+PageContainer.ScrollBarThickness = 2
+PageContainer.ScrollBarImageColor3 = C.Border
+PageContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+PageContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+PageContainer.Parent = Frame
+
+local pLayout = Instance.new("UIListLayout")
+pLayout.Padding = UDim.new(0, 6)
+pLayout.SortOrder = Enum.SortOrder.LayoutOrder
+pLayout.Parent = PageContainer
+
+-- 9. CANDY CORN / GHOST AUTO-FARM ENGINE
 local autoCandyFarm = false
 local isUnderground = false
 local GhostSwingRemote = nil
@@ -416,245 +449,288 @@ task.spawn(function()
     end
 end)
 
--- 5. COMBAT & HITBOX ENGINE
-local HitReplayEvent
-task.spawn(function()
-    pcall(function()
-        local ch = ReplicatedStorage:WaitForChild("ChickenOrHero", 4)
-        if ch then
-            local g = ch:WaitForChild("Game", 4)
-            if g then HitReplayEvent = g:WaitForChild("HitReplayEvent", 3) end
-        end
-    end)
+AddSection(PageContainer, "EVENT AUTOMATION", 1)
+AddToggle(PageContainer, "Auto Candy Corn", "Underground ghost swing loop", false, 2, function(active)
+    autoCandyFarm = active
+    Notify(active and "Candy Farm: ON" or "Candy Farm: OFF", active and C.Green or C.Red)
 end)
 
-local AuraHitboxActive = false
-local AuraBoxPart = nil
-local AuraBoxConn = nil
+-- 10. SETTINGS DRAWER
+local MobileToggle
+local setFloatingIconVisible
 
-local function cleanupAura()
-    if AuraBoxConn then AuraBoxConn:Disconnect(); AuraBoxConn = nil end
-    if AuraBoxPart then AuraBoxPart:Destroy(); AuraBoxPart = nil end
-end
+local Drawer = Instance.new("TextButton")
+Drawer.Size = UDim2.new(1, 0, 1, -42)
+Drawer.Position = UDim2.new(0, 0, 1, 0)
+Drawer.BackgroundColor3 = C.Bg
+Drawer.AutoButtonColor = false
+Drawer.Text = ""
+Drawer.ZIndex = 50
+Drawer.BorderSizePixel = 0
+Drawer.Parent = Frame
 
-local function executeTackle()
-    if not HitReplayEvent then return end
-    local char = LocalPlayer.Character
-    if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
+local DrawerScroll = Instance.new("ScrollingFrame")
+DrawerScroll.Size = UDim2.fromScale(1, 1)
+DrawerScroll.BackgroundTransparency = 1
+DrawerScroll.BorderSizePixel = 0
+DrawerScroll.ScrollBarThickness = 2
+DrawerScroll.ScrollBarImageColor3 = C.Border
+DrawerScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+DrawerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+DrawerScroll.ZIndex = 51
+DrawerScroll.Parent = Drawer
 
-    local now = os.time()
-    local attackUuid = HttpService:GenerateGUID(false)
-    local lookDir = char.HumanoidRootPart.CFrame.LookVector
+local dPad = Instance.new("UIPadding")
+dPad.PaddingTop = UDim.new(0, 12); dPad.PaddingLeft = UDim.new(0, 12); dPad.PaddingRight = UDim.new(0, 12); dPad.PaddingBottom = UDim.new(0, 14)
+dPad.Parent = DrawerScroll
 
-    local attackData = {
-        ["manual"] = true,
-        ["direction"] = lookDir,
-        ["id"] = attackUuid,
-        ["targets"] = {},
-        ["box"] = {["height"] = 16, ["far"] = 26, ["near"] = 0, ["width"] = 28},
-        ["character"] = char,
-        ["startedAt"] = now,
-        ["ends"] = now + 0.45,
-        ["starts"] = now,
-        ["kind"] = "Tackle",
-        ["canonicalId"] = attackUuid,
-        ["targetIds"] = {-1006, -1011}
-    }
+local dList = Instance.new("UIListLayout")
+dList.Padding = UDim.new(0, 6)
+dList.SortOrder = Enum.SortOrder.LayoutOrder
+dList.Parent = DrawerScroll
 
-    pcall(function()
-        HitReplayEvent:FireServer("Attack", attackData)
-    end)
-end
+AddSection(DrawerScroll, "MONITORING", 1)
+AddToggle(DrawerScroll, "Show FPS", "Toggles FPS counter in overlay", false, 2, function(active) MonitorFPS = active end)
+AddToggle(DrawerScroll, "Show Ping", "Toggles Ping counter in overlay", false, 3, function(active) MonitorPing = active end)
+AddToggle(DrawerScroll, "Show Memory", "Displays client MB usage", false, 4, function(active) MonitorMem = active end)
 
-local function setupAuraHitbox()
-    cleanupAura()
-    AuraBoxPart = Instance.new("Part")
-    AuraBoxPart.Name = "PolyLoot_SquaredHitbox"
-    AuraBoxPart.Anchored = true
-    AuraBoxPart.CanCollide = false
-    AuraBoxPart.CanTouch = false
-    AuraBoxPart.Transparency = 0.72
-    AuraBoxPart.Material = Enum.Material.Neon
-    AuraBoxPart.Color = HitboxColors[CurrentColorIndex].color
-    AuraBoxPart.Shape = Enum.PartType.Block
-    AuraBoxPart.Size = Vector3.new(16, 6, 16)
-    AuraBoxPart.Parent = Workspace
+AddSection(DrawerScroll, "PERFORMANCE", 5)
+AddToggle(DrawerScroll, "Low Performance", "Disables global shadows", false, 6, function(active)
+    Lighting.GlobalShadows = not active
+    Notify(active and "Low Performance: ON" or "Low Performance: OFF", C.Accent)
+end)
 
-    AuraBoxConn = RunService.RenderStepped:Connect(function()
-        if not AuraHitboxActive or not AuraBoxPart then return end
+AddSection(DrawerScroll, "INTERFACE", 7)
+AddToggle(DrawerScroll, "Notifications", "Shows bottom toast banners", true, 8, function(active) NotificationsEnabled = active end)
+AddToggle(DrawerScroll, "Show Floating Icon", "Shows 🍁 button (mobile toggle)", true, 9, function(active)
+    if setFloatingIconVisible then setFloatingIconVisible(active) end
+end)
+
+AddSection(DrawerScroll, "DANGER ZONE", 10)
+local DestroyBtn = Instance.new("TextButton")
+DestroyBtn.Size = UDim2.new(1, 0, 0, 42)
+DestroyBtn.BackgroundColor3 = C.Surface
+DestroyBtn.AutoButtonColor = false
+DestroyBtn.Text = ""
+DestroyBtn.ClipsDescendants = true
+DestroyBtn.ZIndex = 52
+DestroyBtn.LayoutOrder = 11
+DestroyBtn.Parent = DrawerScroll
+
+Instance.new("UICorner", DestroyBtn).CornerRadius = UDim.new(0, 8)
+local dBtnStroke = Instance.new("UIStroke")
+dBtnStroke.Color = C.Border
+dBtnStroke.Thickness = 1
+dBtnStroke.Parent = DestroyBtn
+
+local FillBar = Instance.new("Frame")
+FillBar.Size = UDim2.new(0, 0, 1, 0)
+FillBar.BackgroundColor3 = C.RedDark
+FillBar.BorderSizePixel = 0
+FillBar.ZIndex = 53
+FillBar.Parent = DestroyBtn
+
+local DestroyLbl = Instance.new("TextLabel")
+DestroyLbl.Text = "Destroy Interface"
+DestroyLbl.Font = Enum.Font.GothamBold
+DestroyLbl.TextSize = 12
+DestroyLbl.TextColor3 = C.Red
+DestroyLbl.Size = UDim2.fromScale(1, 1)
+DestroyLbl.BackgroundTransparency = 1
+DestroyLbl.ZIndex = 54
+DestroyLbl.Parent = DestroyBtn
+
+local confirmState = false
+local timerThread = nil
+
+DestroyBtn.MouseButton1Click:Connect(function()
+    if not confirmState then
+        confirmState = true
+        DestroyLbl.Text = "Tap Again to Confirm"
+        DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(dBtnStroke, {Color = C.Red}, 0.2)
+        FillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(FillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        timerThread = task.delay(3, function()
+            if confirmState and ScreenGui.Parent then
+                confirmState = false
+                DestroyLbl.Text = "Destroy Interface"
+                DestroyLbl.TextColor3 = C.Red
+                tw(dBtnStroke, {Color = C.Border}, 0.2)
+                FillBar.Size = UDim2.new(0, 0, 1, 0)
+            end
+        end)
+    else
+        if timerThread then task.cancel(timerThread) end
+        autoCandyFarm = false
+        if monitorConn then monitorConn:Disconnect() end
         local char = LocalPlayer.Character
-        if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if humanoid and hrp then
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            hrp.CFrame = hrp.CFrame + Vector3.new(0, 8, 0)
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
+        ScreenGui:Destroy()
+    end
+end)
 
-        local root = char.HumanoidRootPart
-        AuraBoxPart.CFrame = root.CFrame * CFrame.new(0, -0.5, 0)
+local drawerOpen = false
+local function toggleDrawer()
+    drawerOpen = not drawerOpen
+    tw(SettingsBtn, {Rotation = drawerOpen and 90 or 0}, 0.25, Enum.EasingStyle.Back)
+    if drawerOpen then
+        PageContainer.Visible = false
+        tw(Drawer, {Position = UDim2.new(0, 0, 0, 42)}, 0.25, Enum.EasingStyle.Quart)
+    else
+        local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.25, Enum.EasingStyle.Quart)
+        anim.Completed:Connect(function()
+            if not drawerOpen then PageContainer.Visible = true end
+        end)
+    end
+end
 
-        local enemyInside = false
-        local myPos = root.Position
+SettingsBtn.MouseButton1Click:Connect(function()
+    tw(SettingsBtn, {Size = UDim2.new(0, 23, 0, 23)}, 0.08, Enum.EasingStyle.Quart)
+    task.delay(0.08, function() tw(SettingsBtn, {Size = UDim2.new(0, 26, 0, 26)}, 0.12, Enum.EasingStyle.Back) end)
+    toggleDrawer()
+end)
 
-        for _, model in ipairs(Workspace:GetDescendants()) do
-            if model:IsA("Model") and model ~= char then
-                local hum = model:FindFirstChildOfClass("Humanoid")
-                local mRoot = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
-                if hum and hum.Health > 0 and mRoot and not Players:GetPlayerFromCharacter(model) then
-                    local offset = mRoot.Position - myPos
-                    if math.abs(offset.X) <= 8.5 and math.abs(offset.Z) <= 8.5 then
-                        enemyInside = true
-                        break
-                    end
+-- 11. SAFE VIEWPORT CLAMPING
+local function clampPosition(rawPos, obj)
+    local cam = Workspace.CurrentCamera
+    local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
+    if vSize.X <= 50 or vSize.Y <= 50 then return rawPos end
+
+    local oWidth = (obj.AbsoluteSize.X > 0 and obj.AbsoluteSize.X) or 280
+    local oHeight = (obj.AbsoluteSize.Y > 0 and obj.AbsoluteSize.Y) or 230
+    local pad = 6
+
+    local absX = (rawPos.X.Scale * vSize.X) + rawPos.X.Offset
+    local absY = (rawPos.Y.Scale * vSize.Y) + rawPos.Y.Offset
+
+    local minX = (obj.AnchorPoint.X * oWidth) + pad
+    local maxX = vSize.X - ((1 - obj.AnchorPoint.X) * oWidth) - pad
+    local minY = (obj.AnchorPoint.Y * oHeight) + pad
+    local maxY = vSize.Y - ((1 - obj.AnchorPoint.Y) * oHeight) - pad
+
+    return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
+end
+
+-- 12. DRAGGING LOGIC
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+
+        local moveConn, endConn
+        moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+            if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and dragging then
+                local delta = moveInput.Position - dragStart
+                local raw = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                Frame.Position = clampPosition(raw, Frame)
+            end
+        end)
+
+        endConn = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+                if moveConn then moveConn:Disconnect() end
+                if endConn then endConn:Disconnect() end
+            end
+        end)
+    end
+end)
+
+-- 13. FLOATING MOBILE TOGGLE BUTTON (🍁)
+local isMenuVisible = true
+local function toggleMenu()
+    isMenuVisible = not isMenuVisible
+    Frame.Visible = isMenuVisible
+    if MobileToggle and MobileToggle.Visible then
+        tw(MobileToggle, {Rotation = isMenuVisible and 0 or -45}, 0.2)
+    end
+end
+
+MobileToggle = Instance.new("TextButton")
+MobileToggle.Name = "PolyLoot_MobileToggle"
+MobileToggle.Size = UDim2.new(0, 38, 0, 38)
+MobileToggle.Position = UDim2.new(0, 30, 0.5, 0)
+MobileToggle.AnchorPoint = Vector2.new(0.5, 0.5)
+MobileToggle.BackgroundColor3 = C.Surface
+MobileToggle.Text = "🍁"
+MobileToggle.TextSize = 18
+MobileToggle.AutoButtonColor = false
+MobileToggle.Visible = true
+MobileToggle.ZIndex = 1500
+MobileToggle.ClipsDescendants = true
+MobileToggle.Parent = ScreenGui
+
+Instance.new("UICorner", MobileToggle).CornerRadius = UDim.new(0, 10)
+local mtStroke = Instance.new("UIStroke")
+mtStroke.Color = C.Border
+mtStroke.Thickness = 1.2
+mtStroke.Parent = MobileToggle
+
+setFloatingIconVisible = function(visible)
+    if visible then
+        MobileToggle.Visible = true
+        tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.25, Enum.EasingStyle.Back)
+    else
+        local t = tw(MobileToggle, {Size = UDim2.new(0, 0, 0, 0), Rotation = -90}, 0.2, Enum.EasingStyle.Quart)
+        t.Completed:Connect(function()
+            if not MobileToggle.Visible or MobileToggle.Size.X.Offset == 0 then
+                MobileToggle.Visible = false
+            end
+        end)
+    end
+end
+
+local iconDragging = false
+local iconDragStart = nil
+local iconStartPos = nil
+
+MobileToggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        iconDragging = false
+        iconDragStart = input.Position
+        iconStartPos = MobileToggle.Position
+
+        local moveConn, endConn
+        moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+            if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and iconDragStart then
+                local delta = moveInput.Position - iconDragStart
+                if delta.Magnitude > 6 then
+                    iconDragging = true
+                    local raw = UDim2.new(iconStartPos.X.Scale, iconStartPos.X.Offset + delta.X, iconStartPos.Y.Scale, iconStartPos.Y.Offset + delta.Y)
+                    MobileToggle.Position = clampPosition(raw, MobileToggle)
                 end
             end
-        end
+        end)
 
-        if enemyInside then
-            AuraBoxPart.Color = C.Red
-            executeTackle()
-        else
-            AuraBoxPart.Color = HitboxColors[CurrentColorIndex].color
-        end
-    end)
-end
-
--- 6. AUTO-DODGE & SPEED
-local AutoDodgeActive = false
-local DodgeCooldown = 0
-local AutoDodgeConn = nil
-
-local function triggerDodge()
-    if tick() - DodgeCooldown < 0.9 then return end
-    DodgeCooldown = tick()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        hum.Jump = true
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end
-
-local function setupAutoDodge()
-    if AutoDodgeConn then AutoDodgeConn:Disconnect(); AutoDodgeConn = nil end
-    AutoDodgeConn = RunService.Heartbeat:Connect(function()
-        if not AutoDodgeActive then return end
-        local char = LocalPlayer.Character
-        if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
-        local myPos = char.HumanoidRootPart.Position
-
-        for _, model in ipairs(Workspace:GetDescendants()) do
-            if model:IsA("Model") and model ~= char then
-                local hum = model:FindFirstChildOfClass("Humanoid")
-                local root = model:FindFirstChild("HumanoidRootPart")
-                if hum and hum.Health > 0 and root and not Players:GetPlayerFromCharacter(model) then
-                    local dist = (root.Position - myPos).Magnitude
-                    if dist <= 12 then
-                        triggerDodge()
-                        break
-                    end
-                end
+        endConn = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                if moveConn then moveConn:Disconnect() end
+                if endConn then endConn:Disconnect() end
+                if not iconDragging then toggleMenu() end
+                iconDragging = false
+                iconDragStart = nil
             end
-        end
-    end)
-end
-
-local SpeedOptions = {16, 24, 28, 32}
-local SpeedIndex = 1
-local SpeedConn = nil
-
-local function applySpeed()
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        char:FindFirstChildOfClass("Humanoid").WalkSpeed = SpeedOptions[SpeedIndex]
-    end
-end
-
--- 7. BUILD DASHBOARD ROWS
-CreateStatCard("AUTO CANDY CORN", "Underground ghost swing loop", "OFF", function(bText, bStroke, sLbl)
-    autoCandyFarm = not autoCandyFarm
-    bText.Text = autoCandyFarm and "ON" or "OFF"
-    bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    bStroke.Color = autoCandyFarm and C.Green or C.Border
-    Notify(autoCandyFarm and "Candy Farm: ON" or "Candy Farm: OFF", autoCandyFarm and C.Green or C.Red)
-end)
-
-CreateStatCard("SQUARED AURA", "360° square boundary detection", "OFF", function(bText, bStroke, sLbl)
-    AuraHitboxActive = not AuraHitboxActive
-    bText.Text = AuraHitboxActive and "ON" or "OFF"
-    bText.TextColor3 = AuraHitboxActive and C.Green or C.Muted
-    bStroke.Color = AuraHitboxActive and C.Green or C.Border
-    if AuraHitboxActive then setupAuraHitbox() else cleanupAura() end
-end)
-
-CreateStatCard("HITBOX THEME", "Active perimeter color palette", HitboxColors[CurrentColorIndex].name, function(bText, bStroke, sLbl)
-    CurrentColorIndex = (CurrentColorIndex % #HitboxColors) + 1
-    local chosen = HitboxColors[CurrentColorIndex]
-    bText.Text = chosen.name
-    bText.TextColor3 = chosen.color
-    bStroke.Color = chosen.color
-    if AuraBoxPart then AuraBoxPart.Color = chosen.color end
-end)
-
-CreateStatCard("AUTO DODGE", "Spacebar jump upon threat", "OFF", function(bText, bStroke, sLbl)
-    AutoDodgeActive = not AutoDodgeActive
-    bText.Text = AutoDodgeActive and "ON" or "OFF"
-    bText.TextColor3 = AutoDodgeActive and C.Green or C.Muted
-    bStroke.Color = AutoDodgeActive and C.Green or C.Border
-    if AutoDodgeActive then setupAutoDodge() else if AutoDodgeConn then AutoDodgeConn:Disconnect() end end
-end)
-
-CreateStatCard("WALKSPEED", "Anti-cheat safe step velocity", SpeedOptions[SpeedIndex] .. " S/S", function(bText, bStroke, sLbl)
-    SpeedIndex = (SpeedIndex % #SpeedOptions) + 1
-    local spd = SpeedOptions[SpeedIndex]
-    bText.Text = spd .. " S/S"
-    bText.TextColor3 = spd > 16 and C.AccentGlow or C.Muted
-    applySpeed()
-    if not SpeedConn then SpeedConn = RunService.Heartbeat:Connect(applySpeed) end
-end)
-
--- 8. PERSPECTIVE ENTRANCE & EXIT ANIMATIONS
-local isOpen = false
-local function openMenu()
-    isOpen = true
-    ScreenGui.Enabled = true
-    Backdrop.Visible = true
-
-    Card.Position = UDim2.new(0.5, 0, 0.54, 0)
-    Card.Size = UDim2.new(0, 500, 0, 280)
-    Card.Rotation = -10
-    Card.BackgroundTransparency = 0.4
-
-    tw(Backdrop, {BackgroundTransparency = 0.5}, 0.28)
-    tw(Card, {
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 580, 0, 340),
-        Rotation = 0,
-        BackgroundTransparency = 0
-    }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-end
-
-local function closeMenu()
-    isOpen = false
-    tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
-    local t = tw(Card, {
-        Position = UDim2.new(0.5, 0, 0.53, 0),
-        Size = UDim2.new(0, 500, 0, 280),
-        Rotation = 8,
-        BackgroundTransparency = 1
-    }, 0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-
-    t.Completed:Connect(function()
-        if not isOpen then
-            Backdrop.Visible = false
-            Card.Rotation = 0
-        end
-    end)
-end
-
-CloseBtn.MouseButton1Click:Connect(closeMenu)
-Backdrop.MouseButton1Click:Connect(closeMenu)
-
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
-        if isOpen then closeMenu() else openMenu() end
+        end)
     end
 end)
 
-openMenu()
-print("[Poly Loot] Profile Card Suite loaded.")
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if not gpe and inp.KeyCode == Enum.KeyCode.RightControl then
+        toggleMenu()
+    end
+end)
+
+print("[Poly Loot] Candy Farm & Settings Suite loaded.")
