@@ -1,4 +1,4 @@
--- // LUMACORE - POLY LOOT (AI CHASE & IN-UI BANNER EDITION) //
+-- // LUMACORE - POLY LOOT (UNIFIED CANDY ENGINE & GHOST ESP) //
 -- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -45,9 +45,9 @@ local C = {
     Red        = Color3.fromRGB(224, 64, 78),
     RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
+    Purple     = Color3.fromRGB(170, 90, 240),
 }
 
--- ANIMATION TOGGLE SUPPORT
 local AnimationsEnabled = true
 local function tw(obj, props, dur, style, dir)
     if not AnimationsEnabled then
@@ -266,54 +266,57 @@ SubTitle.Size = UDim2.new(0, 180, 0, 14)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Parent = Header
 
--- IN-UI NOTIFICATION BANNER (QUEUED WORKER)
+-- HIGH-CONTRAST IN-UI NOTIFICATION BANNER
 local NotificationsEnabled = true
 local NotificationBanner = Instance.new("Frame")
 NotificationBanner.Name = "InUINotifier"
-NotificationBanner.Size = UDim2.new(0, 210, 0, 32)
-NotificationBanner.Position = UDim2.new(0.5, 0, 0, 8)
+NotificationBanner.Size = UDim2.new(0, 230, 0, 34)
+NotificationBanner.Position = UDim2.new(0.5, 0, 0, 7)
 NotificationBanner.AnchorPoint = Vector2.new(0.5, 0)
-NotificationBanner.BackgroundColor3 = C.CardBg
+NotificationBanner.BackgroundColor3 = Color3.fromRGB(10, 8, 8)
 NotificationBanner.BorderSizePixel = 0
 NotificationBanner.ClipsDescendants = true
 NotificationBanner.Visible = false
-NotificationBanner.ZIndex = 80
+NotificationBanner.ZIndex = 120
 NotificationBanner.Parent = Header
 
 Instance.new("UICorner", NotificationBanner).CornerRadius = UDim.new(0, 8)
 local nbStroke = Instance.new("UIStroke")
 nbStroke.Color = C.Accent
-nbStroke.Thickness = 1
+nbStroke.Thickness = 1.4
 nbStroke.Parent = NotificationBanner
 
 local nbBar = Instance.new("Frame")
-nbBar.Size = UDim2.new(0, 3, 0.65, 0)
-nbBar.Position = UDim2.new(0, 8, 0.175, 0)
+nbBar.Size = UDim2.new(0, 4, 0.75, 0)
+nbBar.Position = UDim2.new(0, 8, 0.125, 0)
 nbBar.BackgroundColor3 = C.Accent
 nbBar.BorderSizePixel = 0
+nbBar.ZIndex = 121
 nbBar.Parent = NotificationBanner
 Instance.new("UICorner", nbBar).CornerRadius = UDim.new(1, 0)
 
 local nbTitle = Instance.new("TextLabel")
-nbTitle.Size = UDim2.new(1, -22, 0, 14)
-nbTitle.Position = UDim2.new(0, 16, 0, 3)
+nbTitle.Size = UDim2.new(1, -24, 0, 14)
+nbTitle.Position = UDim2.new(0, 18, 0, 4)
 nbTitle.BackgroundTransparency = 1
 nbTitle.Text = ""
-nbTitle.TextColor3 = C.Text
+nbTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 nbTitle.Font = Enum.Font.GothamBold
 nbTitle.TextSize = 10
 nbTitle.TextXAlignment = Enum.TextXAlignment.Left
+nbTitle.ZIndex = 122
 nbTitle.Parent = NotificationBanner
 
 local nbSub = Instance.new("TextLabel")
-nbSub.Size = UDim2.new(1, -22, 0, 12)
-nbSub.Position = UDim2.new(0, 16, 0, 16)
+nbSub.Size = UDim2.new(1, -24, 0, 12)
+nbSub.Position = UDim2.new(0, 18, 0, 17)
 nbSub.BackgroundTransparency = 1
 nbSub.Text = ""
-nbSub.TextColor3 = C.Muted
-nbSub.Font = Enum.Font.Gotham
+nbSub.TextColor3 = Color3.fromRGB(220, 215, 210)
+nbSub.Font = Enum.Font.GothamMedium
 nbSub.TextSize = 9
 nbSub.TextXAlignment = Enum.TextXAlignment.Left
+nbSub.ZIndex = 122
 nbSub.Parent = NotificationBanner
 
 local NotifyQueue = {}
@@ -325,19 +328,19 @@ local function processNextNotification()
     local item = table.remove(NotifyQueue, 1)
 
     nbTitle.Text = item.title
-    nbSub.Text = item.sub or "System notice"
+    nbSub.Text = item.sub or "System update"
     nbStroke.Color = item.color or C.Accent
     nbBar.BackgroundColor3 = item.color or C.Accent
 
     NotificationBanner.Visible = true
-    NotificationBanner.Position = UDim2.new(0.5, 0, 0, -40)
+    NotificationBanner.Position = UDim2.new(0.5, 0, 0, -42)
     NotificationBanner.BackgroundTransparency = 1
     nbTitle.TextTransparency = 1
     nbSub.TextTransparency = 1
     nbStroke.Transparency = 1
     nbBar.BackgroundTransparency = 1
 
-    tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, 8), BackgroundTransparency = 0.05}, 0.22, Enum.EasingStyle.Back)
+    tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, 7), BackgroundTransparency = 0}, 0.22, Enum.EasingStyle.Back)
     tw(nbTitle, {TextTransparency = 0}, 0.2)
     tw(nbSub, {TextTransparency = 0}, 0.2)
     tw(nbStroke, {Transparency = 0}, 0.2)
@@ -345,7 +348,7 @@ local function processNextNotification()
 
     task.wait(2.2)
 
-    local exit = tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, -40), BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quart)
+    local exit = tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, -42), BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quart)
     tw(nbTitle, {TextTransparency = 1}, 0.2)
     tw(nbSub, {TextTransparency = 1}, 0.2)
     tw(nbStroke, {Transparency = 1}, 0.2)
@@ -424,7 +427,7 @@ Body.Position = UDim2.new(0, 16, 0, 48)
 Body.BackgroundTransparency = 1
 Body.Parent = Card
 
--- LEFT COLUMN (SCROLLING ACTION CARDS)
+-- LEFT COLUMN
 local LeftCol = Instance.new("ScrollingFrame")
 LeftCol.Size = UDim2.new(0.58, -6, 1, 0)
 LeftCol.Position = UDim2.new(0, 0, 0, 0)
@@ -441,7 +444,7 @@ leftLayout.Padding = UDim.new(0, 6)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
--- RIGHT COLUMN (PROFILE & TELEMETRY)
+-- RIGHT COLUMN
 local RightCol = Instance.new("Frame")
 RightCol.Size = UDim2.new(0.42, -6, 1, 0)
 RightCol.Position = UDim2.new(0.58, 6, 0, 0)
@@ -541,7 +544,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 9. ACTION CARD BUILDER WITH INITIAL OUTLINE SUPPORT
+-- 9. REUSABLE ACTION CARD BUILDER (ACTIVE STATE PERSISTENCE)
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -622,12 +625,13 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     bText.Parent = badge
 
     local isCardActive = initialActive or false
-    local function setCardActiveState(active)
+    local function setCardActiveState(active, accentOverride)
         isCardActive = active
+        local activeColor = accentOverride or C.Accent
         if isCardActive then
-            tw(s, {Color = C.Accent, Thickness = 1.4}, 0.15)
+            tw(s, {Color = activeColor, Thickness = 1.4}, 0.15)
             tw(row, {BackgroundColor3 = C.Hover}, 0.15)
-            tw(bStroke, {Color = C.Green}, 0.15)
+            tw(bStroke, {Color = activeColor}, 0.15)
         else
             tw(s, {Color = C.Border, Thickness = 1}, 0.15)
             tw(row, {BackgroundColor3 = C.CardBg}, 0.15)
@@ -659,7 +663,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     end)
 end
 
--- 10. GHOST DISCOVERY ENGINE
+-- 10. GHOST DISCOVERY LOGIC
 local GhostSwingRemote = nil
 task.spawn(function()
     pcall(function()
@@ -709,8 +713,8 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
--- 11. CANDY CORN AUTO-FARM (TP MODE)
-local autoCandyFarm = false
+-- 11. UNIFIED CANDY CORN FARM ENGINE (3-STATE: OFF -> SAFE -> TP)
+local CandyFarmMode = "OFF"
 local isUnderground = false
 
 RunService.Stepped:Connect(function()
@@ -738,9 +742,27 @@ local function restoreSurface()
     end
 end
 
+-- Obstacle & Elevation Raycast for Safe AI Chase
+local function checkPathObstacles(hrp, humanoid, targetPos)
+    local origin = hrp.Position
+    local direction = (targetPos - origin).Unit * 4.5
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    rayParams.FilterType = RaycastFilterType.Exclude
+
+    local result = Workspace:Raycast(origin, direction, rayParams)
+    if result and result.Instance and result.Instance.CanCollide then
+        humanoid.Jump = true
+    end
+
+    if targetPos.Y > origin.Y + 2.5 then
+        humanoid.Jump = true
+    end
+end
+
 task.spawn(function()
     while true do
-        if autoCandyFarm then
+        if CandyFarmMode == "TP" then
             local ghost, ghostPart = getNearestGhost()
             local char = LocalPlayer.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -763,19 +785,10 @@ task.spawn(function()
             else
                 restoreSurface()
             end
-        else
+            task.wait(0.1)
+
+        elseif CandyFarmMode == "SAFE" then
             restoreSurface()
-        end
-        task.wait(0.1)
-    end
-end)
-
--- 12. SAFE AI CHASE MOVEMENT (NATURAL PLAYER WALK)
-local SafeAIActive = false
-
-task.spawn(function()
-    while true do
-        if SafeAIActive and not autoCandyFarm then
             local ghost, ghostPart = getNearestGhost()
             local char = LocalPlayer.Character
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
@@ -784,8 +797,9 @@ task.spawn(function()
             if ghost and ghostPart and humanoid and hrp then
                 local dist = (ghostPart.Position - hrp.Position).Magnitude
                 humanoid:MoveTo(ghostPart.Position)
+                checkPathObstacles(hrp, humanoid, ghostPart.Position)
 
-                if dist <= 6.5 then
+                if dist <= 6.8 then
                     if GhostSwingRemote and ghost.Parent then
                         pcall(function()
                             GhostSwingRemote:FireServer(ghost.Name)
@@ -793,10 +807,100 @@ task.spawn(function()
                     end
                 end
             end
+            task.wait(0.12)
+        else
+            restoreSurface()
+            task.wait(0.2)
         end
-        task.wait(0.12)
     end
 end)
+
+-- 12. GHOST ESP ENGINE
+local GhostESPActive = false
+local GhostESPStorage = {}
+
+local function clearGhostESP()
+    for _, item in pairs(GhostESPStorage) do
+        if item.Highlight then item.Highlight:Destroy() end
+        if item.Billboard then item.Billboard:Destroy() end
+    end
+    table.clear(GhostESPStorage)
+end
+
+local function applyGhostESP(ghost)
+    local part = ghost:IsA("BasePart") and ghost
+        or ghost.PrimaryPart
+        or ghost:FindFirstChildWhichIsA("BasePart", true)
+    if not part then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "Lumacore_GhostHighlight"
+    hl.Adornee = ghost
+    hl.FillColor = C.Purple
+    hl.FillTransparency = 0.5
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.OutlineTransparency = 0.15
+    hl.Parent = ScreenGui
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "Lumacore_GhostESP"
+    bb.Adornee = part
+    bb.Size = UDim2.new(0, 140, 0, 20)
+    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = ScreenGui
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.fromScale(1, 1)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Purple
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 10
+    lbl.Parent = bb
+
+    GhostESPStorage[ghost] = {Highlight = hl, Billboard = bb, Label = lbl, Part = part}
+end
+
+RunService.RenderStepped:Connect(function()
+    if not GhostESPActive then return end
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+    for ghost, item in pairs(GhostESPStorage) do
+        if ghost.Parent and item.Part and hrp then
+            local dist = math.floor((item.Part.Position - hrp.Position).Magnitude)
+            item.Label.Text = string.format("👻 %s • %dm", ghost.Name, dist)
+        else
+            if item.Highlight then item.Highlight:Destroy() end
+            if item.Billboard then item.Billboard:Destroy() end
+            GhostESPStorage[ghost] = nil
+        end
+    end
+end)
+
+local function toggleGhostESP(state)
+    GhostESPActive = state
+    if GhostESPActive then
+        local folder = locateGhostFolder()
+        if folder then
+            for _, g in ipairs(folder:GetChildren()) do
+                applyGhostESP(g)
+            end
+            folder.ChildAdded:Connect(function(g)
+                if GhostESPActive then task.wait(0.2); applyGhostESP(g) end
+            end)
+            folder.ChildRemoved:Connect(function(g)
+                if GhostESPStorage[g] then
+                    if GhostESPStorage[g].Highlight then GhostESPStorage[g].Highlight:Destroy() end
+                    if GhostESPStorage[g].Billboard then GhostESPStorage[g].Billboard:Destroy() end
+                    GhostESPStorage[g] = nil
+                end
+            end)
+        end
+    else
+        clearGhostESP()
+    end
+end
 
 -- 13. PLAYER ESP ENGINE (CLEAN DISTANCE & HP %)
 local ESPActive = false
@@ -887,43 +991,50 @@ end
 -- 14. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net • Instant TP sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
-    autoCandyFarm = not autoCandyFarm
-    if autoCandyFarm and SafeAIActive then
-        SafeAIActive = false
-    end
-    bText.Text = autoCandyFarm and "RUNNING" or "OFF"
-    bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    bStroke.Color = autoCandyFarm and C.Green or C.Border
-    sLbl.Text = autoCandyFarm and "Active • Ensure Ghost Net is equipped" or "Requires Ghost Net • Instant TP sweep"
-    setActive(autoCandyFarm)
-    Notify("Candy Corn Farm", autoCandyFarm and "TP Farm Activated" or "TP Farm Paused", autoCandyFarm and C.Green or C.Red)
-end)
-
-CreateActionCard(LeftCol, "SAFE AI CHASE", "Autonomous pathing • Runs after ghosts", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
-    SafeAIActive = not SafeAIActive
-    if SafeAIActive and autoCandyFarm then
-        autoCandyFarm = false
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Tap: Safe AI -> Underground TP -> OFF", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+    if CandyFarmMode == "OFF" then
+        CandyFarmMode = "SAFE"
+        bText.Text = "SAFE AI"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Mode: Safe AI • Running & leaping after ghosts"
+        setActive(true, C.Green)
+        Notify("Auto Candy Corn", "Safe AI Mode Active (Walking/Jumping)", C.Green)
+    elseif CandyFarmMode == "SAFE" then
+        CandyFarmMode = "TP"
+        bText.Text = "TP SWEEP"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Mode: Fast TP • Sweeping underground"
+        setActive(true, C.Accent)
+        Notify("Auto Candy Corn", "Fast TP Mode Active (Underground)", C.Accent)
+    else
+        CandyFarmMode = "OFF"
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        sLbl.Text = "Tap: Safe AI -> Underground TP -> OFF"
+        setActive(false)
         restoreSurface()
+        Notify("Auto Candy Corn", "Candy Corn Farming Disabled", C.Red)
     end
-    bText.Text = SafeAIActive and "RUNNING" or "OFF"
-    bText.TextColor3 = SafeAIActive and C.Green or C.Muted
-    bStroke.Color = SafeAIActive and C.Green or C.Border
-    sLbl.Text = SafeAIActive and "AI moving naturally towards targets" or "Autonomous pathing • Runs after ghosts"
-    setActive(SafeAIActive)
-    Notify("Safe AI Chase", SafeAIActive and "AI Chase Enabled" or "AI Chase Stopped", SafeAIActive and C.Green or C.Red)
 end)
 
-AddSection(LeftCol, "VISUALS", 4)
+AddSection(LeftCol, "VISUALS", 3)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
-    bStroke.Color = ESPActive and C.Green or C.Border
     sLbl.Text = ESPActive and "Showing distance, outline & HP %" or "Outline chams, distance & HP %"
     setActive(ESPActive)
-    Notify("ESP Visuals", ESPActive and "Chams & Distance Active" or "Chams Disabled", ESPActive and C.Green or C.Red)
+    Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
+end)
+
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+    toggleGhostESP(not GhostESPActive)
+    bText.Text = GhostESPActive and "ACTIVE" or "OFF"
+    bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
+    sLbl.Text = GhostESPActive and "Showing active ghosts & distances" or "Locates & highlights candy ghosts"
+    setActive(GhostESPActive, C.Purple)
+    Notify("Ghost Visuals", GhostESPActive and "Ghost ESP Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
 -- 15. SETTINGS DRAWER OVERLAY
@@ -965,7 +1076,6 @@ CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disco
     AntiAFKActive = not AntiAFKActive
     bText.Text = AntiAFKActive and "ON" or "OFF"
     bText.TextColor3 = AntiAFKActive and C.Green or C.Muted
-    bStroke.Color = AntiAFKActive and C.Green or C.Border
     setActive(AntiAFKActive)
     Notify("Anti-AFK", AntiAFKActive and "Anti-AFK Protected" or "Anti-AFK Disabled", C.Accent)
 end)
@@ -975,7 +1085,6 @@ CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on prof
     SensorInfoActive = not SensorInfoActive
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
-    bStroke.Color = SensorInfoActive and C.Green or C.Border
     setActive(SensorInfoActive)
     Notify("Privacy Mode", SensorInfoActive and "IDs Censored" or "IDs Exposed", C.Accent)
 end)
@@ -985,7 +1094,6 @@ CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false,
     MonitorFPS = not MonitorFPS
     bText.Text = MonitorFPS and "ON" or "OFF"
     bText.TextColor3 = MonitorFPS and C.Green or C.Muted
-    bStroke.Color = MonitorFPS and C.Green or C.Border
     setActive(MonitorFPS)
 end)
 
@@ -993,7 +1101,6 @@ CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", f
     MonitorPing = not MonitorPing
     bText.Text = MonitorPing and "ON" or "OFF"
     bText.TextColor3 = MonitorPing and C.Green or C.Muted
-    bStroke.Color = MonitorPing and C.Green or C.Border
     setActive(MonitorPing)
 end)
 
@@ -1001,7 +1108,6 @@ CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF",
     MonitorMem = not MonitorMem
     bText.Text = MonitorMem and "ON" or "OFF"
     bText.TextColor3 = MonitorMem and C.Green or C.Muted
-    bStroke.Color = MonitorMem and C.Green or C.Border
     setActive(MonitorMem)
 end)
 
@@ -1010,9 +1116,8 @@ CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing anim
     AnimationsEnabled = not AnimationsEnabled
     bText.Text = AnimationsEnabled and "ON" or "OFF"
     bText.TextColor3 = AnimationsEnabled and C.Green or C.Muted
-    bStroke.Color = AnimationsEnabled and C.Green or C.Border
     setActive(AnimationsEnabled)
-    Notify("Animations", AnimationsEnabled and "Easing Enabled" or "Instant Snapping Enabled", C.Accent)
+    Notify("Animations", AnimationsEnabled and "Spring Easing Enabled" or "Instant Snapping Enabled", C.Accent)
 end)
 
 CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", true, 11, function(bText, bStroke, _, setActive)
@@ -1020,7 +1125,6 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     if setFloatingIconVisible then setFloatingIconVisible(nextState) end
     bText.Text = nextState and "ON" or "OFF"
     bText.TextColor3 = nextState and C.Green or C.Muted
-    bStroke.Color = nextState and C.Green or C.Border
     setActive(nextState)
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
@@ -1030,7 +1134,6 @@ CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OF
     Lighting.GlobalShadows = not active
     bText.Text = active and "ON" or "OFF"
     bText.TextColor3 = active and C.AccentGlow or C.Muted
-    bStroke.Color = active and C.AccentGlow or C.Border
     setActive(active)
     Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
 end)
@@ -1039,7 +1142,6 @@ CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", tr
     NotificationsEnabled = not NotificationsEnabled
     bText.Text = NotificationsEnabled and "ON" or "OFF"
     bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
-    bStroke.Color = NotificationsEnabled and C.Green or C.Border
     setActive(NotificationsEnabled)
 end)
 
@@ -1100,9 +1202,9 @@ DestroyCard.MouseButton1Click:Connect(function()
         end)
     else
         if timerThread then task.cancel(timerThread) end
-        autoCandyFarm = false
-        SafeAIActive = false
+        CandyFarmMode = "OFF"
         toggleESP(false)
+        toggleGhostESP(false)
         restoreSurface()
         if monitorConn then monitorConn:Disconnect() end
         ScreenGui:Destroy()
@@ -1354,4 +1456,4 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
-print("[Lumacore] Poly Loot Ready. Tap 🍁 or press RightControl to launch.")
+print("[Lumacore] Poly Loot Suite loaded successfully.")
