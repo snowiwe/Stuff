@@ -1,4 +1,4 @@
--- // POLY LOOT - REFINED PROFILE & COMBAT SUITE //
+-- // POLY LOOT - MOBILE POLISHED EDITION //
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -12,7 +12,7 @@ local Stats = game:GetService("Stats")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
 local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera", 3)
-local ScreenName = "PolyLoot_RefinedSuite"
+local ScreenName = "PolyLoot_MobilePolished"
 
 -- 1. CONTAINER MOUNTING
 local function resolveContainer()
@@ -66,7 +66,33 @@ ScreenGui.DisplayOrder = 999999
 ScreenGui.Enabled = true
 ScreenGui.Parent = TargetParent
 
--- 4. PILL NOTIFICATIONS
+-- 4. ANTI-AFK ENGINE
+local AntiAFKActive = true
+task.spawn(function()
+    local VirtualUser = nil
+    pcall(function()
+        VirtualUser = game:GetService("VirtualUser")
+    end)
+
+    LocalPlayer.Idled:Connect(function()
+        if AntiAFKActive then
+            pcall(function()
+                if VirtualUser then
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0, 0))
+                else
+                    local char = LocalPlayer.Character
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                    end
+                end
+            end)
+        end
+    end)
+end)
+
+-- 5. TOAST NOTIFICATIONS
 local NotificationsEnabled = true
 local function Notify(titleText, subText, color)
     if not NotificationsEnabled then return end
@@ -110,7 +136,7 @@ local function Notify(titleText, subText, color)
         sLbl.Size = UDim2.new(1, -26, 0, 14)
         sLbl.Position = UDim2.new(0, 20, 0, 22)
         sLbl.BackgroundTransparency = 1
-        sLbl.Text = subText or "System notification"
+        sLbl.Text = subText or "System update"
         sLbl.TextColor3 = C.Muted
         sLbl.Font = Enum.Font.Gotham
         sLbl.TextSize = 10
@@ -128,7 +154,7 @@ local function Notify(titleText, subText, color)
     end)
 end
 
--- 5. STATS MONITOR OVERLAY
+-- 6. STATS MONITOR OVERLAY
 local MonitorFPS = false
 local MonitorPing = false
 local MonitorMem = false
@@ -188,7 +214,7 @@ local monitorConn = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- 6. MODAL BACKDROP
+-- 7. BACKDROP
 local Backdrop = Instance.new("TextButton")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -199,7 +225,7 @@ Backdrop.Text = ""
 Backdrop.Visible = false
 Backdrop.Parent = ScreenGui
 
--- 7. MAIN CARD
+-- 8. MAIN DASHBOARD CARD
 local Card = Instance.new("Frame")
 Card.Name = "ProfileCard"
 Card.Size = UDim2.new(0, 580, 0, 345)
@@ -218,7 +244,7 @@ cStroke.Color = C.Border
 cStroke.Thickness = 1.3
 cStroke.Parent = Card
 
--- HEADER BAR
+-- HEADER BAR (DRAGGABLE)
 local Header = Instance.new("TextButton")
 Header.Name = "Header"
 Header.Size = UDim2.new(1, 0, 0, 48)
@@ -304,7 +330,7 @@ SettingsBtn.MouseLeave:Connect(function()
     tw(sBtnStroke, {Color = C.Border}, 0.15)
 end)
 
--- 8. BODY CONTAINER
+-- 9. BODY CONTAINER
 local Body = Instance.new("Frame")
 Body.Size = UDim2.new(1, -32, 1, -60)
 Body.Position = UDim2.new(0, 16, 0, 48)
@@ -328,7 +354,7 @@ leftLayout.Padding = UDim.new(0, 6)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
--- RIGHT COLUMN (THUMBNAIL CARD & TELEMETRY)
+-- RIGHT COLUMN (CIRCULAR PROFILE PICTURE & TELEMETRY)
 local RightCol = Instance.new("Frame")
 RightCol.Size = UDim2.new(0.42, -6, 1, 0)
 RightCol.Position = UDim2.new(0.58, 6, 0, 0)
@@ -342,27 +368,34 @@ rStroke.Color = C.Border
 rStroke.Thickness = 1
 rStroke.Parent = RightCol
 
-local AvatarCard = Instance.new("Frame")
-AvatarCard.Size = UDim2.new(1, -12, 0, 150)
-AvatarCard.Position = UDim2.new(0, 6, 0, 6)
-AvatarCard.BackgroundColor3 = C.Surface
-AvatarCard.Parent = RightCol
-Instance.new("UICorner", AvatarCard).CornerRadius = UDim.new(0, 8)
+local AvatarHolder = Instance.new("Frame")
+AvatarHolder.Size = UDim2.new(0, 100, 0, 100)
+AvatarHolder.Position = UDim2.new(0.5, 0, 0, 12)
+AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
+AvatarHolder.BackgroundColor3 = C.Surface
+AvatarHolder.ClipsDescendants = true
+AvatarHolder.Parent = RightCol
+
+Instance.new("UICorner", AvatarHolder).CornerRadius = UDim.new(1, 0)
+local avStroke = Instance.new("UIStroke")
+avStroke.Color = C.Accent
+avStroke.Thickness = 2
+avStroke.Parent = AvatarHolder
 
 local AvatarImage = Instance.new("ImageLabel")
 AvatarImage.Size = UDim2.fromScale(1, 1)
 AvatarImage.BackgroundTransparency = 1
 AvatarImage.ScaleType = Enum.ScaleType.Fit
-AvatarImage.Parent = AvatarCard
+AvatarImage.Parent = AvatarHolder
 
 local function updateProfilePicture()
-    local thumbType = Enum.ThumbnailType.AvatarBust
+    local thumbType = Enum.ThumbnailType.AvatarHeadShot
     local thumbSize = Enum.ThumbnailSize.Size420x420
     local content, isReady = Players:GetUserThumbnailAsync(LocalPlayer.UserId, thumbType, thumbSize)
     if isReady and content then
         AvatarImage.Image = content
     else
-        AvatarImage.Image = "rbxthumb://type=AvatarBust&id=" .. LocalPlayer.UserId .. "&w=420&h=420"
+        AvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. LocalPlayer.UserId .. "&w=420&h=420"
     end
 end
 task.spawn(function()
@@ -373,8 +406,8 @@ end)
 local SensorInfoActive = false
 
 local TelemetryFrame = Instance.new("Frame")
-TelemetryFrame.Size = UDim2.new(1, -12, 1, -164)
-TelemetryFrame.Position = UDim2.new(0, 6, 0, 160)
+TelemetryFrame.Size = UDim2.new(1, -12, 1, -130)
+TelemetryFrame.Position = UDim2.new(0, 6, 0, 122)
 TelemetryFrame.BackgroundColor3 = C.Surface
 TelemetryFrame.Parent = RightCol
 Instance.new("UICorner", TelemetryFrame).CornerRadius = UDim.new(0, 8)
@@ -417,7 +450,7 @@ end
 
 RunService.Heartbeat:Connect(updateTelemetry)
 
--- 9. PROTOTYPE CARD BUILDERS
+-- 10. REUSABLE CARD BUILDERS
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -515,8 +548,10 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ord
     end)
 end
 
--- 10. COMBAT REPLAY ENGINE (AUTO ATTACK RESTORED)
-local HitReplayEvent
+-- 11. UNIVERSAL AUTO ATTACK (MOBILE & PC)
+local HitReplayEvent = nil
+local AttackRemotesFound = {}
+
 task.spawn(function()
     pcall(function()
         local ch = ReplicatedStorage:WaitForChild("ChickenOrHero", 4)
@@ -525,6 +560,14 @@ task.spawn(function()
             if g then HitReplayEvent = g:WaitForChild("HitReplayEvent", 3) end
         end
     end)
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            local n = string.lower(obj.Name)
+            if string.find(n, "attack") or string.find(n, "swing") or string.find(n, "hit") or string.find(n, "tackle") then
+                table.insert(AttackRemotesFound, obj)
+            end
+        end
+    end
 end)
 
 local function resolveTargetIds(maxRadius)
@@ -559,56 +602,69 @@ local function resolveTargetIds(maxRadius)
 end
 
 local lastTackleTick = 0
-local function executeTackle()
-    if not HitReplayEvent then return end
-    if tick() - lastTackleTick < 0.18 then return end
+local function executeAttackCycle()
+    if tick() - lastTackleTick < 0.16 then return end
     lastTackleTick = tick()
 
     task.spawn(function()
         local char = LocalPlayer.Character
         if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
 
-        local now = os.time()
-        local attackUuid = HttpService:GenerateGUID(false)
-        local targetList = resolveTargetIds(25)
+        local targetList = resolveTargetIds(28)
         local lookDir = char.HumanoidRootPart.CFrame.LookVector
+        local attackUuid = HttpService:GenerateGUID(false)
+        local now = os.time()
 
-        local attackData = {
-            ["manual"] = true,
-            ["direction"] = lookDir,
-            ["id"] = attackUuid,
-            ["targets"] = {},
-            ["box"] = {["height"] = 16, ["far"] = 26, ["near"] = 0, ["width"] = 28},
-            ["character"] = char,
-            ["startedAt"] = now,
-            ["ends"] = now + 0.45,
-            ["starts"] = now,
-            ["kind"] = "Tackle",
-            ["canonicalId"] = attackUuid,
-            ["targetIds"] = targetList
-        }
-
-        pcall(function()
-            HitReplayEvent:FireServer("Attack", attackData)
-        end)
-
-        for _, tid in ipairs(targetList) do
-            local verdictData = {
-                ["source"] = "Server",
-                ["targetId"] = tid,
-                ["id"] = HttpService:GenerateGUID(false),
+        if HitReplayEvent then
+            local attackData = {
+                ["manual"] = true,
+                ["direction"] = lookDir,
+                ["id"] = attackUuid,
+                ["targets"] = {},
+                ["box"] = {["height"] = 16, ["far"] = 26, ["near"] = 0, ["width"] = 28},
+                ["character"] = char,
+                ["startedAt"] = now,
+                ["ends"] = now + 0.45,
+                ["starts"] = now,
                 ["kind"] = "Tackle",
-                ["reason"] = "resolved",
-                ["accepted"] = true
+                ["canonicalId"] = attackUuid,
+                ["targetIds"] = targetList
             }
             pcall(function()
-                HitReplayEvent:FireServer("Verdict", verdictData)
+                HitReplayEvent:FireServer("Attack", attackData)
+            end)
+
+            for _, tid in ipairs(targetList) do
+                local verdictData = {
+                    ["source"] = "Server",
+                    ["targetId"] = tid,
+                    ["id"] = HttpService:GenerateGUID(false),
+                    ["kind"] = "Tackle",
+                    ["reason"] = "resolved",
+                    ["accepted"] = true
+                }
+                pcall(function()
+                    HitReplayEvent:FireServer("Verdict", verdictData)
+                end)
+            end
+        end
+
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool then
+            pcall(function()
+                tool:Activate()
+            end)
+        end
+
+        for _, remote in ipairs(AttackRemotesFound) do
+            pcall(function()
+                remote:FireServer()
             end)
         end
     end)
 end
 
--- 11. CANDY CORN AUTO-FARM ENGINE (ROBUST ROOT-ANCHOR SYSTEM)
+-- 12. CANDY CORN AUTO-FARM ENGINE
 local autoCandyFarm = false
 local isUnderground = false
 local GhostSwingRemote = nil
@@ -661,7 +717,6 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
--- Noclip & Underground Float
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if char and isUnderground then
@@ -687,7 +742,6 @@ local function restoreSurface()
     end
 end
 
--- Farm Thread
 task.spawn(function()
     while true do
         if autoCandyFarm then
@@ -720,7 +774,7 @@ task.spawn(function()
     end
 end)
 
--- 12. POPULATE CONTROLS IN LEFT COLUMN
+-- 13. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
 CreateActionCard(LeftCol, "AUTO CANDY CORN", "Adaptive nearest ghost swipe", "OFF", 2, function(bText, bStroke, sLbl)
@@ -733,25 +787,25 @@ CreateActionCard(LeftCol, "AUTO CANDY CORN", "Adaptive nearest ghost swipe", "OF
 end)
 
 local AutoAttackActive = false
-CreateActionCard(LeftCol, "AUTO ATTACK LOOP", "Continuous tackle strikes", "OFF", 3, function(bText, bStroke, sLbl)
+CreateActionCard(LeftCol, "AUTO ATTACK LOOP", "Continuous tackle strikes & swings", "OFF", 3, function(bText, bStroke, sLbl)
     AutoAttackActive = not AutoAttackActive
     bText.Text = AutoAttackActive and "ACTIVE" or "OFF"
     bText.TextColor3 = AutoAttackActive and C.Green or C.Muted
     bStroke.Color = AutoAttackActive and C.Green or C.Border
-    sLbl.Text = AutoAttackActive and "Spamming server tackle replays" or "Continuous tackle strikes"
+    sLbl.Text = AutoAttackActive and "Firing all attack remotes & tool" or "Continuous tackle strikes & swings"
     Notify("Combat Loop", AutoAttackActive and "Auto Attack Running" or "Auto Attack Stopped", AutoAttackActive and C.Green or C.Red)
 
     if AutoAttackActive then
         task.spawn(function()
             while AutoAttackActive do
-                executeTackle()
-                task.wait(0.2)
+                executeAttackCycle()
+                task.wait(0.18)
             end
         end)
     end
 end)
 
--- 13. SETTINGS DRAWER OVERLAY
+-- 14. SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -785,8 +839,17 @@ dList.Padding = UDim.new(0, 6)
 dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
-AddSection(DrawerScroll, "PRIVACY & SENSORS", 1)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", 2, function(bText, bStroke)
+AddSection(DrawerScroll, "IDLE & AFK", 1)
+CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disconnect", "ON", 2, function(bText, bStroke)
+    AntiAFKActive = not AntiAFKActive
+    bText.Text = AntiAFKActive and "ON" or "OFF"
+    bText.TextColor3 = AntiAFKActive and C.Green or C.Muted
+    bStroke.Color = AntiAFKActive and C.Green or C.Border
+    Notify("Anti-AFK", AntiAFKActive and "Anti-AFK Protected" or "Anti-AFK Disabled", C.Accent)
+end)
+
+AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", 4, function(bText, bStroke)
     SensorInfoActive = not SensorInfoActive
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
@@ -794,30 +857,30 @@ CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on prof
     Notify("Privacy Mode", SensorInfoActive and "IDs Censored" or "IDs Exposed", C.Accent)
 end)
 
-AddSection(DrawerScroll, "MONITORING", 3)
-CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", 4, function(bText, bStroke)
+AddSection(DrawerScroll, "MONITORING", 5)
+CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", 6, function(bText, bStroke)
     MonitorFPS = not MonitorFPS
     bText.Text = MonitorFPS and "ON" or "OFF"
     bText.TextColor3 = MonitorFPS and C.Green or C.Muted
     bStroke.Color = MonitorFPS and C.Green or C.Border
 end)
 
-CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", 5, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", 7, function(bText, bStroke)
     MonitorPing = not MonitorPing
     bText.Text = MonitorPing and "ON" or "OFF"
     bText.TextColor3 = MonitorPing and C.Green or C.Muted
     bStroke.Color = MonitorPing and C.Green or C.Border
 end)
 
-CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", 6, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", 8, function(bText, bStroke)
     MonitorMem = not MonitorMem
     bText.Text = MonitorMem and "ON" or "OFF"
     bText.TextColor3 = MonitorMem and C.Green or C.Muted
     bStroke.Color = MonitorMem and C.Green or C.Border
 end)
 
-AddSection(DrawerScroll, "ENVIRONMENT & GRAPHICS", 7)
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", 8, function(bText, bStroke)
+AddSection(DrawerScroll, "ENVIRONMENT & GRAPHICS", 9)
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", 10, function(bText, bStroke)
     local active = not Lighting.GlobalShadows
     Lighting.GlobalShadows = not active
     bText.Text = active and "ON" or "OFF"
@@ -826,15 +889,15 @@ CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OF
     Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
 end)
 
-AddSection(DrawerScroll, "INTERFACE SETTINGS", 9)
-CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", 10, function(bText, bStroke)
+AddSection(DrawerScroll, "INTERFACE SETTINGS", 11)
+CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows status banners", "ON", 12, function(bText, bStroke)
     NotificationsEnabled = not NotificationsEnabled
     bText.Text = NotificationsEnabled and "ON" or "OFF"
     bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
     bStroke.Color = NotificationsEnabled and C.Green or C.Border
 end)
 
-CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Shows mobile 🍁 icon", "ON", 11, function(bText, bStroke)
+CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Shows mobile 🍁 icon", "ON", 13, function(bText, bStroke)
     local nextState = not (MobileToggle and MobileToggle.Visible)
     if setFloatingIconVisible then setFloatingIconVisible(nextState) end
     bText.Text = nextState and "ON" or "OFF"
@@ -842,7 +905,7 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Shows mobile 🍁 icon", "ON"
     bStroke.Color = nextState and C.Green or C.Border
 end)
 
-AddSection(DrawerScroll, "DANGER ZONE", 12)
+AddSection(DrawerScroll, "DANGER ZONE", 14)
 local DestroyCard = Instance.new("TextButton")
 DestroyCard.Size = UDim2.new(1, 0, 0, 48)
 DestroyCard.BackgroundColor3 = C.CardBg
@@ -850,7 +913,7 @@ DestroyCard.AutoButtonColor = false
 DestroyCard.Text = ""
 DestroyCard.ClipsDescendants = true
 DestroyCard.ZIndex = 52
-DestroyCard.LayoutOrder = 13
+DestroyCard.LayoutOrder = 15
 DestroyCard.Parent = DrawerScroll
 
 Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
@@ -924,7 +987,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 14. SAFE CLAMPING
+-- 15. SAFE CLAMPING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -945,7 +1008,7 @@ local function clampPosition(rawPos, obj)
     return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
 end
 
--- 15. DRAGGING LOGIC
+-- 16. DRAGGING LOGIC
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -975,50 +1038,68 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 16. ENTRANCE & FULL VISIBILITY TOGGLE (COMPLETE HIDE GUARANTEE)
+-- 17. ENTRANCE & FULL VISIBILITY TOGGLE
+local isTransitioning = false
 local isOpen = false
-local function openMenu()
-    isOpen = true
-    Backdrop.Visible = true
-    Card.Visible = true
 
+local function openMenu()
+    if isTransitioning or isOpen then return end
+    isTransitioning = true
+    isOpen = true
+
+    if MobileToggle and MobileToggle.Visible then
+        tw(MobileToggle, {Size = UDim2.new(0, 32, 0, 32), Rotation = 20}, 0.1, Enum.EasingStyle.Quart)
+        task.delay(0.1, function()
+            tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.18, Enum.EasingStyle.Back)
+        end)
+    end
+
+    Backdrop.Visible = true
+    Backdrop.BackgroundTransparency = 1
+    Card.Visible = true
     Card.Position = UDim2.new(0.5, 0, 0.54, 0)
-    Card.Size = UDim2.new(0, 500, 0, 280)
-    Card.Rotation = -9
-    Card.BackgroundTransparency = 0.4
+    Card.Size = UDim2.new(0, 520, 0, 290)
+    Card.Rotation = -8
+    Card.BackgroundTransparency = 0.5
 
     tw(Backdrop, {BackgroundTransparency = 0.5}, 0.28)
-    tw(Card, {
+    local openAnim = tw(Card, {
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 580, 0, 345),
         Rotation = 0,
         BackgroundTransparency = 0
     }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+    openAnim.Completed:Connect(function()
+        isTransitioning = false
+    end)
 end
 
 local function closeMenu()
+    if isTransitioning or not isOpen then return end
+    isTransitioning = true
     isOpen = false
+
     tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
-    local t = tw(Card, {
+    local closeAnim = tw(Card, {
         Position = UDim2.new(0.5, 0, 0.53, 0),
         Size = UDim2.new(0, 500, 0, 280),
-        Rotation = 7,
+        Rotation = 6,
         BackgroundTransparency = 1
     }, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
 
-    t.Completed:Connect(function()
-        if not isOpen then
-            Backdrop.Visible = false
-            Card.Visible = false -- Explicitly unrenders UI
-            Card.Rotation = 0
-        end
+    closeAnim.Completed:Connect(function()
+        Backdrop.Visible = false
+        Card.Visible = false
+        Card.Rotation = 0
+        isTransitioning = false
     end)
 end
 
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 17. MOBILE FLOATING TOGGLE BUTTON (🍁)
+-- 18. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "PolyLoot_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
@@ -1055,9 +1136,6 @@ end
 
 local function toggleMenu()
     if isOpen then closeMenu() else openMenu() end
-    if MobileToggle and MobileToggle.Visible then
-        tw(MobileToggle, {Rotation = isOpen and 0 or -45}, 0.2)
-    end
 end
 
 local iconDragging = false
@@ -1100,5 +1178,4 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
-openMenu()
-print("[Poly Loot] Refined Profile & Combat Suite loaded.")
+print("[Poly Loot] Mobile Polished Edition Loaded.")
