@@ -1,4 +1,4 @@
--- // LUMACORE - POLY LOOT (UNIFIED CANDY ENGINE & GHOST ESP) //
+-- // LUMACORE - POLY LOOT DEFINITIVE SUITE //
 -- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,7 +29,7 @@ if not TargetParent then return end
 local oldUI = TargetParent:FindFirstChild(ScreenName)
 if oldUI then oldUI:Destroy() end
 
--- 2. AUTUMN PALETTE
+-- 2. PALETTE SYSTEM
 local C = {
     Bg         = Color3.fromRGB(16, 14, 13),
     CardBg     = Color3.fromRGB(24, 21, 19),
@@ -45,7 +45,7 @@ local C = {
     Red        = Color3.fromRGB(224, 64, 78),
     RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
-    Purple     = Color3.fromRGB(170, 90, 240),
+    Purple     = Color3.fromRGB(175, 95, 245),
 }
 
 local AnimationsEnabled = true
@@ -74,13 +74,58 @@ ScreenGui.DisplayOrder = 999999
 ScreenGui.Enabled = true
 ScreenGui.Parent = TargetParent
 
--- 4. ANTI-AFK SYSTEM
+-- 4. DYNAMIC REMOTES RESOLVER
+local GhostSwingRemote = nil
+local WeaponAttackRemote = nil
+local ResetRequestedRemote = nil
+
+local function resolveRemotes()
+    pcall(function()
+        local hEngine = ReplicatedStorage:FindFirstChild("Halloween_Engine")
+        if hEngine then
+            local remotes = hEngine:FindFirstChild("Remotes")
+            if remotes then
+                GhostSwingRemote = remotes:FindFirstChild("GhostSwing")
+            end
+        end
+        if not GhostSwingRemote then
+            GhostSwingRemote = ReplicatedStorage:FindFirstChild("GhostSwing", true)
+        end
+    end)
+
+    pcall(function()
+        local wEngine = ReplicatedStorage:FindFirstChild("Weapon_Engine")
+        if wEngine then
+            local remotes = wEngine:FindFirstChild("Remotes")
+            if remotes then
+                WeaponAttackRemote = remotes:FindFirstChild("WeaponAttack")
+            end
+        end
+        if not WeaponAttackRemote then
+            WeaponAttackRemote = ReplicatedStorage:FindFirstChild("WeaponAttack", true)
+        end
+    end)
+
+    pcall(function()
+        local dEngine = ReplicatedStorage:FindFirstChild("Death_Engine")
+        if dEngine then
+            local remotes = dEngine:FindFirstChild("Remotes")
+            if remotes then
+                ResetRequestedRemote = remotes:FindFirstChild("ResetRequested")
+            end
+        end
+        if not ResetRequestedRemote then
+            ResetRequestedRemote = ReplicatedStorage:FindFirstChild("ResetRequested", true)
+        end
+    end)
+end
+task.spawn(resolveRemotes)
+
+-- 5. ANTI-AFK ENGINE
 local AntiAFKActive = true
 task.spawn(function()
     local VirtualUser = nil
-    pcall(function()
-        VirtualUser = game:GetService("VirtualUser")
-    end)
+    pcall(function() VirtualUser = game:GetService("VirtualUser") end)
 
     LocalPlayer.Idled:Connect(function()
         if AntiAFKActive then
@@ -91,16 +136,14 @@ task.spawn(function()
                 else
                     local char = LocalPlayer.Character
                     local hum = char and char:FindFirstChildOfClass("Humanoid")
-                    if hum then
-                        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                    end
+                    if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
                 end
             end)
         end
     end)
 end)
 
--- 5. STATS MONITOR OVERLAY
+-- 6. STATS MONITOR OVERLAY
 local MonitorFPS = false
 local MonitorPing = false
 local MonitorMem = false
@@ -160,7 +203,7 @@ local monitorConn = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- 6. BACKDROP & INTRO LOADER
+-- 7. BACKDROP & INTRO LOADER
 local Backdrop = Instance.new("TextButton")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -209,7 +252,7 @@ LoadingText.TextXAlignment = Enum.TextXAlignment.Left
 LoadingText.ZIndex = 4001
 LoadingText.Parent = LoaderPill
 
--- 7. MAIN CARD
+-- 8. MAIN CARD
 local Card = Instance.new("Frame")
 Card.Name = "ProfileCard"
 Card.Size = UDim2.new(0, 580, 0, 345)
@@ -420,7 +463,7 @@ SettingsBtn.MouseLeave:Connect(function()
     tw(sBtnStroke, {Color = C.Border}, 0.15)
 end)
 
--- 8. BODY CONTAINER
+-- 9. BODY CONTAINER
 local Body = Instance.new("Frame")
 Body.Size = UDim2.new(1, -32, 1, -60)
 Body.Position = UDim2.new(0, 16, 0, 48)
@@ -544,7 +587,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 9. REUSABLE ACTION CARD BUILDER (ACTIVE STATE PERSISTENCE)
+-- 10. REUSABLE ACTION CARD BUILDER (IMMEDIATE OUTLINE PERSISTENCE)
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -663,22 +706,16 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     end)
 end
 
--- 10. GHOST DISCOVERY LOGIC
-local GhostSwingRemote = nil
-task.spawn(function()
-    pcall(function()
-        local hEngine = ReplicatedStorage:WaitForChild("Halloween_Engine", 4)
-        if hEngine then
-            local remotes = hEngine:WaitForChild("Remotes", 4)
-            if remotes then
-                GhostSwingRemote = remotes:WaitForChild("GhostSwing", 3)
-            end
-        end
-    end)
-end)
-
+-- 11. GHOST DISCOVERY ENGINE
 local function locateGhostFolder()
-    return Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
+    local folder = Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
+    if folder then return folder end
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if string.find(string.lower(child.Name), "ghost") and child:IsA("Folder") or child:IsA("Model") then
+            return child
+        end
+    end
+    return nil
 end
 
 local function getNearestGhost()
@@ -713,7 +750,20 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
--- 11. UNIFIED CANDY CORN FARM ENGINE (3-STATE: OFF -> SAFE -> TP)
+-- 12. AUTO-EQUIP GHOST NET HELPER
+local function autoEquipNet()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local held = char:FindFirstChild("Ghost Net") or char:FindFirstChildWhichIsA("Tool")
+    if not held then
+        local net = LocalPlayer.Backpack:FindFirstChild("Ghost Net") or LocalPlayer.Backpack:FindFirstChildWhichIsA("Tool")
+        if net then
+            net.Parent = char
+        end
+    end
+end
+
+-- 13. CANDY CORN ENGINE (3-STATE: OFF -> SAFE AI -> TP SWEEP)
 local CandyFarmMode = "OFF"
 local isUnderground = false
 
@@ -742,19 +792,28 @@ local function restoreSurface()
     end
 end
 
--- Obstacle & Elevation Raycast for Safe AI Chase
-local function checkPathObstacles(hrp, humanoid, targetPos)
-    local origin = hrp.Position
-    local direction = (targetPos - origin).Unit * 4.5
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {LocalPlayer.Character}
-    rayParams.FilterType = RaycastFilterType.Exclude
+local function executeGhostSwing(ghost)
+    resolveRemotes()
+    if GhostSwingRemote and ghost and ghost.Parent then
+        pcall(function() GhostSwingRemote:FireServer(ghost.Name) end)
+        pcall(function() GhostSwingRemote:FireServer(ghost) end)
+    end
+    if WeaponAttackRemote then
+        pcall(function() WeaponAttackRemote:FireServer() end)
+    end
+end
 
-    local result = Workspace:Raycast(origin, direction, rayParams)
-    if result and result.Instance and result.Instance.CanCollide then
+local function checkObstaclesAndJump(hrp, humanoid, targetPos)
+    local origin = hrp.Position
+    local dir = (targetPos - origin).Unit * 5
+    local rParams = RaycastParams.new()
+    rParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    rParams.FilterType = RaycastFilterType.Exclude
+
+    local hit = Workspace:Raycast(origin, dir, rParams)
+    if hit and hit.Instance and hit.Instance.CanCollide then
         humanoid.Jump = true
     end
-
     if targetPos.Y > origin.Y + 2.5 then
         humanoid.Jump = true
     end
@@ -763,6 +822,7 @@ end
 task.spawn(function()
     while true do
         if CandyFarmMode == "TP" then
+            autoEquipNet()
             local ghost, ghostPart = getNearestGhost()
             local char = LocalPlayer.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -775,13 +835,8 @@ task.spawn(function()
                     hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -7, 0)
                 end
-
                 task.wait(0.04)
-                if GhostSwingRemote and ghost.Parent then
-                    pcall(function()
-                        GhostSwingRemote:FireServer(ghost.Name)
-                    end)
-                end
+                executeGhostSwing(ghost)
             else
                 restoreSurface()
             end
@@ -789,6 +844,7 @@ task.spawn(function()
 
         elseif CandyFarmMode == "SAFE" then
             restoreSurface()
+            autoEquipNet()
             local ghost, ghostPart = getNearestGhost()
             local char = LocalPlayer.Character
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
@@ -797,14 +853,10 @@ task.spawn(function()
             if ghost and ghostPart and humanoid and hrp then
                 local dist = (ghostPart.Position - hrp.Position).Magnitude
                 humanoid:MoveTo(ghostPart.Position)
-                checkPathObstacles(hrp, humanoid, ghostPart.Position)
+                checkObstaclesAndJump(hrp, humanoid, ghostPart.Position)
 
-                if dist <= 6.8 then
-                    if GhostSwingRemote and ghost.Parent then
-                        pcall(function()
-                            GhostSwingRemote:FireServer(ghost.Name)
-                        end)
-                    end
+                if dist <= 7.5 then
+                    executeGhostSwing(ghost)
                 end
             end
             task.wait(0.12)
@@ -815,7 +867,7 @@ task.spawn(function()
     end
 end)
 
--- 12. GHOST ESP ENGINE
+-- 14. GHOST ESP ENGINE
 local GhostESPActive = false
 local GhostESPStorage = {}
 
@@ -902,7 +954,7 @@ local function toggleGhostESP(state)
     end
 end
 
--- 13. PLAYER ESP ENGINE (CLEAN DISTANCE & HP %)
+-- 15. PLAYER ESP ENGINE
 local ESPActive = false
 local ESPStorage = {}
 
@@ -988,7 +1040,29 @@ local function toggleESP(state)
     end
 end
 
--- 14. POPULATE CONTROLS IN LEFT COLUMN
+-- 16. WEAPON ATTACK LOOP
+local WeaponAttackActive = false
+local function toggleWeaponAttack(state)
+    WeaponAttackActive = state
+    if WeaponAttackActive then
+        task.spawn(function()
+            while WeaponAttackActive do
+                resolveRemotes()
+                if WeaponAttackRemote then
+                    pcall(function() WeaponAttackRemote:FireServer() end)
+                end
+                local char = LocalPlayer.Character
+                local tool = char and char:FindFirstChildWhichIsA("Tool")
+                if tool then
+                    pcall(function() tool:Activate() end)
+                end
+                task.wait(0.12)
+            end
+        end)
+    end
+end
+
+-- 17. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
 CreateActionCard(LeftCol, "AUTO CANDY CORN", "Tap: Safe AI -> Underground TP -> OFF", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
@@ -1017,9 +1091,18 @@ CreateActionCard(LeftCol, "AUTO CANDY CORN", "Tap: Safe AI -> Underground TP -> 
     end
 end)
 
-AddSection(LeftCol, "VISUALS", 3)
+CreateActionCard(LeftCol, "RAPID WEAPON ATTACK", "Direct WeaponAttack remote hit loop", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
+    toggleWeaponAttack(not WeaponAttackActive)
+    bText.Text = WeaponAttackActive and "ACTIVE" or "OFF"
+    bText.TextColor3 = WeaponAttackActive and C.Green or C.Muted
+    sLbl.Text = WeaponAttackActive and "Spamming server weapon attacks" or "Direct WeaponAttack remote hit loop"
+    setActive(WeaponAttackActive)
+    Notify("Weapon Engine", WeaponAttackActive and "Rapid Weapon Attack Active" or "Weapon Attack Halted", WeaponAttackActive and C.Green or C.Red)
+end)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+AddSection(LeftCol, "VISUALS", 4)
+
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1028,7 +1111,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1037,7 +1120,7 @@ CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF
     Notify("Ghost Visuals", GhostESPActive and "Ghost ESP Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 15. SETTINGS DRAWER OVERLAY
+-- 18. SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -1146,6 +1229,18 @@ CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", tr
 end)
 
 AddSection(DrawerScroll, "DANGER ZONE", 14)
+CreateActionCard(DrawerScroll, "FAST RESPAWN", "Triggers Death_Engine reset remote", "RESET", false, 15, function()
+    resolveRemotes()
+    if ResetRequestedRemote then
+        pcall(function() ResetRequestedRemote:FireServer() end)
+    else
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.Health = 0 end
+    end
+    Notify("Character", "Clean Respawn Requested", C.Red)
+end)
+
 local DestroyCard = Instance.new("TextButton")
 DestroyCard.Size = UDim2.new(1, 0, 0, 48)
 DestroyCard.BackgroundColor3 = C.CardBg
@@ -1153,7 +1248,7 @@ DestroyCard.AutoButtonColor = false
 DestroyCard.Text = ""
 DestroyCard.ClipsDescendants = true
 DestroyCard.ZIndex = 52
-DestroyCard.LayoutOrder = 15
+DestroyCard.LayoutOrder = 16
 DestroyCard.Parent = DrawerScroll
 
 Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
@@ -1203,6 +1298,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     else
         if timerThread then task.cancel(timerThread) end
         CandyFarmMode = "OFF"
+        WeaponAttackActive = false
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
@@ -1228,7 +1324,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 16. SAFE CLAMPING
+-- 19. SAFE CLAMPING & DRAGGING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1249,7 +1345,6 @@ local function clampPosition(rawPos, obj)
     return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
 end
 
--- 17. HEADER DRAGGING
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -1279,7 +1374,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. ENTRANCE & INTRO LOADER
+-- 20. ENTRANCE & INTRO LOADER
 local isTransitioning = false
 local isOpen = false
 
@@ -1367,7 +1462,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 19. MOBILE FLOATING BUTTON (🍁)
+-- 21. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
@@ -1456,4 +1551,4 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
-print("[Lumacore] Poly Loot Suite loaded successfully.")
+print("[Lumacore] Poly Loot Suite updated successfully.")
