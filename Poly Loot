@@ -749,7 +749,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     return controller
 end
 
--- 11. GHOST DISCOVERY ENGINE
+-- 11. GHOST DISCOVERY ENGINE (DISTANCE PRIORITIZED)
 local function locateGhostFolder()
     local folder = Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
     if folder then return folder end
@@ -806,10 +806,12 @@ local function autoEquipNet()
     end
 end
 
--- 13. DIRECT CANDY CORN AUTO-FARM (FAST UNDERGROUND TP)
+-- 13. POLISHED CANDY CORN AUTO-FARM (PHYSICS-LOCKED UNDERGROUND TP)
 local autoCandyFarm = false
 local isUnderground = false
+local currentTargetGhost = nil
 
+-- Noclip & Physics Lock (Prevents falling into the void or taking world damage)
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if char and isUnderground then
@@ -817,6 +819,13 @@ RunService.Stepped:Connect(function()
             if part:IsA("BasePart") then
                 part.CanCollide = false
             end
+        end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hrp and hum then
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            hum:ChangeState(Enum.HumanoidStateType.Physics)
         end
     end
 end)
@@ -835,10 +844,8 @@ local function restoreSurface()
     end
 end
 
-local activeStrikingGhost = nil
 local function executeGhostSwing(ghost)
     resolveRemotes()
-    activeStrikingGhost = ghost
     if GhostSwingRemote and ghost and ghost.Parent then
         pcall(function() GhostSwingRemote:FireServer(ghost.Name) end)
         pcall(function() GhostSwingRemote:FireServer(ghost) end)
@@ -850,15 +857,15 @@ local function executeGhostSwing(ghost)
     end
 end
 
--- Hook ghost removal for Ghost Capture Counter
+-- Zero-Latency Target Switch & Ghost Capture Counter
 task.spawn(function()
     while true do
         local folder = locateGhostFolder()
         if folder then
             folder.ChildRemoved:Connect(function(child)
-                if activeStrikingGhost and child == activeStrikingGhost then
+                if currentTargetGhost and child == currentTargetGhost then
                     GhostCaptures = GhostCaptures + 1
-                    activeStrikingGhost = nil
+                    currentTargetGhost = nil
                 end
             end)
             break
@@ -872,19 +879,20 @@ task.spawn(function()
         if autoCandyFarm then
             autoEquipNet()
             local ghost, ghostPart = getNearestGhost()
+            currentTargetGhost = ghost
+
             local char = LocalPlayer.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 
             if ghost and ghostPart and ghost.Parent then
                 isUnderground = true
-                if hrp and humanoid then
-                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                    hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                if hrp then
                     hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -7, 0)
                 end
                 task.wait(0.04)
-                executeGhostSwing(ghost)
+                if ghost.Parent then
+                    executeGhostSwing(ghost)
+                end
             else
                 restoreSurface()
             end
@@ -1072,14 +1080,14 @@ end
 -- 16. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Fast sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Nearest swipe", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     autoCandyFarm = not autoCandyFarm
     bText.Text = autoCandyFarm and "RUNNING" or "OFF"
     bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Underground TP farm • Fast sweep"
+    sLbl.Text = autoCandyFarm and "Active • Ensure Ghost Net is equipped" or "Requires Ghost Net equipped • Nearest swipe"
     setActive(autoCandyFarm)
     if not autoCandyFarm then restoreSurface() end
-    Notify("Auto Candy Corn", autoCandyFarm and "TP Farm Activated" or "TP Farm Disabled", autoCandyFarm and C.Green or C.Red)
+    Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Activated (Net Required)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
 end)
 
 AddSection(LeftCol, "VISUALS", 3)
