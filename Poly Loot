@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local PathfindingService = game:GetService("PathfindingService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
@@ -295,6 +296,26 @@ SubTitle.Size = UDim2.new(0, 180, 0, 14)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Parent = Header
 
+-- PC KEYBIND BADGE IN HEADER
+local KeybindHint = Instance.new("TextLabel")
+KeybindHint.Name = "KeybindHint"
+KeybindHint.Size = UDim2.new(0, 92, 0, 20)
+KeybindHint.Position = UDim2.new(1, -170, 0.5, -10)
+KeybindHint.BackgroundColor3 = C.Surface
+KeybindHint.Text = "[RightCtrl] Toggle"
+KeybindHint.TextColor3 = C.Muted
+KeybindHint.Font = Enum.Font.GothamBold
+KeybindHint.TextSize = 9
+KeybindHint.BorderSizePixel = 0
+KeybindHint.ZIndex = 65
+KeybindHint.Parent = Header
+
+Instance.new("UICorner", KeybindHint).CornerRadius = UDim.new(0, 6)
+local kbStroke = Instance.new("UIStroke")
+kbStroke.Color = C.Border
+kbStroke.Thickness = 1
+kbStroke.Parent = KeybindHint
+
 -- HIGH-CONTRAST IN-UI NOTIFICATION BANNER
 local NotificationsEnabled = true
 local NotificationBanner = Instance.new("Frame")
@@ -573,7 +594,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER
+-- 10. REUSABLE ACTION CARD BUILDER (INCLUDES CARD CONTROLLER EXPORT)
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -668,6 +689,16 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
         end
     end
 
+    local controller = {
+        row = row,
+        stroke = s,
+        titleLabel = tLbl,
+        subLabel = sLbl,
+        badgeText = bText,
+        badgeStroke = bStroke,
+        setActive = setCardActiveState
+    }
+
     row.MouseEnter:Connect(function()
         if not isCardActive then
             tw(row, {BackgroundColor3 = C.Hover}, 0.14)
@@ -688,8 +719,10 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
                 tw(row, {Size = UDim2.new(1, 0, 0, 48)}, 0.12, Enum.EasingStyle.Back)
             end)
         end
-        callback(bText, bStroke, sLbl, setCardActiveState)
+        callback(bText, bStroke, sLbl, setCardActiveState, controller)
     end)
+
+    return controller
 end
 
 -- 11. GHOST DISCOVERY ENGINE
@@ -749,10 +782,14 @@ local function autoEquipNet()
     end
 end
 
--- 13. INDEPENDENT CANDY CORN FARM ENGINES (WITH SAFETY INTERLOCK)
+-- 13. INDEPENDENT CANDY CORN FARM ENGINES
 local autoCandyFarm = false     -- Underground TP Mode
 local SafeAIActive = false      -- Safe Walking/Leaping Mode
 local isUnderground = false
+
+-- Card controller references for Mutual Interlock states
+local tpCardCtrl = nil
+local safeCardCtrl = nil
 
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
@@ -792,19 +829,51 @@ local function executeGhostSwing(ghost)
     end
 end
 
-local function checkObstaclesAndJump(hrp, humanoid, targetPos)
-    local origin = hrp.Position
-    local dir = (targetPos - origin).Unit * 5
+-- Pathfinding & Jump Raycasting for Safe AI
+local function navigateSafelyTo(humanoid, hrp, targetPos)
+    local myPos = hrp.Position
+    local dist = (targetPos - myPos).Magnitude
+
+    -- Immediate jump check for obstacles and elevation
+    local dir = (targetPos - myPos).Unit * 5
     local rParams = RaycastParams.new()
     rParams.FilterDescendantsInstances = {LocalPlayer.Character}
     rParams.FilterType = RaycastFilterType.Exclude
 
-    local hit = Workspace:Raycast(origin, dir, rParams)
+    local hit = Workspace:Raycast(myPos, dir, rParams)
     if hit and hit.Instance and hit.Instance.CanCollide then
         humanoid.Jump = true
     end
-    if targetPos.Y > origin.Y + 2.5 then
+    if targetPos.Y > myPos.Y + 2.2 then
         humanoid.Jump = true
+    end
+
+    if dist < 30 then
+        humanoid:MoveTo(targetPos)
+    else
+        local path = PathfindingService:CreatePath({
+            AgentRadius = 2.5,
+            AgentHeight = 5,
+            AgentCanJump = true,
+            WaypointSpacing = 4
+        })
+        local success = pcall(function()
+            path:ComputeAsync(myPos, targetPos)
+        end)
+        if success and path.Status == Enum.PathStatus.Success then
+            local waypoints = path:GetWaypoints()
+            if waypoints and #waypoints >= 2 then
+                local nextPoint = waypoints[2]
+                if nextPoint.Action == Enum.PathWaypointAction.Jump then
+                    humanoid.Jump = true
+                end
+                humanoid:MoveTo(nextPoint.Position)
+            else
+                humanoid:MoveTo(targetPos)
+            end
+        else
+            humanoid:MoveTo(targetPos)
+        end
     end
 end
 
@@ -853,10 +922,9 @@ task.spawn(function()
 
             if ghost and ghostPart and humanoid and hrp then
                 local dist = (ghostPart.Position - hrp.Position).Magnitude
-                humanoid:MoveTo(ghostPart.Position)
-                checkObstaclesAndJump(hrp, humanoid, ghostPart.Position)
+                navigateSafelyTo(humanoid, hrp, ghostPart.Position)
 
-                if dist <= 7.5 then
+                if dist <= 8.5 then
                     executeGhostSwing(ghost)
                 end
             end
@@ -1043,41 +1111,92 @@ end
 -- 16. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
--- Auto Candy Corn (Underground TP)
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Fast sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+-- 1. Fast TP Mode Card
+tpCardCtrl = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Underground TP farm • Fast sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     if SafeAIActive then
-        Notify("Safety Lock", "Disable Safe Auto Farm before using TP Mode", C.Red)
+        Notify("Mode Interlock", "Turn OFF Safe Auto Farm before using TP Mode", C.Red)
         return
     end
 
     autoCandyFarm = not autoCandyFarm
-    bText.Text = autoCandyFarm and "RUNNING" or "OFF"
-    bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Underground TP farm • Fast sweep"
-    setActive(autoCandyFarm)
-    if not autoCandyFarm then restoreSurface() end
-    Notify("Auto Candy Corn", autoCandyFarm and "Underground TP Farm Active" or "TP Farm Disabled", autoCandyFarm and C.Green or C.Red)
+    if autoCandyFarm then
+        bText.Text = "RUNNING"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Active • Sweeping nearest ghosts underground"
+        setActive(true, C.Accent)
+
+        -- Lock out the Safe AI card
+        if safeCardCtrl then
+            safeCardCtrl.badgeText.Text = "LOCKED"
+            safeCardCtrl.badgeText.TextColor3 = C.Red
+            safeCardCtrl.badgeStroke.Color = C.Red
+            safeCardCtrl.subLabel.Text = "Disabled (Turn off TP Farm first)"
+            safeCardCtrl.setActive(false)
+        end
+        Notify("Auto Candy Corn", "Underground TP Farm Active", C.Accent)
+    else
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        sLbl.Text = "Underground TP farm • Fast sweep"
+        setActive(false)
+        restoreSurface()
+
+        -- Restore Safe AI card to ready state
+        if safeCardCtrl then
+            safeCardCtrl.badgeText.Text = "OFF"
+            safeCardCtrl.badgeText.TextColor3 = C.Muted
+            safeCardCtrl.badgeStroke.Color = C.Border
+            safeCardCtrl.subLabel.Text = "Autonomous pathfinding & jump chase"
+            safeCardCtrl.setActive(false)
+        end
+        Notify("Auto Candy Corn", "TP Farm Disabled", C.Red)
+    end
 end)
 
--- Safe Auto Farm (Natural AI Walking/Leaping)
-CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous AI chase • Runs & leaps", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
+-- 2. Safe Auto Farm Card
+safeCardCtrl = CreateActionCard(LeftCol, "SAFE AUTO FARM", "Autonomous pathfinding & jump chase", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
     if autoCandyFarm then
-        autoCandyFarm = false
-        restoreSurface()
+        Notify("Mode Interlock", "Turn OFF Underground TP Farm first", C.Red)
+        return
     end
 
     SafeAIActive = not SafeAIActive
-    bText.Text = SafeAIActive and "RUNNING" or "OFF"
-    bText.TextColor3 = SafeAIActive and C.Green or C.Muted
-    sLbl.Text = SafeAIActive and "Active • Chasing ghosts with jump assist" or "Autonomous AI chase • Runs & leaps"
-    setActive(SafeAIActive, C.Green)
-    if not SafeAIActive then
+    if SafeAIActive then
+        bText.Text = "RUNNING"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Active • Chasing ghosts with pathing & jump assist"
+        setActive(true, C.Green)
+
+        -- Lock out the TP Farm card
+        if tpCardCtrl then
+            tpCardCtrl.badgeText.Text = "LOCKED"
+            tpCardCtrl.badgeText.TextColor3 = C.Red
+            tpCardCtrl.badgeStroke.Color = C.Red
+            tpCardCtrl.subLabel.Text = "Disabled (Turn off Safe Farm first)"
+            tpCardCtrl.setActive(false)
+        end
+        Notify("Safe Auto Farm", "Pathfinding & Jump AI Chase Active", C.Green)
+    else
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        sLbl.Text = "Autonomous pathfinding & jump chase"
+        setActive(false)
+
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hum and hrp then hum:MoveTo(hrp.Position) end
+
+        -- Restore TP Farm card to ready state
+        if tpCardCtrl then
+            tpCardCtrl.badgeText.Text = "OFF"
+            tpCardCtrl.badgeText.TextColor3 = C.Muted
+            tpCardCtrl.badgeStroke.Color = C.Border
+            tpCardCtrl.subLabel.Text = "Underground TP farm • Fast sweep"
+            tpCardCtrl.setActive(false)
+        end
+        Notify("Safe Auto Farm", "Safe AI Farm Stopped", C.Red)
     end
-    Notify("Safe Auto Farm", SafeAIActive and "AI Chase Active (Protects TP lock)" or "Safe AI Farm Stopped", SafeAIActive and C.Green or C.Red)
 end)
 
 AddSection(LeftCol, "VISUALS", 4)
