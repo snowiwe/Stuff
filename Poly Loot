@@ -1,11 +1,10 @@
--- // LUMACORE - POLY LOOT SUITE //
+-- // LUMACORE - POLY LOOT (AI CHASE & IN-UI BANNER EDITION) //
 -- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 local Stats = game:GetService("Stats")
@@ -101,90 +100,7 @@ task.spawn(function()
     end)
 end)
 
--- 5. POLISHED TOAST NOTIFICATION STACK
-local NotificationsEnabled = true
-local ToastContainer = Instance.new("Frame")
-ToastContainer.Name = "ToastContainer"
-ToastContainer.Size = UDim2.new(0, 240, 0.4, 0)
-ToastContainer.Position = UDim2.new(0.5, 0, 0.88, 0)
-ToastContainer.AnchorPoint = Vector2.new(0.5, 1)
-ToastContainer.BackgroundTransparency = 1
-ToastContainer.Parent = ScreenGui
-
-local toastLayout = Instance.new("UIListLayout")
-toastLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-toastLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-toastLayout.Padding = UDim.new(0, 6)
-toastLayout.Parent = ToastContainer
-
-local function Notify(titleText, subText, color)
-    if not NotificationsEnabled then return end
-    task.spawn(function()
-        local toast = Instance.new("Frame")
-        toast.Size = UDim2.new(1, 0, 0, 42)
-        toast.BackgroundColor3 = C.CardBg
-        toast.BackgroundTransparency = 0.05
-        toast.BorderSizePixel = 0
-        toast.ClipsDescendants = true
-        toast.ZIndex = 5000
-        toast.Parent = ToastContainer
-
-        Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 10)
-        local s = Instance.new("UIStroke")
-        s.Color = color or C.Accent
-        s.Thickness = 1.2
-        s.Parent = toast
-
-        local bar = Instance.new("Frame")
-        bar.Size = UDim2.new(0, 3, 0.7, 0)
-        bar.Position = UDim2.new(0, 10, 0.15, 0)
-        bar.BackgroundColor3 = color or C.Accent
-        bar.BorderSizePixel = 0
-        bar.Parent = toast
-        Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
-
-        local tLbl = Instance.new("TextLabel")
-        tLbl.Size = UDim2.new(1, -26, 0, 16)
-        tLbl.Position = UDim2.new(0, 20, 0, 6)
-        tLbl.BackgroundTransparency = 1
-        tLbl.Text = titleText
-        tLbl.TextColor3 = C.Text
-        tLbl.Font = Enum.Font.GothamBold
-        tLbl.TextSize = 11
-        tLbl.TextXAlignment = Enum.TextXAlignment.Left
-        tLbl.Parent = toast
-
-        local sLbl = Instance.new("TextLabel")
-        sLbl.Size = UDim2.new(1, -26, 0, 14)
-        sLbl.Position = UDim2.new(0, 20, 0, 22)
-        sLbl.BackgroundTransparency = 1
-        sLbl.Text = subText or "System update"
-        sLbl.TextColor3 = C.Muted
-        sLbl.Font = Enum.Font.Gotham
-        sLbl.TextSize = 10
-        sLbl.TextXAlignment = Enum.TextXAlignment.Left
-        sLbl.Parent = toast
-
-        if AnimationsEnabled then
-            toast.Position = UDim2.new(0, 0, 0.3, 0)
-            tw(toast, {Position = UDim2.new(0, 0, 0, 0)}, 0.22, Enum.EasingStyle.Back)
-        end
-
-        task.wait(2.4)
-
-        if AnimationsEnabled then
-            local exit = tw(toast, {BackgroundTransparency = 1}, 0.22)
-            tw(tLbl, {TextTransparency = 1}, 0.2)
-            tw(sLbl, {TextTransparency = 1}, 0.2)
-            tw(s, {Transparency = 1}, 0.2)
-            tw(bar, {BackgroundTransparency = 1}, 0.2)
-            exit.Completed:Wait()
-        end
-        toast:Destroy()
-    end)
-end
-
--- 6. STATS OVERLAY
+-- 5. STATS MONITOR OVERLAY
 local MonitorFPS = false
 local MonitorPing = false
 local MonitorMem = false
@@ -244,7 +160,7 @@ local monitorConn = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- 7. BACKDROP & INTRO LOADER
+-- 6. BACKDROP & INTRO LOADER
 local Backdrop = Instance.new("TextButton")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -293,7 +209,7 @@ LoadingText.TextXAlignment = Enum.TextXAlignment.Left
 LoadingText.ZIndex = 4001
 LoadingText.Parent = LoaderPill
 
--- 8. MAIN DASHBOARD CARD
+-- 7. MAIN CARD
 local Card = Instance.new("Frame")
 Card.Name = "ProfileCard"
 Card.Size = UDim2.new(0, 580, 0, 345)
@@ -335,7 +251,7 @@ Title.TextSize = 14
 Title.TextColor3 = C.Text
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Position = UDim2.new(0, 32, 0, 9)
-Title.Size = UDim2.new(0, 200, 0, 16)
+Title.Size = UDim2.new(0, 180, 0, 16)
 Title.BackgroundTransparency = 1
 Title.Parent = Header
 
@@ -346,10 +262,113 @@ SubTitle.TextSize = 10
 SubTitle.TextColor3 = C.AccentGlow
 SubTitle.TextXAlignment = Enum.TextXAlignment.Left
 SubTitle.Position = UDim2.new(0, 32, 0, 26)
-SubTitle.Size = UDim2.new(0, 280, 0, 14)
+SubTitle.Size = UDim2.new(0, 180, 0, 14)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Parent = Header
 
+-- IN-UI NOTIFICATION BANNER (QUEUED WORKER)
+local NotificationsEnabled = true
+local NotificationBanner = Instance.new("Frame")
+NotificationBanner.Name = "InUINotifier"
+NotificationBanner.Size = UDim2.new(0, 210, 0, 32)
+NotificationBanner.Position = UDim2.new(0.5, 0, 0, 8)
+NotificationBanner.AnchorPoint = Vector2.new(0.5, 0)
+NotificationBanner.BackgroundColor3 = C.CardBg
+NotificationBanner.BorderSizePixel = 0
+NotificationBanner.ClipsDescendants = true
+NotificationBanner.Visible = false
+NotificationBanner.ZIndex = 80
+NotificationBanner.Parent = Header
+
+Instance.new("UICorner", NotificationBanner).CornerRadius = UDim.new(0, 8)
+local nbStroke = Instance.new("UIStroke")
+nbStroke.Color = C.Accent
+nbStroke.Thickness = 1
+nbStroke.Parent = NotificationBanner
+
+local nbBar = Instance.new("Frame")
+nbBar.Size = UDim2.new(0, 3, 0.65, 0)
+nbBar.Position = UDim2.new(0, 8, 0.175, 0)
+nbBar.BackgroundColor3 = C.Accent
+nbBar.BorderSizePixel = 0
+nbBar.Parent = NotificationBanner
+Instance.new("UICorner", nbBar).CornerRadius = UDim.new(1, 0)
+
+local nbTitle = Instance.new("TextLabel")
+nbTitle.Size = UDim2.new(1, -22, 0, 14)
+nbTitle.Position = UDim2.new(0, 16, 0, 3)
+nbTitle.BackgroundTransparency = 1
+nbTitle.Text = ""
+nbTitle.TextColor3 = C.Text
+nbTitle.Font = Enum.Font.GothamBold
+nbTitle.TextSize = 10
+nbTitle.TextXAlignment = Enum.TextXAlignment.Left
+nbTitle.Parent = NotificationBanner
+
+local nbSub = Instance.new("TextLabel")
+nbSub.Size = UDim2.new(1, -22, 0, 12)
+nbSub.Position = UDim2.new(0, 16, 0, 16)
+nbSub.BackgroundTransparency = 1
+nbSub.Text = ""
+nbSub.TextColor3 = C.Muted
+nbSub.Font = Enum.Font.Gotham
+nbSub.TextSize = 9
+nbSub.TextXAlignment = Enum.TextXAlignment.Left
+nbSub.Parent = NotificationBanner
+
+local NotifyQueue = {}
+local isDisplayingNotify = false
+
+local function processNextNotification()
+    if #NotifyQueue == 0 or isDisplayingNotify or not NotificationsEnabled then return end
+    isDisplayingNotify = true
+    local item = table.remove(NotifyQueue, 1)
+
+    nbTitle.Text = item.title
+    nbSub.Text = item.sub or "System notice"
+    nbStroke.Color = item.color or C.Accent
+    nbBar.BackgroundColor3 = item.color or C.Accent
+
+    NotificationBanner.Visible = true
+    NotificationBanner.Position = UDim2.new(0.5, 0, 0, -40)
+    NotificationBanner.BackgroundTransparency = 1
+    nbTitle.TextTransparency = 1
+    nbSub.TextTransparency = 1
+    nbStroke.Transparency = 1
+    nbBar.BackgroundTransparency = 1
+
+    tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, 8), BackgroundTransparency = 0.05}, 0.22, Enum.EasingStyle.Back)
+    tw(nbTitle, {TextTransparency = 0}, 0.2)
+    tw(nbSub, {TextTransparency = 0}, 0.2)
+    tw(nbStroke, {Transparency = 0}, 0.2)
+    tw(nbBar, {BackgroundTransparency = 0}, 0.2)
+
+    task.wait(2.2)
+
+    local exit = tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, -40), BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quart)
+    tw(nbTitle, {TextTransparency = 1}, 0.2)
+    tw(nbSub, {TextTransparency = 1}, 0.2)
+    tw(nbStroke, {Transparency = 1}, 0.2)
+    tw(nbBar, {BackgroundTransparency = 1}, 0.2)
+    exit.Completed:Wait()
+
+    NotificationBanner.Visible = false
+    isDisplayingNotify = false
+
+    if #NotifyQueue > 0 then
+        processNextNotification()
+    end
+end
+
+local function Notify(titleText, subText, color)
+    if not NotificationsEnabled then return end
+    table.insert(NotifyQueue, {title = titleText, sub = subText, color = color})
+    if not isDisplayingNotify then
+        task.spawn(processNextNotification)
+    end
+end
+
+-- HEADER BUTTONS
 local HeaderBtns = Instance.new("Frame")
 HeaderBtns.Size = UDim2.new(0, 68, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
@@ -398,7 +417,7 @@ SettingsBtn.MouseLeave:Connect(function()
     tw(sBtnStroke, {Color = C.Border}, 0.15)
 end)
 
--- 9. BODY CONTAINER
+-- 8. BODY CONTAINER
 local Body = Instance.new("Frame")
 Body.Size = UDim2.new(1, -32, 1, -60)
 Body.Position = UDim2.new(0, 16, 0, 48)
@@ -522,7 +541,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (WITH ACTIVE OUTLINE GLOW)
+-- 9. ACTION CARD BUILDER WITH INITIAL OUTLINE SUPPORT
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -538,10 +557,10 @@ local function AddSection(parent, text, order)
     return lbl
 end
 
-local function CreateActionCard(parent, title, defaultSub, initialBadgeText, order, callback)
+local function CreateActionCard(parent, title, defaultSub, initialBadgeText, initialActive, order, callback)
     local row = Instance.new("TextButton")
     row.Size = UDim2.new(1, 0, 0, 48)
-    row.BackgroundColor3 = C.CardBg
+    row.BackgroundColor3 = initialActive and C.Hover or C.CardBg
     row.AutoButtonColor = false
     row.Text = ""
     row.LayoutOrder = order or 0
@@ -550,8 +569,8 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ord
 
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
     local s = Instance.new("UIStroke")
-    s.Color = C.Border
-    s.Thickness = 1
+    s.Color = initialActive and C.Accent or C.Border
+    s.Thickness = initialActive and 1.4 or 1
     s.Parent = row
 
     local tLbl = Instance.new("TextLabel")
@@ -588,7 +607,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ord
     Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
 
     local bStroke = Instance.new("UIStroke")
-    bStroke.Color = C.Border
+    bStroke.Color = initialActive and C.Green or C.Border
     bStroke.Thickness = 1
     bStroke.Parent = badge
 
@@ -598,19 +617,21 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ord
     bText.Text = initialBadgeText
     bText.Font = Enum.Font.GothamBold
     bText.TextSize = 10
-    bText.TextColor3 = C.Muted
+    bText.TextColor3 = initialActive and C.Green or C.Muted
     bText.ZIndex = row.ZIndex + 2
     bText.Parent = badge
 
-    local isCardActive = false
+    local isCardActive = initialActive or false
     local function setCardActiveState(active)
         isCardActive = active
         if isCardActive then
             tw(s, {Color = C.Accent, Thickness = 1.4}, 0.15)
             tw(row, {BackgroundColor3 = C.Hover}, 0.15)
+            tw(bStroke, {Color = C.Green}, 0.15)
         else
             tw(s, {Color = C.Border, Thickness = 1}, 0.15)
             tw(row, {BackgroundColor3 = C.CardBg}, 0.15)
+            tw(bStroke, {Color = C.Border}, 0.15)
         end
     end
 
@@ -638,34 +659,8 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ord
     end)
 end
 
--- 11. LEGIT MODE TOGGLE
-local LegitModeActive = false
-
--- 12. NATURAL AUTO-ATTACK ENGINE (CLEAN PC/MOBILE NATIVE CLICK)
-local AutoAttackActive = false
-local function executeNaturalClick()
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool then
-        pcall(function() tool:Activate() end)
-    end
-
-    pcall(function()
-        local vSize = Camera and Camera.ViewportSize or Vector2.new(800, 600)
-        local midX, midY = math.floor(vSize.X * 0.5), math.floor(vSize.Y * 0.5)
-        VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, true, game, 1)
-        task.wait(0.02)
-        VirtualInputManager:SendMouseButtonEvent(midX, midY, 0, false, game, 1)
-    end)
-end
-
--- 13. CANDY CORN AUTO-FARM ENGINE
-local autoCandyFarm = false
-local isUnderground = false
+-- 10. GHOST DISCOVERY ENGINE
 local GhostSwingRemote = nil
-
 task.spawn(function()
     pcall(function()
         local hEngine = ReplicatedStorage:WaitForChild("Halloween_Engine", 4)
@@ -714,6 +709,10 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
+-- 11. CANDY CORN AUTO-FARM (TP MODE)
+local autoCandyFarm = false
+local isUnderground = false
+
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if char and isUnderground then
@@ -755,7 +754,7 @@ task.spawn(function()
                     hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -7, 0)
                 end
 
-                task.wait(LegitModeActive and 0.08 or 0.04)
+                task.wait(0.04)
                 if GhostSwingRemote and ghost.Parent then
                     pcall(function()
                         GhostSwingRemote:FireServer(ghost.Name)
@@ -767,11 +766,39 @@ task.spawn(function()
         else
             restoreSurface()
         end
-        task.wait(LegitModeActive and 0.18 or 0.1)
+        task.wait(0.1)
     end
 end)
 
--- 14. PLAYER ESP ENGINE (CLEAN DISTANCE & HP %)
+-- 12. SAFE AI CHASE MOVEMENT (NATURAL PLAYER WALK)
+local SafeAIActive = false
+
+task.spawn(function()
+    while true do
+        if SafeAIActive and not autoCandyFarm then
+            local ghost, ghostPart = getNearestGhost()
+            local char = LocalPlayer.Character
+            local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+            if ghost and ghostPart and humanoid and hrp then
+                local dist = (ghostPart.Position - hrp.Position).Magnitude
+                humanoid:MoveTo(ghostPart.Position)
+
+                if dist <= 6.5 then
+                    if GhostSwingRemote and ghost.Parent then
+                        pcall(function()
+                            GhostSwingRemote:FireServer(ghost.Name)
+                        end)
+                    end
+                end
+            end
+        end
+        task.wait(0.12)
+    end
+end)
+
+-- 13. PLAYER ESP ENGINE (CLEAN DISTANCE & HP %)
 local ESPActive = false
 local ESPStorage = {}
 
@@ -857,41 +884,39 @@ local function toggleESP(state)
     end
 end
 
--- 15. POPULATE CONTROLS IN LEFT COLUMN
+-- 14. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Nearest swipe", "OFF", 2, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net • Instant TP sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     autoCandyFarm = not autoCandyFarm
+    if autoCandyFarm and SafeAIActive then
+        SafeAIActive = false
+    end
     bText.Text = autoCandyFarm and "RUNNING" or "OFF"
     bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
     bStroke.Color = autoCandyFarm and C.Green or C.Border
-    sLbl.Text = autoCandyFarm and "Active • Ensure Ghost Net is equipped" or "Requires Ghost Net equipped • Nearest swipe"
+    sLbl.Text = autoCandyFarm and "Active • Ensure Ghost Net is equipped" or "Requires Ghost Net • Instant TP sweep"
     setActive(autoCandyFarm)
-    Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Activated (Net Required)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
+    Notify("Candy Corn Farm", autoCandyFarm and "TP Farm Activated" or "TP Farm Paused", autoCandyFarm and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "NATURAL AUTO ATTACK", "Simulates player clicks & mobile taps", "OFF", 3, function(bText, bStroke, sLbl, setActive)
-    AutoAttackActive = not AutoAttackActive
-    bText.Text = AutoAttackActive and "ACTIVE" or "OFF"
-    bText.TextColor3 = AutoAttackActive and C.Green or C.Muted
-    bStroke.Color = AutoAttackActive and C.Green or C.Border
-    sLbl.Text = AutoAttackActive and "Tapping screen & clicking weapon" or "Simulates player clicks & mobile taps"
-    setActive(AutoAttackActive)
-    Notify("Auto Attack", AutoAttackActive and "Tap Loop Active" or "Tap Loop Halted", AutoAttackActive and C.Green or C.Red)
-
-    if AutoAttackActive then
-        task.spawn(function()
-            while AutoAttackActive do
-                executeNaturalClick()
-                task.wait(LegitModeActive and 0.28 or 0.16)
-            end
-        end)
+CreateActionCard(LeftCol, "SAFE AI CHASE", "Autonomous pathing • Runs after ghosts", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
+    SafeAIActive = not SafeAIActive
+    if SafeAIActive and autoCandyFarm then
+        autoCandyFarm = false
+        restoreSurface()
     end
+    bText.Text = SafeAIActive and "RUNNING" or "OFF"
+    bText.TextColor3 = SafeAIActive and C.Green or C.Muted
+    bStroke.Color = SafeAIActive and C.Green or C.Border
+    sLbl.Text = SafeAIActive and "AI moving naturally towards targets" or "Autonomous pathing • Runs after ghosts"
+    setActive(SafeAIActive)
+    Notify("Safe AI Chase", SafeAIActive and "AI Chase Enabled" or "AI Chase Stopped", SafeAIActive and C.Green or C.Red)
 end)
 
 AddSection(LeftCol, "VISUALS", 4)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", 5, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -901,19 +926,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Chams & Distance Active" or "Chams Disabled", ESPActive and C.Green or C.Red)
 end)
 
-AddSection(LeftCol, "SECURITY", 6)
-
-CreateActionCard(LeftCol, "LEGIT MODE", "Humanized delays to prevent kicks", "OFF", 7, function(bText, bStroke, sLbl, setActive)
-    LegitModeActive = not LegitModeActive
-    bText.Text = LegitModeActive and "SAFE" or "OFF"
-    bText.TextColor3 = LegitModeActive and C.Green or C.Muted
-    bStroke.Color = LegitModeActive and C.Green or C.Border
-    sLbl.Text = LegitModeActive and "Paced attacks & anti-detection delays" or "Humanized delays to prevent kicks"
-    setActive(LegitModeActive)
-    Notify("Legit Guard", LegitModeActive and "Safe Timing Enforced" or "Maximum Speed Restored", LegitModeActive and C.Green or C.Red)
-end)
-
--- 16. SETTINGS DRAWER OVERLAY
+-- 15. SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -948,7 +961,7 @@ dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
 AddSection(DrawerScroll, "IDLE & AFK", 1)
-CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disconnect", "ON", 2, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disconnect", "ON", true, 2, function(bText, bStroke, _, setActive)
     AntiAFKActive = not AntiAFKActive
     bText.Text = AntiAFKActive and "ON" or "OFF"
     bText.TextColor3 = AntiAFKActive and C.Green or C.Muted
@@ -958,7 +971,7 @@ CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disco
 end)
 
 AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", 4, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on profile", "OFF", false, 4, function(bText, bStroke, _, setActive)
     SensorInfoActive = not SensorInfoActive
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
@@ -968,7 +981,7 @@ CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Hides user & job IDs on prof
 end)
 
 AddSection(DrawerScroll, "MONITORING", 5)
-CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", 6, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false, 6, function(bText, bStroke, _, setActive)
     MonitorFPS = not MonitorFPS
     bText.Text = MonitorFPS and "ON" or "OFF"
     bText.TextColor3 = MonitorFPS and C.Green or C.Muted
@@ -976,7 +989,7 @@ CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", 6, fun
     setActive(MonitorFPS)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", 7, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", false, 7, function(bText, bStroke, _, setActive)
     MonitorPing = not MonitorPing
     bText.Text = MonitorPing and "ON" or "OFF"
     bText.TextColor3 = MonitorPing and C.Green or C.Muted
@@ -984,7 +997,7 @@ CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", 7
     setActive(MonitorPing)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", 8, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", false, 8, function(bText, bStroke, _, setActive)
     MonitorMem = not MonitorMem
     bText.Text = MonitorMem and "ON" or "OFF"
     bText.TextColor3 = MonitorMem and C.Green or C.Muted
@@ -993,7 +1006,7 @@ CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF",
 end)
 
 AddSection(DrawerScroll, "INTERFACE & VISUALS", 9)
-CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing animations", "ON", 10, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing animations", "ON", true, 10, function(bText, bStroke, _, setActive)
     AnimationsEnabled = not AnimationsEnabled
     bText.Text = AnimationsEnabled and "ON" or "OFF"
     bText.TextColor3 = AnimationsEnabled and C.Green or C.Muted
@@ -1002,7 +1015,7 @@ CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing anim
     Notify("Animations", AnimationsEnabled and "Easing Enabled" or "Instant Snapping Enabled", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", 11, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", true, 11, function(bText, bStroke, _, setActive)
     local nextState = not (MobileToggle and MobileToggle.Visible)
     if setFloatingIconVisible then setFloatingIconVisible(nextState) end
     bText.Text = nextState and "ON" or "OFF"
@@ -1012,7 +1025,7 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", 12, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", false, 12, function(bText, bStroke, _, setActive)
     local active = not Lighting.GlobalShadows
     Lighting.GlobalShadows = not active
     bText.Text = active and "ON" or "OFF"
@@ -1022,7 +1035,7 @@ CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OF
     Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows status banner banners", "ON", 13, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", true, 13, function(bText, bStroke, _, setActive)
     NotificationsEnabled = not NotificationsEnabled
     bText.Text = NotificationsEnabled and "ON" or "OFF"
     bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
@@ -1088,7 +1101,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     else
         if timerThread then task.cancel(timerThread) end
         autoCandyFarm = false
-        AutoAttackActive = false
+        SafeAIActive = false
         toggleESP(false)
         restoreSurface()
         if monitorConn then monitorConn:Disconnect() end
@@ -1113,7 +1126,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 17. SAFE CLAMPING
+-- 16. SAFE CLAMPING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1134,7 +1147,7 @@ local function clampPosition(rawPos, obj)
     return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
 end
 
--- 18. DRAGGING LOGIC
+-- 17. HEADER DRAGGING
 local dragging = false
 local dragStart = nil
 local startPos = nil
@@ -1164,7 +1177,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 19. ENTRANCE & INTRO LOADER
+-- 18. ENTRANCE & INTRO LOADER
 local isTransitioning = false
 local isOpen = false
 
@@ -1252,7 +1265,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 20. MOBILE FLOATING BUTTON (🍁)
+-- 19. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
@@ -1341,4 +1354,4 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
-print("[Lumacore] Poly Loot Suite ready. Tap 🍁 or press RightControl to launch.")
+print("[Lumacore] Poly Loot Ready. Tap 🍁 or press RightControl to launch.")
