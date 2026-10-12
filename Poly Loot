@@ -46,6 +46,7 @@ local C = {
     RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
     Purple     = Color3.fromRGB(175, 95, 245),
+    Cyan       = Color3.fromRGB(60, 200, 240),
 }
 
 local AnimationsEnabled = true
@@ -513,7 +514,7 @@ leftLayout.Padding = UDim.new(0, 6)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
--- RIGHT COLUMN
+-- RIGHT COLUMN (REFINED PROFILE & TELEMETRY SECTION)
 local RightCol = Instance.new("Frame")
 RightCol.Size = UDim2.new(0.42, -6, 1, 0)
 RightCol.Position = UDim2.new(0.58, 6, 0, 0)
@@ -527,9 +528,10 @@ rStroke.Color = C.Border
 rStroke.Thickness = 1
 rStroke.Parent = RightCol
 
+-- 1:1 Aspect Ratio Perfect Circle Avatar Container
 local AvatarHolder = Instance.new("Frame")
-AvatarHolder.Size = UDim2.new(0, 90, 0, 90)
-AvatarHolder.Position = UDim2.new(0.5, 0, 0, 8)
+AvatarHolder.Size = UDim2.new(0, 78, 0, 78)
+AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
 AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
 AvatarHolder.BackgroundColor3 = C.Surface
 AvatarHolder.ClipsDescendants = true
@@ -546,24 +548,35 @@ AvatarImage.Size = UDim2.fromScale(1, 1)
 AvatarImage.BackgroundTransparency = 1
 AvatarImage.ScaleType = Enum.ScaleType.Fit
 AvatarImage.Parent = AvatarHolder
+Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
 
-local AvatarCensorMask = Instance.new("Frame")
-AvatarCensorMask.Size = UDim2.fromScale(1, 1)
-AvatarCensorMask.BackgroundColor3 = Color3.fromRGB(15, 12, 12)
-AvatarCensorMask.BackgroundTransparency = 1
-AvatarCensorMask.BorderSizePixel = 0
-AvatarCensorMask.ZIndex = 5
-AvatarCensorMask.Visible = false
-AvatarCensorMask.Parent = AvatarHolder
+-- Multi-layered Frosted Blur Overlay (No Lock Icon)
+local BlurStack = Instance.new("Frame")
+BlurStack.Size = UDim2.fromScale(1, 1)
+BlurStack.BackgroundTransparency = 1
+BlurStack.Visible = false
+BlurStack.ZIndex = 5
+BlurStack.Parent = AvatarHolder
+Instance.new("UICorner", BlurStack).CornerRadius = UDim.new(1, 0)
 
-local CensorIcon = Instance.new("TextLabel")
-CensorIcon.Size = UDim2.fromScale(1, 1)
-CensorIcon.BackgroundTransparency = 1
-CensorIcon.Text = "🔒"
-CensorIcon.TextSize = 24
-CensorIcon.TextColor3 = C.Muted
-CensorIcon.ZIndex = 6
-CensorIcon.Parent = AvatarCensorMask
+local blurTint = Instance.new("Frame")
+blurTint.Size = UDim2.fromScale(1, 1)
+blurTint.BackgroundColor3 = Color3.fromRGB(18, 16, 15)
+blurTint.BackgroundTransparency = 0.25
+blurTint.BorderSizePixel = 0
+blurTint.ZIndex = 6
+blurTint.Parent = BlurStack
+Instance.new("UICorner", blurTint).CornerRadius = UDim.new(1, 0)
+
+local blurNoise = Instance.new("ImageLabel")
+blurNoise.Size = UDim2.fromScale(1.4, 1.4)
+blurNoise.Position = UDim2.new(-0.2, 0, -0.2, 0)
+blurNoise.BackgroundTransparency = 1
+blurNoise.Image = "rbxassetid://8992230677" -- Smooth dispersion blur diffusion asset
+blurNoise.ImageTransparency = 0.35
+blurNoise.ImageColor3 = Color3.fromRGB(220, 210, 200)
+blurNoise.ZIndex = 7
+blurNoise.Parent = BlurStack
 
 local function updateProfilePicture()
     local ok, content = pcall(function()
@@ -577,25 +590,29 @@ local function updateProfilePicture()
 end
 task.spawn(updateProfilePicture)
 
--- TELEMETRY DATA PANEL (WITH EMBEDDED KEYBIND HINT)
+-- TELEMETRY DATA PANEL WITH DIVIDER ACCENTS
 local SensorInfoActive = false
 
 local TelemetryFrame = Instance.new("Frame")
-TelemetryFrame.Size = UDim2.new(1, -12, 1, -106)
-TelemetryFrame.Position = UDim2.new(0, 6, 0, 102)
+TelemetryFrame.Size = UDim2.new(1, -12, 1, -98)
+TelemetryFrame.Position = UDim2.new(0, 6, 0, 92)
 TelemetryFrame.BackgroundColor3 = C.Surface
 TelemetryFrame.Parent = RightCol
 Instance.new("UICorner", TelemetryFrame).CornerRadius = UDim.new(0, 8)
+local tfStroke = Instance.new("UIStroke")
+tfStroke.Color = C.Border
+tfStroke.Thickness = 1
+tfStroke.Parent = TelemetryFrame
 
 local tLayout = Instance.new("UIListLayout")
-tLayout.Padding = UDim.new(0, 2)
+tLayout.Padding = UDim.new(0, 1)
 tLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 tLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 tLayout.Parent = TelemetryFrame
 
 local function createInfoLabel()
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -12, 0, 15)
+    lbl.Size = UDim2.new(1, -14, 0, 16)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Muted
     lbl.Font = Enum.Font.Gotham
@@ -609,34 +626,40 @@ local userRow = createInfoLabel()
 local placeRow = createInfoLabel()
 local jobRow = createInfoLabel()
 local uptimeRow = createInfoLabel()
-local keybindRow = createInfoLabel()
 
-keybindRow.Text = "Keybind: [RightCtrl]"
+local tDiv = Instance.new("Frame")
+tDiv.Size = UDim2.new(1, -16, 0, 1)
+tDiv.BackgroundColor3 = C.Border
+tDiv.BorderSizePixel = 0
+tDiv.Parent = TelemetryFrame
+
+local keybindRow = createInfoLabel()
+keybindRow.Text = "Toggle Menu: [RightCtrl]"
 keybindRow.TextColor3 = C.AccentGlow
+keybindRow.Font = Enum.Font.GothamMedium
 
 local function setCensorState(censor)
     SensorInfoActive = censor
     if censor then
-        AvatarCensorMask.Visible = true
-        AvatarCensorMask.BackgroundTransparency = 0.2
-        AvatarImage.ImageTransparency = 0.7
+        BlurStack.Visible = true
+        tw(AvatarImage, {ImageTransparency = 0.85}, 0.2)
     else
-        AvatarCensorMask.Visible = false
-        AvatarImage.ImageTransparency = 0
+        BlurStack.Visible = false
+        tw(AvatarImage, {ImageTransparency = 0}, 0.2)
     end
 end
 
 RunService.Heartbeat:Connect(function()
     if SensorInfoActive then
-        userRow.Text = "User: [HIDDEN]"
+        userRow.Text = "Account: [HIDDEN / SECURE]"
         placeRow.Text = "Place ID: [HIDDEN]"
-        jobRow.Text = "Server: [HIDDEN]"
+        jobRow.Text = "Job ID: [HIDDEN]"
     else
-        userRow.Text = "User: @" .. LocalPlayer.Name
+        userRow.Text = "Account: @" .. LocalPlayer.Name
         placeRow.Text = "Place: " .. tostring(game.PlaceId)
         jobRow.Text = "Job: " .. string.sub(game.JobId, 1, 10) .. "..."
     end
-    uptimeRow.Text = "Uptime: " .. formatUptime(os.time() - StartEpoch)
+    uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
 -- 10. REUSABLE ACTION CARD BUILDER
@@ -814,7 +837,7 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
--- 12. GHOST NET AUTO-EQUIP ENGINE (TRIGGERED ONCE ONLY)
+-- 12. GHOST NET EQUIP & UNEQUIP ENGINES
 local hasEquippedNetOnce = false
 
 local function ensureGhostNetEquipped()
@@ -841,14 +864,25 @@ local function ensureGhostNetEquipped()
     end
 end
 
--- 13. POLISHED CANDY CORN AUTO-FARM (PHYSICS-LOCKED UNDERGROUND TP)
+local function unequipGhostNet()
+    hasEquippedNetOnce = false
+    local char = LocalPlayer.Character
+    if not char then return end
+    local net = char:FindFirstChild("Ghost Net") or char:FindFirstChild("GhostNet")
+    if net and net:IsA("Tool") then
+        net.Parent = LocalPlayer.Backpack
+    end
+end
+
+-- 13. POLISHED CANDY CORN AUTO-FARM (DUAL STANCE: UNDERGROUND & ABOVE GROUND)
 local autoCandyFarm = false
+local farmStance = "Underground"
 local isUnderground = false
 local currentTargetGhost = nil
 
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
-    if char and isUnderground then
+    if char and isUnderground and farmStance == "Underground" then
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
@@ -872,7 +906,7 @@ local function restoreSurface()
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp and humanoid then
         humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-        hrp.CFrame = hrp.CFrame + Vector3.new(0, 10, 0)
+        hrp.CFrame = hrp.CFrame + Vector3.new(0, 8, 0)
         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
@@ -918,9 +952,18 @@ task.spawn(function()
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
             if ghost and ghostPart and ghost.Parent then
-                isUnderground = true
-                if hrp then
-                    hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
+                if farmStance == "Underground" then
+                    isUnderground = true
+                    if hrp then
+                        hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
+                    end
+                else
+                    if isUnderground then restoreSurface() end
+                    if hrp then
+                        hrp.CFrame = ghostPart.CFrame * CFrame.new(0, 3.2, 0)
+                        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    end
                 end
                 task.wait(0.04)
                 if ghost.Parent then
@@ -937,7 +980,7 @@ task.spawn(function()
     end
 end)
 
--- 14. ANTI-CHEAT SAFE GLIDE TRAVEL ENGINE
+-- 14. ANTI-CHEAT SAFE GROUND GLIDE ENGINE
 local isGliding = false
 local currentGlideConn = nil
 
@@ -948,53 +991,44 @@ local function glideTravelTo(targetPos, destinationName)
     if not (hrp and hum and hum.Health > 0) then return end
 
     if isGliding then
-        Notify("Fast Travel", "Glide travel already in progress", C.Red)
+        Notify("Fast Travel", "Travel currently in progress", C.Red)
         return
     end
 
     isGliding = true
-    Notify("Fast Travel", "Gliding safely to " .. destinationName .. "...", C.Accent)
-
-    -- Noclip player during glide to prevent getting stuck in terrain
-    local noclipConn = RunService.Stepped:Connect(function()
-        if char then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-    end)
+    Notify("Fast Travel", "Traveling safely to " .. destinationName .. "...", C.Accent)
 
     local startPos = hrp.Position
-    local totalDist = (targetPos - startPos).Magnitude
-    local glideSpeed = 160 -- studs per second (Anti-cheat safe threshold)
-    local glideDuration = math.clamp(totalDist / glideSpeed, 1.2, 18.0)
+    local totalDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(startPos.X, startPos.Z)).Magnitude
+    local glideSpeed = 52
+    local glideDuration = math.clamp(totalDist / glideSpeed, 2.0, 24.0)
     local elapsed = 0
 
     if currentGlideConn then currentGlideConn:Disconnect() end
+
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {char}
+    rayParams.FilterType = RaycastFilterType.Exclude
 
     currentGlideConn = RunService.Heartbeat:Connect(function(dt)
         elapsed = elapsed + dt
         local alpha = math.clamp(elapsed / glideDuration, 0, 1)
         
-        -- High arc parabolic curve (Y elevation) to fly smoothly over mountains and trees
-        local arcHeight = math.clamp(totalDist * 0.12, 25, 120)
-        local arcBonus = math.sin(alpha * math.pi) * arcHeight
+        local currentHorizontal = startPos:Lerp(targetPos, alpha)
+        local rayOrigin = Vector3.new(currentHorizontal.X, currentHorizontal.Y + 15, currentHorizontal.Z)
+        local groundHit = Workspace:Raycast(rayOrigin, Vector3.new(0, -50, 0), rayParams)
+        local groundY = groundHit and (groundHit.Position.Y + 3.2) or currentHorizontal.Y
 
-        local currentWaypoint = startPos:Lerp(targetPos, alpha) + Vector3.new(0, arcBonus, 0)
-        
         if hrp and hum and hum.Health > 0 then
             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
             hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            hrp.CFrame = CFrame.new(currentWaypoint, targetPos)
+            hrp.CFrame = CFrame.new(Vector3.new(currentHorizontal.X, groundY, currentHorizontal.Z), Vector3.new(targetPos.X, groundY, targetPos.Z))
         end
 
         if alpha >= 1 then
             if currentGlideConn then currentGlideConn:Disconnect() end
-            if noclipConn then noclipConn:Disconnect() end
             if hrp then
-                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3.2, 0))
                 hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             end
@@ -1180,20 +1214,45 @@ end
 -- 17. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net once • Underground sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips on stop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     autoCandyFarm = not autoCandyFarm
     if autoCandyFarm then
-        hasEquippedNetOnce = false -- Trigger single equip pass on toggle on
+        hasEquippedNetOnce = false
+        bText.Text = "RUNNING"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Active • Sweeping nearest ghosts (" .. farmStance .. ")"
+        setActive(true)
+        Notify("Candy Corn Farm", "Farm Loop Activated", C.Green)
+    else
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        sLbl.Text = "Auto-equips net • Auto-unequips on stop"
+        setActive(false)
+        restoreSurface()
+        unequipGhostNet()
+        Notify("Candy Corn Farm", "Farm Paused • Net Unequipped", C.Red)
     end
-    bText.Text = autoCandyFarm and "RUNNING" or "OFF"
-    bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Auto-equips net once • Underground sweep"
-    setActive(autoCandyFarm)
-    if not autoCandyFarm then restoreSurface() end
-    Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Active (Net Equipping)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claims daily flame check-in reward", "CLAIM", false, 3, function()
+CreateActionCard(LeftCol, "FARM STANCE", "Mode: Underground / Above Ground", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+    if farmStance == "Underground" then
+        farmStance = "Above Ground"
+        bText.Text = "ABOVE"
+        bText.TextColor3 = C.Cyan
+        sLbl.Text = "Mode: Sweeping directly above ghosts (+3.2 studs)"
+        setActive(true, C.Cyan)
+        restoreSurface()
+    else
+        farmStance = "Underground"
+        bText.Text = "UNDER"
+        bText.TextColor3 = C.Accent
+        sLbl.Text = "Mode: Sweeping beneath ghosts (-6.5 studs)"
+        setActive(false)
+    end
+    Notify("Farm Stance", "Switched stance to: " .. farmStance, C.Accent)
+end)
+
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween zone near middle", "CLAIM", false, 4, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1203,41 +1262,41 @@ CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claims daily flame check-in re
     end
 end)
 
-AddSection(LeftCol, "FAST TRAVEL", 4)
+AddSection(LeftCol, "EVENT SHOP", 5)
 
-CreateActionCard(LeftCol, "GLIDE TO SPAWN", "Old Town • Anti-cheat safe arc glide", "GLIDE", false, 5, function()
-    glideTravelTo(Vector3.new(689.8, 178.6, 112), "Old Town (Spawn)")
-end)
-
-CreateActionCard(LeftCol, "GLIDE TO JUNGLE", "Jungle Village • Anti-cheat safe arc glide", "GLIDE", false, 6, function()
-    glideTravelTo(Vector3.new(-80, 115, -2140), "Jungle Village")
-end)
-
-AddSection(LeftCol, "EVENT SHOP", 7)
-
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Costs: 5,000 Candy Corn", "BUY", false, 8, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Must be in Halloween zone near middle", "BUY", false, 6, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
-        Notify("Event Shop", "Attempted purchase: Pumpkin Chest", C.Accent)
+        Notify("Event Shop", "Attempted purchase: Pumpkin Chest (5K)", C.Accent)
     else
         Notify("Event Shop", "Shop remote unavailable", C.Red)
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Pumpkin Maw • Costs: 500 Candy Corn", "BUY", false, 9, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Must be in Halloween zone near middle", "BUY", false, 7, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
-        Notify("Event Shop", "Attempted purchase: Halloween Dungeon (Pumpkin Maw)", C.Accent)
+        Notify("Event Shop", "Attempted purchase: Pumpkin Maw (500)", C.Accent)
     else
         Notify("Event Shop", "Shop remote unavailable", C.Red)
     end
 end)
 
-AddSection(LeftCol, "VISUALS", 10)
+AddSection(LeftCol, "FAST TRAVEL", 8)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 11, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GLIDE TO SPAWN", "Old Town • Safe ground-snapping travel", "GLIDE", false, 9, function()
+    glideTravelTo(Vector3.new(689.8, 178.6, 112), "Old Town (Spawn)")
+end)
+
+CreateActionCard(LeftCol, "GLIDE TO JUNGLE", "Jungle Village • Safe ground-snapping travel", "GLIDE", false, 10, function()
+    glideTravelTo(Vector3.new(-80, 115, -2140), "Jungle Village")
+end)
+
+AddSection(LeftCol, "VISUALS", 11)
+
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1246,7 +1305,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1255,7 +1314,7 @@ CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF
     Notify("Ghost Visuals", GhostESPActive and "Ghost ESP Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 18. SETTINGS DRAWER OVERLAY
+-- 18. OPTIMIZED SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -1299,12 +1358,12 @@ CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disco
 end)
 
 AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & hides IDs on profile", "OFF", false, 4, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & censors account IDs", "OFF", false, 4, function(bText, bStroke, _, setActive)
     setCensorState(not SensorInfoActive)
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
     setActive(SensorInfoActive)
-    Notify("Privacy Mode", SensorInfoActive and "Avatar & IDs Censored" or "Censorship Removed", C.Accent)
+    Notify("Privacy Mode", SensorInfoActive and "Avatar Blurred & IDs Censored" or "Censorship Removed", C.Accent)
 end)
 
 AddSection(DrawerScroll, "MONITORING OVERLAYS", 5)
@@ -1361,16 +1420,60 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Disables global shadows", "OFF", false, 14, function(bText, bStroke, _, setActive)
-    local active = not Lighting.GlobalShadows
-    Lighting.GlobalShadows = not active
-    bText.Text = active and "ON" or "OFF"
-    bText.TextColor3 = active and C.AccentGlow or C.Muted
-    setActive(active)
-    Notify("Graphics Engine", active and "Low Performance Mode" or "Shadows Restored", C.Accent)
+-- ENHANCED DEEP PERFORMANCE MODE (Culls particle emitters, lights, atmosphere, and post-effects)
+local deepPerformanceActive = false
+local originalLightingSettings = {}
+local culledParticleCache = {}
+
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Aggressive FPS boost • Disables VFX & post-FX", "OFF", false, 14, function(bText, bStroke, _, setActive)
+    deepPerformanceActive = not deepPerformanceActive
+    bText.Text = deepPerformanceActive and "ON" or "OFF"
+    bText.TextColor3 = deepPerformanceActive and C.AccentGlow or C.Muted
+    setActive(deepPerformanceActive)
+
+    if deepPerformanceActive then
+        originalLightingSettings.GlobalShadows = Lighting.GlobalShadows
+        originalLightingSettings.FogEnd = Lighting.FogEnd
+        
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+
+        for _, item in ipairs(Lighting:GetChildren()) do
+            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") then
+                item.Enabled = false
+            end
+        end
+
+        for _, desc in ipairs(Workspace:GetDescendants()) do
+            if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Smoke") or desc:IsA("Fire") or desc:IsA("Sparkles") then
+                if desc.Enabled then
+                    culledParticleCache[desc] = true
+                    desc.Enabled = false
+                end
+            end
+        end
+        Notify("Graphics Engine", "Aggressive FPS Boost Active", C.Accent)
+    else
+        Lighting.GlobalShadows = originalLightingSettings.GlobalShadows ~= nil and originalLightingSettings.GlobalShadows or true
+        Lighting.FogEnd = originalLightingSettings.FogEnd or 100000
+
+        for _, item in ipairs(Lighting:GetChildren()) do
+            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") then
+                item.Enabled = true
+            end
+        end
+
+        for item in pairs(culledParticleCache) do
+            if item and item.Parent then
+                pcall(function() item.Enabled = true end)
+            end
+        end
+        table.clear(culledParticleCache)
+        Notify("Graphics Engine", "Visual Effects Restored", C.Accent)
+    end
 end)
 
-CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner banners", "ON", true, 15, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner notifications", "ON", true, 15, function(bText, bStroke, _, setActive)
     NotificationsEnabled = not NotificationsEnabled
     bText.Text = NotificationsEnabled and "ON" or "OFF"
     bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
@@ -1514,6 +1617,7 @@ DestroyCard.MouseButton1Click:Connect(function()
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
+        unequipGhostNet()
         if monitorConn then monitorConn:Disconnect() end
         ScreenGui:Destroy()
     end
