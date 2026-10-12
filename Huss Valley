@@ -40,27 +40,21 @@ end
 -- 2. GAME ENGINE REFERENCES
 local COH = ReplicatedStorage:WaitForChild("ChickenOrHero")
 local Movement = COH:WaitForChild("Movement")
-local MovementProfiles = require(Movement:WaitForChild("MovementProfiles"))
 local BoostInput = require(Movement:WaitForChild("BoostInput"))
 local Game = COH:WaitForChild("Game")
 local Session = Game:WaitForChild("Session")
 local MapVoteState = Game:WaitForChild("MapVoteState")
 local MapVoteEvent = Game:WaitForChild("MapVoteEvent")
 local ContactCatchConfig = require(Game:WaitForChild("ContactCatchConfig"))
-local TacklePrediction = require(Game:WaitForChild("TacklePrediction"))
 local MeleeEvent = Game:WaitForChild("MeleeEvent")
 local RescueConfig = require(Game:WaitForChild("RescueConfig"))
 local RESCUE_RANGE = math.max(3, tonumber(RescueConfig.Range) or 6) - 0.25
 local RESCUE_HOLD = math.max(0.1, tonumber(RescueConfig.HoldSeconds) or 1.2)
 local RESCUE_FINISH_GRACE = math.max(0.1, tonumber(RescueConfig.FinishGrace) or 0.5)
 local RescueEvent = Game:WaitForChild("RescueEvent")
-local Gear = COH:WaitForChild("Gear")
-local GearCatalog = require(Gear:WaitForChild("GearCatalog"))
-local ArmoryEvent = COH:WaitForChild("Weapons"):WaitForChild("ArmoryEvent")
 local SpinWheelEvent = COH:WaitForChild("SpinWheelEvent")
 local JourneyConfig = require(COH:WaitForChild("Progression"):WaitForChild("JourneyConfig"))
 local JourneyEvent = COH:WaitForChild("Progression"):WaitForChild("JourneyEvent")
-local PlayerPreferences = COH:WaitForChild("Game"):WaitForChild("PlayerPreferences")
 
 -- 3. PALETTE SYSTEM
 local C = {
@@ -110,67 +104,19 @@ ScreenGui.Parent = TargetParent
 
 -- 5. SETTINGS & RUNTIME
 local SETTINGS = {
-    runnerEnabled = false,
-    customSpeed = false,
-    speedMultiplier = 1.0,
     autoGems = false,
     gemScanInterval = 0.25,
     gemMaxDistance = 220,
     gemCollectDistance = 4.5,
     autoRevive = false,
-    reviveBeforeGems = true,
     reviveMaxDistance = 220,
-    avoidCatchers = true,
-    predictionTime = 0.65,
-    avoidStrength = 2.2,
-    panicDistance = 15,
-    safezoneDepthRatio = 0.52,
-    safezoneValidationRatio = 0.44,
-    safezoneEdgeMargin = 4.5,
-    edgeRayHeight = 12,
-    edgeRayDepth = 52,
-    edgeLookAhead = 14,
-    edgeSecondLookAhead = 28,
     autoDash = false,
     dashCooldown = 0.85,
-    smoothMovement = true,
-    turnRate = 9,
-    emergencySafeZone = true,
-    showThreats = false,
-    showGoal = false,
-    corridorEnabled = true,
-    corridorMinWidth = 4.25,
-    corridorCenterRange = 26,
-    corridorLockTime = 1.65,
-    corridorPassDistance = 20,
-    corridorApproachDistance = 60,
-    sideGapEnabled = true,
-    sideGapAngles = {18, 30, 42, 54, 68, 82},
-    sideGapMinClearance = 3.5,
-    sideGapCommitTime = 0.8,
-    sideGapForwardBias = 6.5,
 
-    catcherChase = false,
-    catcherCustomSpeed = false,
-    catcherSpeedMultiplier = 1.0,
-    catcherPrediction = 0.45,
-    catcherSmoothing = 6,
-    smartPriority = true,
-    catcherAttackPriority = "Smart",
-    autoTackle = false,
-    tackleRange = 12,
-    tackleCooldown = 1.2,
     autoMelee = false,
     meleeRange = 9,
     meleeCooldown = 0.35,
-    smoothTurn = true,
-    turnRateCatcher = 14,
-    followTarget = false,
 
-    showHitboxes = false,
-    showGoalUtility = false,
-    showThreatUtility = false,
-    cameraResponse = 0.25,
     autoSpinWheel = false,
     wheelSpinInterval = 6,
     wheelMinimumCredits = 1,
@@ -178,78 +124,27 @@ local SETTINGS = {
     autoClaimJourneyRewards = false,
     autoMapVote = false,
     mapVoteSelections = {"Map 1"},
-    disableBuiltinAFK = false,
     antiIdle = true,
 }
 
 local runtime = {
-    profile = nil,
-    profileRole = nil,
     path = Vector3.zero,
-    goal = nil,
-    goalMode = "SafeZone",
-    goalSide = nil,
-    assistMode = nil,
-    assistTarget = nil,
-    assistSince = -math.huge,
     gemTarget = nil,
     gemIgnored = {},
     gemScanAt = -math.huge,
     reviveTarget = nil,
     reviveStarted = false,
     reviveStartAt = 0,
-    catchers = {},
-    catcherCacheAt = 0,
     threats = {},
     threatAt = 0,
-    threatHistory = {},
     dashAt = -math.huge,
-    dashStatus = "idle",
-    dashLastRequestAt = -math.huge,
-    dashLastCount = nil,
     ping = 0,
     pingAt = 0,
-    armory = {loaded = false, abilities = {}},
     catcherTargets = {},
     catcherTargetAt = 0,
     catcherTarget = nil,
-    edgeRisk = false,
-    edgeDirection = Vector3.zero,
-    catcherPath = Vector3.zero,
-    catcherVelocity = {},
-    meleeId = 0,
     lastMelee = -math.huge,
-    lastTackle = -math.huge,
-    mapCacheAt = -math.huge,
-    mapCache = nil,
-    edgeCheckAt = -math.huge,
-    edgeCheckPosition = nil,
-    edgeCheckDirection = Vector3.zero,
-    edgeCheckGoal = Vector3.zero,
-    edgeRecoveryAt = -math.huge,
-    edgeRecoveryDirection = Vector3.zero,
-    edgeRecoveryUntil = -math.huge,
-    stuckRecoveryUntil = -math.huge,
-    stuckRecoveryDirection = Vector3.zero,
-    safeCheckAt = -math.huge,
-    safeCheckPosition = nil,
-    safeCheckA = false,
-    safeCheckB = false,
-    routeActive = false,
-    routeComplete = false,
-    routeStartSide = nil,
-    routeTargetSide = nil,
-    routeCompletePosition = nil,
-    routeCompleteAt = -math.huge,
-    corridorActive = false,
-    corridorGoal = Vector3.zero,
-    corridorCenter = Vector3.zero,
-    corridorAxis = Vector3.zero,
-    corridorGapWidth = 0,
-    corridorStartedAt = -math.huge,
-    sideGapDirection = Vector3.zero,
-    sideGapUntil = -math.huge,
-    sideGapReason = "",
+    meleeId = 0,
     wheelStatus = "disabled",
     wheelSpinCount = 0,
     wheelCredits = 0,
@@ -258,11 +153,6 @@ local runtime = {
     wheelSpinRequestAt = -math.huge,
     wheelSpinning = false,
     wheelNextAttemptAt = -math.huge,
-    afkOverrideStatus = "disabled",
-    afkOverrideLastRequestAt = -math.huge,
-    afkOverrideRequestInterval = 2.0,
-    afkOverrideInLobby = false,
-    afkOverrideRequestCount = 0,
     journeyStatus = "disabled",
     journeyClaimCount = 0,
     journeyLastClaimAt = -math.huge,
@@ -274,19 +164,11 @@ local runtime = {
     journeyPremium = false,
     journeyClaims = {},
     journeyNextClaimAt = -math.huge,
-    journeyManualPending = false,
     mapVoteStatus = "disabled",
     mapVoteLastActionAt = -math.huge,
-    mapVotePhase = "Waiting",
-    mapVoteToken = nil,
     mapVoteOptionIds = {},
-    lastMove = os.clock(),
-    lastMovePosition = nil,
-    stuck = false,
 }
 
-local safezone = {map = nil, a = nil, b = nil, cached = false}
-local visuals = {goal = nil, threats = {}, hitboxes = {}}
 local MAP_VOTE_SLOT_IDS = {"Map 1", "Map 2", "Map 3"}
 
 -- 6. HUD TELEMETRY ENGINE
@@ -859,39 +741,6 @@ local function canMove()
     return h and h.Health > 0 and not h.PlatformStand and not h.Sit
 end
 
-local function getBaseSpeed(role)
-    role = role or getRole()
-    if runtime.profile and runtime.profileRole == role then return runtime.profile.MaxSpeed or 16 end
-    local ok, profile = pcall(MovementProfiles.get, role, LocalPlayer)
-    if ok and profile then
-        runtime.profile = profile
-        runtime.profileRole = role
-        return profile.MaxSpeed or 16
-    end
-    return 16
-end
-
-local function getRunnerSpeed()
-    local speed = math.max(getBaseSpeed("Runner"), 1)
-    if SETTINGS.customSpeed then speed *= math.clamp(SETTINGS.speedMultiplier, 1, 1.5) end
-    return speed
-end
-
-local function getCatcherSpeed()
-    local speed = math.max(getBaseSpeed("Catcher"), 1)
-    if SETTINGS.catcherCustomSpeed then speed *= math.clamp(SETTINGS.catcherSpeedMultiplier, 1, 1.5) end
-    return speed
-end
-
-local function restoreNativeWalkSpeed()
-    local hum = getHumanoid()
-    local character = getCharacter()
-    if hum and character then
-        local native = tonumber(character:GetAttribute("MovementSpeed"))
-        if native and native > 0 then hum.WalkSpeed = native end
-    end
-end
-
 local function refreshPing(now)
     if now - runtime.pingAt < 0.5 then return end
     runtime.pingAt = now
@@ -900,340 +749,7 @@ local function refreshPing(now)
     runtime.ping = math.max(val, 0)
 end
 
-local function getMap()
-    local now = os.clock()
-    if now - runtime.mapCacheAt < 0.35 then return runtime.mapCache end
-    runtime.mapCacheAt = now
-    local handle = Game:FindFirstChild("ActiveMap")
-    if handle and handle:IsA("ObjectValue") and handle.Value and handle.Value:IsDescendantOf(workspace) then
-        runtime.mapCache = handle.Value
-        return runtime.mapCache
-    end
-    for _, obj in ipairs(workspace:GetChildren()) do
-        if obj:FindFirstChild("Field") then
-            runtime.mapCache = obj
-            return obj
-        end
-    end
-    runtime.mapCache = nil
-    return nil
-end
-
--- 11. MAP RAYCASTING & BOUNDARIES
-local edgeRayCache = {map = nil, field = nil, invisWall = nil, params = nil, wallParams = nil}
-
-local function refreshEdgeRayCache()
-    local map = getMap()
-    local field = map and (map:FindFirstChild("Field") or map:FindFirstChild("Field", true))
-    local wall = field and field:FindFirstChild("InvisWall", true)
-    local include = field or map
-    if edgeRayCache.map == map and edgeRayCache.field == field and edgeRayCache.invisWall == wall and edgeRayCache.params then
-        return
-    end
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Include
-    params.FilterDescendantsInstances = include and {include} or {}
-    params.IgnoreWater = true
-    edgeRayCache.map = map
-    edgeRayCache.field = field
-    edgeRayCache.invisWall = wall
-    edgeRayCache.params = params
-    edgeRayCache.wallParams = nil
-end
-
-local function getEdgeRayParams()
-    refreshEdgeRayCache()
-    return edgeRayCache.params
-end
-
-local function getInvisWallParams()
-    refreshEdgeRayCache()
-    local wall = edgeRayCache.invisWall
-    if not wall or not wall:IsDescendantOf(workspace) then
-        edgeRayCache.invisWall = nil
-        edgeRayCache.wallParams = nil
-        return nil
-    end
-    if edgeRayCache.wallParams then return edgeRayCache.wallParams end
-    local wallParams = RaycastParams.new()
-    wallParams.FilterType = Enum.RaycastFilterType.Include
-    wallParams.FilterDescendantsInstances = {wall}
-    wallParams.IgnoreWater = true
-    edgeRayCache.wallParams = wallParams
-    return wallParams
-end
-
-local function invisWallHit(position, direction, distance)
-    local dir = flat(direction)
-    if dir.Magnitude < 0.05 then return nil end
-    local params = getInvisWallParams()
-    if not params then return nil end
-    return workspace:Raycast(Vector3.new(position.X, position.Y + 2.5, position.Z), dir.Unit * distance, params)
-end
-
-local function hasFloorAt(point, y)
-    local map = getMap()
-    if not map then return true end
-    local params = getEdgeRayParams()
-    if not params or #params.FilterDescendantsInstances == 0 then return false end
-    local origin = Vector3.new(point.X, math.max(y + 12, point.Y + 10), point.Z)
-    local hit = workspace:Raycast(origin, Vector3.new(0, -(SETTINGS.edgeRayHeight + SETTINGS.edgeRayDepth), 0), params)
-    return hit ~= nil and hit.Normal.Y >= 0.35
-end
-
-local function groundSupportScore(position, direction, y)
-    local dir = flat(direction)
-    if dir.Magnitude < 0.05 then return 0 end
-    dir = dir.Unit
-    local side = Vector3.new(-dir.Z, 0, dir.X)
-    local score = 0
-    if hasFloorAt(position + dir * 6, y) then score += 2 end
-    if hasFloorAt(position + dir * 14, y) then score += 2 end
-    if hasFloorAt(position + dir * 24, y) then score += 1 end
-    if hasFloorAt(position + dir * 14 + side * 3, y) then score += 1 end
-    if hasFloorAt(position + dir * 14 - side * 3, y) then score += 1 end
-    return score
-end
-
-local function boundaryInwardDirection(position, y)
-    local dirs = {Vector3.new(1, 0, 0), Vector3.new(-1, 0, 0), Vector3.new(0, 0, 1), Vector3.new(0, 0, -1)}
-    local outward = Vector3.zero
-    local missing = 0
-    for _, dir in ipairs(dirs) do
-        if invisWallHit(position, dir, 9) or not hasFloorAt(position + dir * 7, y) then
-            outward += dir
-            missing += 1
-        end
-    end
-    if missing == 0 or outward.Magnitude < 0.05 then return Vector3.zero end
-    local inward = flat(-outward)
-    if inward.Magnitude < 0.05 or groundSupportScore(position, inward.Unit, y) < 3 then return Vector3.zero end
-    return inward.Unit
-end
-
-local function edgeDirectionClear(position, direction, y, distance)
-    local dir = flat(direction)
-    if dir.Magnitude < 0.05 then return false end
-    dir = dir.Unit
-    if invisWallHit(position, dir, math.max(8, distance)) then return false end
-    return groundSupportScore(position, dir, y) >= (distance <= 14 and 4 or 5)
-end
-
-local function rotateEdge(dir, angle)
-    local r = math.rad(angle)
-    local c = math.cos(r)
-    local s = math.sin(r)
-    return Vector3.new(dir.X * c - dir.Z * s, 0, dir.X * s + dir.Z * c)
-end
-
-local function getPlayfieldCenter()
-    if safezone.a and safezone.b then return (safezone.a.center + safezone.b.center) * 0.5 end
-    return (safezone.a and safezone.a.center) or (safezone.b and safezone.b.center) or nil
-end
-
-local function chooseEdgeDirection(position, desired, goal, y)
-    local dir = flat(desired)
-    if dir.Magnitude < 0.05 then return Vector3.zero, false end
-    dir = dir.Unit
-    local boundary = boundaryInwardDirection(position, y)
-    local risk = not edgeDirectionClear(position, dir, y, SETTINGS.edgeLookAhead) or not edgeDirectionClear(position, dir, y, SETTINGS.edgeSecondLookAhead)
-    local nearBoundary = boundary.Magnitude > 0.05 and boundary:Dot(dir) < 0.35
-
-    if not risk and not nearBoundary then
-        runtime.edgeDirection = dir
-        runtime.edgeRisk = false
-        return dir, false
-    end
-
-    local toGoal = flat(goal - position)
-    toGoal = toGoal.Magnitude > 0.05 and toGoal.Unit or dir
-    local inward = boundary
-    if inward.Magnitude < 0.05 then
-        local center = getPlayfieldCenter()
-        if center then
-            local cDir = flat(center - position)
-            inward = cDir.Magnitude > 0.05 and cDir.Unit or Vector3.zero
-        end
-    end
-
-    local candidates = {}
-    local function addCandidate(v)
-        v = flat(v)
-        if v.Magnitude < 0.05 then return end
-        v = v.Unit
-        for _, item in ipairs(candidates) do
-            if item:Dot(v) > 0.985 then return end
-        end
-        candidates[#candidates + 1] = v
-    end
-
-    addCandidate(inward); addCandidate(toGoal); addCandidate(dir)
-    local base = inward.Magnitude > 0.05 and inward or dir
-    for _, angle in ipairs({-35, 35, -70, 70, 90, -90, 135, -135, 180}) do
-        addCandidate(rotateEdge(base, angle))
-    end
-
-    local best, bestScore = nil, -math.huge
-    for _, cand in ipairs(candidates) do
-        local support = groundSupportScore(position, cand, y)
-        if support >= 6 then
-            local score = support * 4.5 + cand:Dot(toGoal) * 5
-            if inward.Magnitude > 0.05 then score += cand:Dot(inward) * (nearBoundary and 10 or 5) end
-            if score > bestScore then bestScore = score; best = cand end
-        end
-    end
-
-    if best then
-        runtime.edgeDirection = best
-        runtime.edgeRisk = true
-        return best, true
-    end
-
-    runtime.edgeDirection = inward.Magnitude > 0.05 and inward or -dir
-    runtime.edgeRisk = true
-    return runtime.edgeDirection, true
-end
-
--- 12. SAFEZONE TRACKING
-local function findZone(parent, names)
-    for _, name in ipairs(names) do
-        local d = parent:FindFirstChild(name)
-        if d then return d end
-    end
-    for _, obj in ipairs(parent:GetDescendants()) do
-        local lower = obj.Name:lower()
-        for _, name in ipairs(names) do
-            if lower == name:lower() then return obj end
-        end
-    end
-    return nil
-end
-
-local function getBounds(instance)
-    if not instance then return nil end
-    local minP = Vector3.new(math.huge, math.huge, math.huge)
-    local maxP = Vector3.new(-math.huge, -math.huge, -math.huge)
-    local found = false
-    local function add(part)
-        local p = part.Position
-        local h = part.Size * 0.5
-        minP = Vector3.new(math.min(minP.X, p.X - h.X), math.min(minP.Y, p.Y - h.Y), math.min(minP.Z, p.Z - h.Z))
-        maxP = Vector3.new(math.max(maxP.X, p.X + h.X), math.max(maxP.Y, p.Y + h.Y), math.max(maxP.Z, p.Z + h.Z))
-        found = true
-    end
-    if instance:IsA("BasePart") then add(instance) end
-    for _, obj in ipairs(instance:GetDescendants()) do
-        if obj:IsA("BasePart") then add(obj) end
-    end
-    return found and minP or nil, maxP
-end
-
-local function buildZone(instance)
-    local minP, maxP = getBounds(instance)
-    if not minP then return nil end
-    return {instance = instance, name = instance.Name, min = minP, max = maxP, center = (minP + maxP) * 0.5}
-end
-
-local function refreshSafezones()
-    local map = getMap()
-    if safezone.cached and safezone.map == map and safezone.a and safezone.b and safezone.a.instance.Parent and safezone.b.instance.Parent then
-        return
-    end
-    safezone.map = map
-    safezone.cached = true
-    local field = map and map:FindFirstChild("Field")
-    if not field then return end
-    safezone.a = buildZone(findZone(field, {"SafezoneASide", "SafeZoneASide"}))
-    safezone.b = buildZone(findZone(field, {"SafezoneBSide", "SafeZoneBSide"}))
-end
-
-local function inZone(pos, z)
-    return z and pos.X >= z.min.X and pos.X <= z.max.X and pos.Z >= z.min.Z and pos.Z <= z.max.Z and pos.Y >= z.min.Y - 8 and pos.Y <= z.max.Y + 8
-end
-
-local function currentZone(pos)
-    if inZone(pos, safezone.a) then return safezone.a end
-    if inZone(pos, safezone.b) then return safezone.b end
-    return nil
-end
-
-local function zoneInwardDirection(zone, other)
-    if not zone then return Vector3.zero end
-    local delta = other and flat(zone.center - other.center) or Vector3.zero
-    if delta.Magnitude > 0.05 then
-        return math.abs(delta.X) >= math.abs(delta.Z) and Vector3.new(delta.X >= 0 and 1 or -1, 0, 0) or Vector3.new(0, 0, delta.Z >= 0 and 1 or -1)
-    end
-    return Vector3.zero
-end
-
-local function zoneAxisHalfExtent(zone, inward)
-    if not zone then return 0 end
-    local size = zone.max - zone.min
-    return math.abs(math.abs(inward.X) >= math.abs(inward.Z) and size.X or size.Z) * 0.5
-end
-
-local function zoneDeepPoint(zone, other, y)
-    if not zone then return nil end
-    local inward = zoneInwardDirection(zone, other)
-    local half = zoneAxisHalfExtent(zone, inward)
-    local edgeMargin = math.min(SETTINGS.safezoneEdgeMargin, math.max(0, half - 0.75))
-    local xMargin = math.min(edgeMargin, math.max(0, (zone.max.X - zone.min.X) * 0.5 - 0.75))
-    local zMargin = math.min(edgeMargin, math.max(0, (zone.max.Z - zone.min.Z) * 0.5 - 0.75))
-    local depth = math.min(math.max(0, half - edgeMargin), half * SETTINGS.safezoneDepthRatio)
-    local point = zone.center + inward * depth
-    return Vector3.new(math.clamp(point.X, zone.min.X + xMargin, zone.max.X - xMargin), y, math.clamp(point.Z, zone.min.Z + zMargin, zone.max.Z - zMargin))
-end
-
-local function inValidatedZone(position, zone, other)
-    if not zone or not inZone(position, zone) then return false end
-    local inward = zoneInwardDirection(zone, other)
-    local half = zoneAxisHalfExtent(zone, inward)
-    local margin = math.min(SETTINGS.safezoneEdgeMargin, math.max(0, half - 0.75))
-    local depth = flat(position - zone.center):Dot(inward)
-    return depth >= math.min(math.max(0, half - margin), half * SETTINGS.safezoneValidationRatio) and hasFloorAt(position, position.Y)
-end
-
-local function chooseSafeGoal(position)
-    refreshSafezones()
-    local a, b = safezone.a, safezone.b
-    if not a or not b then return nil, nil end
-    if not runtime.routeActive or not runtime.routeTargetSide then
-        local inA = inZone(position, a)
-        local start = (inA and a) or (inZone(position, b) and b) or (flat(position - a.center).Magnitude <= flat(position - b.center).Magnitude and a or b)
-        local target = start == a and b or a
-        runtime.routeActive = true
-        runtime.routeComplete = false
-        runtime.routeStartSide = start.name
-        runtime.routeTargetSide = target.name
-        runtime.goalSide = target.name
-        runtime.goal = zoneDeepPoint(target, start, position.Y) or target.center
-        return runtime.goal, target
-    end
-    if runtime.routeComplete then return nil, nil end
-
-    local target = runtime.routeTargetSide == a.name and a or b
-    local other = target == a and b or a
-    if inValidatedZone(position, target, other) then
-        runtime.routeComplete = true
-        runtime.routeCompletePosition = position
-        runtime.routeCompleteAt = os.clock()
-        runtime.goal = nil
-        return nil, target
-    end
-    runtime.goalSide = target.name
-    runtime.goal = zoneDeepPoint(target, other, position.Y) or target.center
-    return runtime.goal, target
-end
-
-local function getSafeFallback(position)
-    refreshSafezones()
-    local a, b = safezone.a, safezone.b
-    if not a or not b then return nil end
-    local target = (runtime.routeTargetSide == a.name and a) or (runtime.routeTargetSide == b.name and b) or (inZone(position, a) and b) or a
-    return zoneDeepPoint(target, target == a and b or a, position.Y) or target.center
-end
-
--- 13. RUNNER NAVIGATION & THREAT AVOIDANCE
+-- 11. RUNNER ACTIONS (REVIVE, GEMS, DASH)
 local function isGemObject(obj)
     local name = obj.Name:lower()
     return obj:IsA("BasePart") and (name:sub(1, 4) == "gem_" or name == "gem" or name == "gems" or name:find("gempickup", 1, true) ~= nil)
@@ -1318,93 +834,6 @@ local function updateRevive(now, position)
     return root.Position
 end
 
-local function refreshCatchers(now)
-    if now - runtime.catcherCacheAt < 0.12 then return end
-    runtime.catcherCacheAt = now
-    table.clear(runtime.catchers)
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Parent and p:GetAttribute("GameRole") == "Catcher" and p:GetAttribute("RunState") == "Active" then
-            local c = p.Character
-            local h = c and c:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 and c:FindFirstChild("HumanoidRootPart") and c:GetAttribute("Ragdolled") ~= true then
-                table.insert(runtime.catchers, p)
-            end
-        end
-    end
-end
-
-local function updateThreats(now, position)
-    if now - runtime.threatAt < 0.045 then return runtime.threats end
-    runtime.threatAt = now
-    table.clear(runtime.threats)
-    local runSpeed = math.max(getRunnerSpeed(), 1)
-
-    for _, p in ipairs(runtime.catchers) do
-        local root = getRoot(p)
-        if root then
-            local current = flat(root.Position)
-            local dist = (current - position).Magnitude
-            if dist <= 105 then
-                local vel = flat(root.AssemblyLinearVelocity)
-                local danger = 8
-                local closing = dist > 0.05 and math.max(0, vel:Dot(-(current - position).Unit)) or 0
-                local timeToDanger = closing > 0.5 and math.max(0, (dist - danger) / closing) or math.huge
-                local collisionRisk = timeToDanger <= 0.65 or dist <= danger * 1.35
-                table.insert(runtime.threats, {
-                    player = p, root = root, position = current, velocity = vel,
-                    distance = dist, closing = closing, danger = danger,
-                    collisionRisk = collisionRisk, timeToDanger = timeToDanger,
-                    intercept = current + vel * math.min(timeToDanger, 0.65)
-                })
-            end
-        end
-    end
-    table.sort(runtime.threats, function(a, b) return a.distance < b.distance end)
-    return runtime.threats
-end
-
-local function routeClear(position, direction, threats)
-    if direction.Magnitude < 0.05 then return -math.huge end
-    local dir = direction.Unit
-    local speed = math.max(getRunnerSpeed(), 1)
-    local clearance = math.huge
-    for _, t in ipairs({0.10, 0.25, 0.45, 0.70}) do
-        local runner = position + dir * speed * t
-        for _, threat in ipairs(threats) do
-            local catchPos = threat.position + threat.velocity * t
-            local safe = flat(runner - catchPos).Magnitude - threat.danger
-            if safe < clearance then clearance = safe end
-        end
-    end
-    return clearance
-end
-
-local function chooseRunnerDirection(position, goal, threats)
-    local desired = flat(goal - position)
-    if desired.Magnitude < 0.05 then return Vector3.zero end
-    desired = desired.Unit
-    if not SETTINGS.avoidCatchers or #threats == 0 then return desired end
-
-    local best, bestScore = desired, -math.huge
-    local candidates = {desired}
-    for _, angle in ipairs({15, -15, 30, -30, 45, -45, 65, -65, 85, -85}) do
-        table.insert(candidates, rotateEdge(desired, angle))
-    end
-
-    for _, cand in ipairs(candidates) do
-        local progress = cand:Dot(desired)
-        local clearance = routeClear(position, cand, threats)
-        local score = progress * 10 + math.min(clearance, 20) * 2.4 * SETTINGS.avoidStrength
-        if clearance < 0 then
-            score -= math.abs(clearance) * 18 * SETTINGS.avoidStrength
-        elseif clearance < 5 then
-            score -= (5 - clearance) * 5 * SETTINGS.avoidStrength
-        end
-        if score > bestScore then bestScore = score; best = cand end
-    end
-    return best.Unit
-end
-
 local function requestDash(direction, now)
     if not SETTINGS.autoDash or not isRunnerActive() then return false end
     if now - runtime.dashAt < SETTINGS.dashCooldown then return false end
@@ -1418,69 +847,48 @@ local function requestDash(direction, now)
 end
 
 local function runnerStep(now, dt)
-    if not isRunnerActive() or not SETTINGS.runnerEnabled then
-        runtime.path = Vector3.zero
+    if not isRunnerActive() then
         if runtime.reviveStarted then cancelRevive() end
         return
     end
     local root = getRoot()
     local hum = getHumanoid()
-    if not root or not hum or not canMove() then
-        runtime.path = Vector3.zero
-        return
-    end
+    if not root or not hum or not canMove() then return end
 
     refreshPing(now)
-    refreshSafezones()
-    refreshCatchers(now)
     local position = root.Position
-    local baseGoal = select(1, chooseSafeGoal(position)) or getSafeFallback(position)
-    if not baseGoal then
-        hum:Move(Vector3.zero, false)
-        return
-    end
 
-    local movementGoal = baseGoal
     if SETTINGS.autoRevive then
         local revivePos = updateRevive(now, position)
-        if revivePos then movementGoal = revivePos end
+        if revivePos and not runtime.reviveStarted then
+            local dir = flat(revivePos - position)
+            if dir.Magnitude > 0.05 then
+                hum:Move(dir.Unit, false)
+            end
+        end
     elseif SETTINGS.autoGems then
         refreshGems(now, position)
         if runtime.gemTarget and runtime.gemTarget.Parent then
-            movementGoal = runtime.gemTarget.Position
-            if flat(movementGoal - position).Magnitude <= SETTINGS.gemCollectDistance then
+            local gemPos = runtime.gemTarget.Position
+            local dist = flat(gemPos - position).Magnitude
+            if dist <= SETTINGS.gemCollectDistance then
                 runtime.gemIgnored[runtime.gemTarget] = now + 0.7
                 runtime.gemTarget = nil
+            else
+                local dir = flat(gemPos - position)
+                if dir.Magnitude > 0.05 then
+                    hum:Move(dir.Unit, false)
+                end
             end
         end
     end
 
     if runtime.reviveStarted then
         hum:Move(Vector3.zero, false)
-        runtime.path = Vector3.zero
-        return
-    end
-
-    local threats = updateThreats(now, position)
-    local dir = chooseRunnerDirection(position, movementGoal, threats)
-    local edgeDir, edgeRisk = chooseEdgeDirection(position, dir, movementGoal, position.Y)
-    if edgeRisk and edgeDir.Magnitude > 0.05 then dir = edgeDir end
-
-    if SETTINGS.smoothMovement and runtime.path.Magnitude > 0.05 then
-        local alpha = math.clamp(SETTINGS.turnRate * dt, 0, 1)
-        dir = flat(runtime.path:Lerp(dir, alpha)).Unit
-    end
-
-    runtime.path = dir
-    hum.AutoRotate = true
-    hum:Move(dir, false)
-
-    if SETTINGS.autoDash and #threats > 0 and threats[1].collisionRisk then
-        requestDash(dir, now)
     end
 end
 
--- 14. CATCHER AI & COMBAT ENGINE
+-- 12. CATCHER ACTIONS (MELEE)
 local function refreshRunnerTargets(now)
     if now - runtime.catcherTargetAt < 0.15 then return end
     runtime.catcherTargetAt = now
@@ -1501,12 +909,8 @@ local function catcherAttack(target, now, root)
     if not targetRoot then return end
     local dist = flat(targetRoot.Position - root.Position).Magnitude
     local meleeReady = SETTINGS.autoMelee and now - runtime.lastMelee >= SETTINGS.meleeCooldown and dist <= SETTINGS.meleeRange
-    local tackleReady = SETTINGS.autoTackle and now - runtime.lastTackle >= SETTINGS.tackleCooldown and dist <= SETTINGS.tackleRange
 
-    if tackleReady and (SETTINGS.catcherAttackPriority == "Tackle First" or dist > SETTINGS.meleeRange) then
-        pcall(TacklePrediction.request)
-        runtime.lastTackle = now
-    elseif meleeReady then
+    if meleeReady then
         runtime.meleeId += 1
         pcall(MeleeEvent.FireServer, MeleeEvent, runtime.meleeId)
         runtime.lastMelee = now
@@ -1514,51 +918,17 @@ local function catcherAttack(target, now, root)
 end
 
 local function catcherStep(now, dt)
-    if not isCatcherActive() or not SETTINGS.catcherChase then
-        runtime.catcherTarget = nil
-        return
-    end
+    if not isCatcherActive() or not SETTINGS.autoMelee then return end
     local root = getRoot()
-    local hum = getHumanoid()
-    if not root or not hum or not canMove() then return end
+    if not root or not canMove() then return end
 
     refreshRunnerTargets(now)
-    local best, bestDist
     for _, p in ipairs(runtime.catcherTargets) do
-        local r = getRoot(p)
-        if r then
-            local d = flat(r.Position - root.Position).Magnitude
-            if not bestDist or d < bestDist then best = p; bestDist = d end
-        end
-    end
-
-    runtime.catcherTarget = best
-    if not best then return end
-    local targetRoot = getRoot(best)
-    if not targetRoot then return end
-
-    local predicted = targetRoot.Position + flat(targetRoot.AssemblyLinearVelocity) * SETTINGS.catcherPrediction
-    local dir = flat(predicted - root.Position)
-    if dir.Magnitude > 0.05 then
-        dir = dir.Unit
-        if SETTINGS.smoothTurn and runtime.catcherPath.Magnitude > 0.05 then
-            dir = flat(runtime.catcherPath:Lerp(dir, math.clamp(SETTINGS.turnRateCatcher * dt, 0, 1))).Unit
-        end
-        runtime.catcherPath = dir
-        hum.AutoRotate = true
-        hum:Move(dir, false)
-    end
-
-    if SETTINGS.autoTackle or SETTINGS.autoMelee then catcherAttack(best, now, root) end
-    if SETTINGS.followTarget and workspace.CurrentCamera then
-        workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(
-            CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, predicted + Vector3.new(0, 1.5, 0)),
-            math.clamp(SETTINGS.cameraResponse, 0.01, 1)
-        )
+        catcherAttack(p, now, root)
     end
 end
 
--- 15. AUTOMATED UTILITIES (WHEEL, JOURNEY, MAP VOTE, AFK)
+-- 13. AUTOMATED UTILITIES (WHEEL, JOURNEY, MAP VOTE)
 local function wheelRequestState(now)
     if now - runtime.wheelStateRequestAt < 1.25 then return end
     runtime.wheelStateRequestAt = now
@@ -1630,99 +1000,65 @@ local function journeyClaimStep(now)
     Notify("Journey", "Claimed seasonal rewards", C.Green)
 end
 
--- 16. POPULATE CONTROLS
+-- 14. POPULATE CONTROLS
 AddSection(LeftCol, "RUNNER AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO RUN", "Auto safe-zone transit & dodging", "OFF", SETTINGS.runnerEnabled, 2, function(bText, bStroke, _, setActive)
-    SETTINGS.runnerEnabled = not SETTINGS.runnerEnabled
-    bText.Text = SETTINGS.runnerEnabled and "ON" or "OFF"
-    bText.TextColor3 = SETTINGS.runnerEnabled and C.Green or C.Muted
-    setActive(SETTINGS.runnerEnabled)
-    Notify("Runner", SETTINGS.runnerEnabled and "Auto Run Active" or "Auto Run Paused", SETTINGS.runnerEnabled and C.Green or C.Red)
-end)
-
-CreateActionCard(LeftCol, "AUTO REVIVE", "Path & revive downed teammates", "OFF", SETTINGS.autoRevive, 3, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO REVIVE", "Path & revive downed teammates", "OFF", SETTINGS.autoRevive, 2, function(bText, bStroke, _, setActive)
     SETTINGS.autoRevive = not SETTINGS.autoRevive
     bText.Text = SETTINGS.autoRevive and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoRevive and C.Green or C.Muted
     setActive(SETTINGS.autoRevive)
+    Notify("Runner", SETTINGS.autoRevive and "Auto Revive Enabled" or "Auto Revive Disabled", SETTINGS.autoRevive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "AUTO GEMS", "Sweep runner collectibles", "OFF", SETTINGS.autoGems, 4, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO GEMS", "Sweep runner collectibles", "OFF", SETTINGS.autoGems, 3, function(bText, bStroke, _, setActive)
     SETTINGS.autoGems = not SETTINGS.autoGems
     bText.Text = SETTINGS.autoGems and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoGems and C.Green or C.Muted
     setActive(SETTINGS.autoGems)
+    Notify("Runner", SETTINGS.autoGems and "Auto Gems Enabled" or "Auto Gems Disabled", SETTINGS.autoGems and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "AUTO DASH", "Boost ability escape on collision threat", "OFF", SETTINGS.autoDash, 5, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO DASH", "Boost ability escape on collision threat", "OFF", SETTINGS.autoDash, 4, function(bText, bStroke, _, setActive)
     SETTINGS.autoDash = not SETTINGS.autoDash
     bText.Text = SETTINGS.autoDash and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoDash and C.Green or C.Muted
     setActive(SETTINGS.autoDash)
+    Notify("Runner", SETTINGS.autoDash and "Auto Dash Enabled" or "Auto Dash Disabled", SETTINGS.autoDash and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "RUNNER SPEED (1.5X)", "Multiplier override for runner speed", "OFF", SETTINGS.customSpeed, 6, function(bText, bStroke, _, setActive)
-    SETTINGS.customSpeed = not SETTINGS.customSpeed
-    SETTINGS.speedMultiplier = SETTINGS.customSpeed and 1.5 or 1.0
-    bText.Text = SETTINGS.customSpeed and "1.5X" or "OFF"
-    bText.TextColor3 = SETTINGS.customSpeed and C.Cyan or C.Muted
-    setActive(SETTINGS.customSpeed, C.Cyan)
-    if not SETTINGS.customSpeed then restoreNativeWalkSpeed() end
-end)
+AddSection(LeftCol, "CATCHER AUTOMATION", 5)
 
-AddSection(LeftCol, "CATCHER AUTOMATION", 7)
-
-CreateActionCard(LeftCol, "AUTO CHASE", "Auto-lock & intercept best runner", "OFF", SETTINGS.catcherChase, 8, function(bText, bStroke, _, setActive)
-    SETTINGS.catcherChase = not SETTINGS.catcherChase
-    bText.Text = SETTINGS.catcherChase and "ON" or "OFF"
-    bText.TextColor3 = SETTINGS.catcherChase and C.Green or C.Muted
-    setActive(SETTINGS.catcherChase)
-end)
-
-CreateActionCard(LeftCol, "AUTO TACKLE", "Trigger tackle on predicted target", "OFF", SETTINGS.autoTackle, 9, function(bText, bStroke, _, setActive)
-    SETTINGS.autoTackle = not SETTINGS.autoTackle
-    bText.Text = SETTINGS.autoTackle and "ON" or "OFF"
-    bText.TextColor3 = SETTINGS.autoTackle and C.Green or C.Muted
-    setActive(SETTINGS.autoTackle)
-end)
-
-CreateActionCard(LeftCol, "AUTO MELEE", "Trigger melee swing within range", "OFF", SETTINGS.autoMelee, 10, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO MELEE", "Trigger melee swing within range", "OFF", SETTINGS.autoMelee, 6, function(bText, bStroke, _, setActive)
     SETTINGS.autoMelee = not SETTINGS.autoMelee
     bText.Text = SETTINGS.autoMelee and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoMelee and C.Green or C.Muted
     setActive(SETTINGS.autoMelee)
+    Notify("Catcher", SETTINGS.autoMelee and "Auto Melee Enabled" or "Auto Melee Disabled", SETTINGS.autoMelee and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "CATCHER SPEED (1.5X)", "Multiplier override for catcher speed", "OFF", SETTINGS.catcherCustomSpeed, 11, function(bText, bStroke, _, setActive)
-    SETTINGS.catcherCustomSpeed = not SETTINGS.catcherCustomSpeed
-    SETTINGS.catcherSpeedMultiplier = SETTINGS.catcherCustomSpeed and 1.5 or 1.0
-    bText.Text = SETTINGS.catcherCustomSpeed and "1.5X" or "OFF"
-    bText.TextColor3 = SETTINGS.catcherCustomSpeed and C.Cyan or C.Muted
-    setActive(SETTINGS.catcherCustomSpeed, C.Cyan)
-    if not SETTINGS.catcherCustomSpeed then restoreNativeWalkSpeed() end
-end)
+AddSection(LeftCol, "LOBBY & PROGRESSION", 7)
 
-AddSection(LeftCol, "LOBBY & PROGRESSION", 12)
-
-CreateActionCard(LeftCol, "AUTO SPIN WHEEL", "Spins free credits automatically", "OFF", SETTINGS.autoSpinWheel, 13, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO SPIN WHEEL", "Spins free credits automatically", "OFF", SETTINGS.autoSpinWheel, 8, function(bText, bStroke, _, setActive)
     SETTINGS.autoSpinWheel = not SETTINGS.autoSpinWheel
     bText.Text = SETTINGS.autoSpinWheel and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoSpinWheel and C.Green or C.Muted
     setActive(SETTINGS.autoSpinWheel)
     if SETTINGS.autoSpinWheel then wheelRequestState(os.clock()) end
+    Notify("Wheel", SETTINGS.autoSpinWheel and "Auto Spin Enabled" or "Auto Spin Disabled", SETTINGS.autoSpinWheel and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "AUTO CLAIM JOURNEY", "Claim battlepass tier rewards", "OFF", SETTINGS.autoClaimJourneyRewards, 14, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO CLAIM JOURNEY", "Claim battlepass tier rewards", "OFF", SETTINGS.autoClaimJourneyRewards, 9, function(bText, bStroke, _, setActive)
     SETTINGS.autoClaimJourneyRewards = not SETTINGS.autoClaimJourneyRewards
     bText.Text = SETTINGS.autoClaimJourneyRewards and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoClaimJourneyRewards and C.Green or C.Muted
     setActive(SETTINGS.autoClaimJourneyRewards)
     if SETTINGS.autoClaimJourneyRewards then pcall(function() JourneyEvent:FireServer("Get") end) end
+    Notify("Journey", SETTINGS.autoClaimJourneyRewards and "Auto Claim Enabled" or "Auto Claim Disabled", SETTINGS.autoClaimJourneyRewards and C.Green or C.Red)
 end)
 
 local currentVoteSlot = 1
-CreateActionCard(LeftCol, "MAP VOTE PREFERENCE", "Cycle preferred map slot vote", "OFF", SETTINGS.autoMapVote, 15, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "MAP VOTE PREFERENCE", "Cycle preferred map slot vote", "OFF", SETTINGS.autoMapVote, 10, function(bText, bStroke, _, setActive)
     SETTINGS.autoMapVote = not SETTINGS.autoMapVote
     if SETTINGS.autoMapVote then
         currentVoteSlot = (currentVoteSlot % 3) + 1
@@ -1740,7 +1076,7 @@ CreateActionCard(LeftCol, "MAP VOTE PREFERENCE", "Cycle preferred map slot vote"
     end
 end)
 
--- 17. SETTINGS DRAWER OVERLAY
+-- 15. SETTINGS DRAWER OVERLAY
 local Drawer = Instance.new("TextButton")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1779,44 +1115,36 @@ CreateActionCard(DrawerScroll, "ANTI IDLE KICK", "Bypasses 20min Roblox idle dis
     setActive(SETTINGS.antiIdle)
 end)
 
-CreateActionCard(DrawerScroll, "DISABLE BUILT-IN AFK", "Forces game AFK preference flag to OFF", "OFF", SETTINGS.disableBuiltinAFK, 3, function(bText, bStroke, _, setActive)
-    SETTINGS.disableBuiltinAFK = not SETTINGS.disableBuiltinAFK
-    bText.Text = SETTINGS.disableBuiltinAFK and "ON" or "OFF"
-    bText.TextColor3 = SETTINGS.disableBuiltinAFK and C.Green or C.Muted
-    setActive(SETTINGS.disableBuiltinAFK)
-    if SETTINGS.disableBuiltinAFK then pcall(function() PlayerPreferences:FireServer("SetAFK", false) end) end
-end)
-
-AddSection(DrawerScroll, "PRIVACY & SENSORS", 4)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & censors account IDs", "OFF", false, 5, function(bText, bStroke, _, setActive)
+AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & censors account IDs", "OFF", false, 4, function(bText, bStroke, _, setActive)
     setCensorState(not SensorInfoActive)
     bText.Text = SensorInfoActive and "ON" or "OFF"
     bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
     setActive(SensorInfoActive)
 end)
 
-AddSection(DrawerScroll, "MONITORING OVERLAYS", 6)
-CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false, 7, function(bText, bStroke, _, setActive)
+AddSection(DrawerScroll, "MONITORING OVERLAYS", 5)
+CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false, 6, function(bText, bStroke, _, setActive)
     MonitorFPS = not MonitorFPS; bText.Text = MonitorFPS and "ON" or "OFF"
     bText.TextColor3 = MonitorFPS and C.Green or C.Muted; setActive(MonitorFPS)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", false, 8, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", false, 7, function(bText, bStroke, _, setActive)
     MonitorPing = not MonitorPing; bText.Text = MonitorPing and "ON" or "OFF"
     bText.TextColor3 = MonitorPing and C.Green or C.Muted; setActive(MonitorPing)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", false, 9, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", false, 8, function(bText, bStroke, _, setActive)
     MonitorMem = not MonitorMem; bText.Text = MonitorMem and "ON" or "OFF"
     bText.TextColor3 = MonitorMem and C.Green or C.Muted; setActive(MonitorMem)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW UPTIME", "Displays session time counter", "OFF", false, 10, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "SHOW UPTIME", "Displays session time counter", "OFF", false, 9, function(bText, bStroke, _, setActive)
     MonitorUptime = not MonitorUptime; bText.Text = MonitorUptime and "ON" or "OFF"
     bText.TextColor3 = MonitorUptime and C.Green or C.Muted; setActive(MonitorUptime)
 end)
 
-AddSection(DrawerScroll, "DANGER ZONE", 11)
+AddSection(DrawerScroll, "DANGER ZONE", 10)
 
 local DestroyCard = Instance.new("TextButton")
 DestroyCard.Size = UDim2.new(1, 0, 0, 48)
@@ -1825,7 +1153,7 @@ DestroyCard.AutoButtonColor = false
 DestroyCard.Text = ""
 DestroyCard.ClipsDescendants = true
 DestroyCard.ZIndex = 52
-DestroyCard.LayoutOrder = 12
+DestroyCard.LayoutOrder = 11
 DestroyCard.Parent = DrawerScroll
 
 Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
@@ -1891,7 +1219,7 @@ SettingsBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- 18. RUNTIME TELEMETRY & INPUT DRAGGING
+-- 16. RUNTIME TELEMETRY & INPUT DRAGGING
 local function clampPosition(rawPos, obj)
     local cam = workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -2008,29 +1336,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 19. BIND RUNTIME ENGINES
-local SPEED_RENDER_NAME = "CoH_SpeedOverride"
-RunService:UnbindFromRenderStep(SPEED_RENDER_NAME)
-RunService:BindToRenderStep(SPEED_RENDER_NAME, Enum.RenderPriority.Input.Value + 2, function()
-    local role = getRole()
-    local character = getCharacter()
-    local hum = getHumanoid()
-    if not character or not hum or hum.Health <= 0 then return end
-    local state = character:GetAttribute("MovementState")
-    if state == "Dashing" or state == "Boosting" then return end
-
-    local nativeOutput = tonumber(character:GetAttribute("MovementSpeed"))
-    if nativeOutput and nativeOutput > 0 then
-        local desiredSpeed = nativeOutput
-        if role == "Runner" and SETTINGS.customSpeed and SETTINGS.speedMultiplier > 1.0001 then
-            desiredSpeed = nativeOutput * math.clamp(SETTINGS.speedMultiplier, 1, 1.5)
-        elseif role == "Catcher" and SETTINGS.catcherCustomSpeed and SETTINGS.catcherSpeedMultiplier > 1.0001 then
-            desiredSpeed = nativeOutput * math.clamp(SETTINGS.catcherSpeedMultiplier, 1, 1.5)
-        end
-        if math.abs(hum.WalkSpeed - desiredSpeed) > 0.05 then hum.WalkSpeed = desiredSpeed end
-    end
-end)
-
+-- 17. BIND RUNTIME ENGINES
 local RENDER_NAME = "CoH_StableController"
 RunService:UnbindFromRenderStep(RENDER_NAME)
 local lastControllerTick = os.clock()
@@ -2063,20 +1369,15 @@ task.spawn(function()
         autoSpinWheelStep(now)
         journeyClaimStep(now)
         mapVoteStep(now)
-        if SETTINGS.disableBuiltinAFK and LocalPlayer:GetAttribute("InMatch") ~= true then
-            pcall(function() PlayerPreferences:FireServer("SetAFK", false) end)
-        end
     end
 end)
 
--- 20. CLEANUP & UNLOAD HANDLER
+-- 18. CLEANUP & UNLOAD HANDLER
 Hub.cleanup = function()
     if Hub.cleaned then return end
     Hub.cleaned = true
     pcall(cancelRevive)
     pcall(function() RunService:UnbindFromRenderStep(RENDER_NAME) end)
-    pcall(function() RunService:UnbindFromRenderStep(SPEED_RENDER_NAME) end)
-    pcall(restoreNativeWalkSpeed)
     if monitorConn then monitorConn:Disconnect() end
     pcall(function() ScreenGui:Destroy() end)
     if Hub.genv.HussValleyUnload == Hub.cleanup then Hub.genv.HussValleyUnload = nil end
@@ -2087,5 +1388,5 @@ Hub.genv.HussValleyUnload = Hub.cleanup
 Hub.genv.OziohubUnload = Hub.cleanup
 
 openMenu()
-Notify("Lumacore", "Huss Valley Definitive Suite Loaded", C.Accent)
+Notify("Lumacore", "Huss Valley Suite Loaded", C.Accent)
 print("[Lumacore] Huss Valley Suite active.")
