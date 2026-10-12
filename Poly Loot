@@ -874,11 +874,14 @@ local function unequipGhostNet()
     end
 end
 
--- 13. POLISHED CANDY CORN AUTO-FARM (SMOOTH ABOVE & UNDERGROUND)
+-- 13. POLISHED CANDY CORN AUTO-FARM ENGINE (WITH AI CHASE OPTION)
 local autoCandyFarm = false
-local farmStance = "Underground"
+local farmStance = "Underground" -- "Underground" or "Above Ground"
+local aiChaseActive = false
 local isUnderground = false
 local currentTargetGhost = nil
+
+local farmStanceController = nil
 
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
@@ -887,7 +890,7 @@ RunService.Stepped:Connect(function()
     local hum = char:FindFirstChildOfClass("Humanoid")
     
     if autoCandyFarm then
-        if farmStance == "Underground" and isUnderground then
+        if farmStance == "Underground" and isUnderground and not aiChaseActive then
             for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
@@ -898,7 +901,7 @@ RunService.Stepped:Connect(function()
                 hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 hum:ChangeState(Enum.HumanoidStateType.Physics)
             end
-        elseif farmStance == "Above Ground" then
+        elseif farmStance == "Above Ground" and not aiChaseActive then
             for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
                     part.CanCollide = false
@@ -956,6 +959,10 @@ task.spawn(function()
     end
 end)
 
+-- Main Farm Loop (TP Stance & Ground AI Chase)
+local lastStuckPos = Vector3.new(0, 0, 0)
+local lastStuckCheck = tick()
+
 task.spawn(function()
     while true do
         if autoCandyFarm then
@@ -965,30 +972,61 @@ task.spawn(function()
 
             local char = LocalPlayer.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
 
-            if ghost and ghostPart and ghost.Parent then
-                if farmStance == "Underground" then
-                    isUnderground = true
-                    if hrp then
-                        hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
+            if ghost and ghostPart and ghost.Parent and hrp and hum then
+                if aiChaseActive then
+                    -- Smooth Ground AI Pathing with Dynamic Jump Raycast
+                    restoreSurface()
+                    local myPos = hrp.Position
+                    local targetPos = ghostPart.Position
+                    local dist = (targetPos - myPos).Magnitude
+
+                    hum:MoveTo(targetPos)
+
+                    -- Obstacle and elevation detection
+                    local rayParams = RaycastParams.new()
+                    rayParams.FilterDescendantsInstances = {char}
+                    rayParams.FilterType = RaycastFilterType.Exclude
+
+                    local fwdHit = Workspace:Raycast(myPos, (targetPos - myPos).Unit * 5, rayParams)
+                    if (fwdHit and fwdHit.Instance and fwdHit.Instance.CanCollide) or (targetPos.Y > myPos.Y + 2.2) then
+                        hum.Jump = true
+                    end
+
+                    -- Anti-stuck velocity failsafe
+                    if tick() - lastStuckCheck >= 0.55 then
+                        if (myPos - lastStuckPos).Magnitude < 1.2 and dist > 4 then
+                            hum.Jump = true
+                            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                        lastStuckPos = myPos
+                        lastStuckCheck = tick()
+                    end
+
+                    if dist <= 8.5 then
+                        executeGhostSwing(ghost)
                     end
                 else
-                    if isUnderground then restoreSurface() end
-                    if hrp then
-                        local smoothCF = CFrame.new(ghostPart.Position + Vector3.new(0, 2.6, 0), ghostPart.Position)
-                        hrp.CFrame = smoothCF
+                    -- Precision Teleport Farm (Underground / Above Ground)
+                    if farmStance == "Underground" then
+                        isUnderground = true
+                        hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
+                    else
+                        if isUnderground then restoreSurface() end
+                        hrp.CFrame = CFrame.new(ghostPart.Position + Vector3.new(0, 2.6, 0), ghostPart.Position)
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     end
-                end
-                task.wait(0.04)
-                if ghost.Parent then
-                    executeGhostSwing(ghost)
+                    task.wait(0.04)
+                    if ghost.Parent then
+                        executeGhostSwing(ghost)
+                    end
                 end
             else
                 restoreSurface()
             end
-            task.wait(0.08)
+            task.wait(aiChaseActive and 0.08 or 0.08)
         else
             restoreSurface()
             task.wait(0.2)
@@ -996,65 +1034,7 @@ task.spawn(function()
     end
 end)
 
--- 14. ANTI-CHEAT SAFE GROUND GLIDE ENGINE
-local isGliding = false
-local currentGlideConn = nil
-
-local function glideTravelTo(targetPos, destinationName)
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not (hrp and hum and hum.Health > 0) then return end
-
-    if isGliding then
-        Notify("Fast Travel", "Travel currently in progress", C.Red)
-        return
-    end
-
-    isGliding = true
-    Notify("Fast Travel", "Traveling safely to " .. destinationName .. "...", C.Accent)
-
-    local startPos = hrp.Position
-    local totalDist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(startPos.X, startPos.Z)).Magnitude
-    local glideSpeed = 52
-    local glideDuration = math.clamp(totalDist / glideSpeed, 2.0, 24.0)
-    local elapsed = 0
-
-    if currentGlideConn then currentGlideConn:Disconnect() end
-
-    local rayParams = RaycastParams.new()
-    rayParams.FilterDescendantsInstances = {char}
-    rayParams.FilterType = RaycastFilterType.Exclude
-
-    currentGlideConn = RunService.Heartbeat:Connect(function(dt)
-        elapsed = elapsed + dt
-        local alpha = math.clamp(elapsed / glideDuration, 0, 1)
-        
-        local currentHorizontal = startPos:Lerp(targetPos, alpha)
-        local rayOrigin = Vector3.new(currentHorizontal.X, currentHorizontal.Y + 15, currentHorizontal.Z)
-        local groundHit = Workspace:Raycast(rayOrigin, Vector3.new(0, -50, 0), rayParams)
-        local groundY = groundHit and (groundHit.Position.Y + 3.2) or currentHorizontal.Y
-
-        if hrp and hum and hum.Health > 0 then
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            hrp.CFrame = CFrame.new(Vector3.new(currentHorizontal.X, groundY, currentHorizontal.Z), Vector3.new(targetPos.X, groundY, targetPos.Z))
-        end
-
-        if alpha >= 1 then
-            if currentGlideConn then currentGlideConn:Disconnect() end
-            if hrp then
-                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3.2, 0))
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            end
-            isGliding = false
-            Notify("Fast Travel", "Safely arrived at " .. destinationName, C.Green)
-        end
-    end)
-end
-
--- 15. IMPROVED LIVE OUTLINE CHAMS ESP ENGINES (GHOST & PLAYER)
+-- 14. LIVE OUTLINE CHAMS ESP ENGINES (GHOST & PLAYER)
 local GhostESPActive = false
 local GhostESPStorage = {}
 local ghostFolderConn = nil
@@ -1250,7 +1230,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 17. POPULATE CONTROLS IN LEFT COLUMN
+-- 15. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
 CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips on stop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
@@ -1273,7 +1253,12 @@ CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips 
     end
 end)
 
-CreateActionCard(LeftCol, "FARM STANCE", "Toggle positioning above or under", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+farmStanceController = CreateActionCard(LeftCol, "FARM STANCE", "Positioning above or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+    if aiChaseActive then
+        Notify("Stance Locked", "Disable AI Chase before changing stance", C.Red)
+        return
+    end
+
     if farmStance == "Underground" then
         farmStance = "Above Ground"
         bText.Text = "ABOVE"
@@ -1285,13 +1270,48 @@ CreateActionCard(LeftCol, "FARM STANCE", "Toggle positioning above or under", "U
         farmStance = "Underground"
         bText.Text = "UNDER"
         bText.TextColor3 = C.Accent
-        sLbl.Text = "Sweeping beneath ghosts (-6.5s)"
+        sLbl.Text = "Positioning beneath ghosts (-6.5s)"
         setActive(false)
     end
     Notify("Farm Stance", "Switched stance to: " .. farmStance, C.Accent)
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 4, function()
+CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with jump assist", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+    aiChaseActive = not aiChaseActive
+    bText.Text = aiChaseActive and "ON" or "OFF"
+    bText.TextColor3 = aiChaseActive and C.Green or C.Muted
+    setActive(aiChaseActive)
+
+    if aiChaseActive then
+        sLbl.Text = "Active • Ground pathing & jumping"
+        if farmStanceController then
+            farmStanceController.badgeText.Text = "LOCKED"
+            farmStanceController.badgeText.TextColor3 = C.Red
+            farmStanceController.badgeStroke.Color = C.Red
+            farmStanceController.subLabel.Text = "Locked (AI Chase is running)"
+            farmStanceController.setActive(false)
+        end
+        restoreSurface()
+        Notify("AI Chase", "AI Chase Active • Stance Locked", C.Green)
+    else
+        sLbl.Text = "Ground navigation with jump assist"
+        if farmStanceController then
+            local isAbove = farmStance == "Above Ground"
+            farmStanceController.badgeText.Text = isAbove and "ABOVE" or "UNDER"
+            farmStanceController.badgeText.TextColor3 = isAbove and C.Cyan or C.Accent
+            farmStanceController.badgeStroke.Color = isAbove and C.Cyan or C.Border
+            farmStanceController.subLabel.Text = isAbove and "Hovering smoothly over ghosts" or "Positioning beneath ghosts (-6.5s)"
+            farmStanceController.setActive(isAbove, isAbove and C.Cyan or nil)
+        end
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp then hum:MoveTo(hrp.Position) end
+        Notify("AI Chase", "AI Chase Disabled • Stance Unlocked", C.Red)
+    end
+end)
+
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 5, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1301,9 +1321,9 @@ CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle st
     end
 end)
 
-AddSection(LeftCol, "EVENT SHOP", 5)
+AddSection(LeftCol, "EVENT SHOP", 6)
 
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 6, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 7, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
@@ -1313,7 +1333,7 @@ CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle sta
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 7, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 8, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
@@ -1323,19 +1343,9 @@ CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle s
     end
 end)
 
-AddSection(LeftCol, "FAST TRAVEL", 8)
+AddSection(LeftCol, "VISUALS", 9)
 
-CreateActionCard(LeftCol, "GLIDE TO SPAWN", "Old Town • Anti-cheat safe ground glide", "GLIDE", false, 9, function()
-    glideTravelTo(Vector3.new(689.8, 178.6, 112), "Old Town (Spawn)")
-end)
-
-CreateActionCard(LeftCol, "GLIDE TO JUNGLE", "Jungle Village • Anti-cheat safe glide", "GLIDE", false, 10, function()
-    glideTravelTo(Vector3.new(-80, 115, -2140), "Jungle Village")
-end)
-
-AddSection(LeftCol, "VISUALS", 11)
-
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 10, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1344,7 +1354,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "
     Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 11, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1353,7 +1363,7 @@ CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OF
     Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 18. OPTIMIZED SETTINGS DRAWER OVERLAY
+-- 16. OPTIMIZED SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -1651,7 +1661,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     else
         if timerThread then task.cancel(timerThread) end
         autoCandyFarm = false
-        if currentGlideConn then currentGlideConn:Disconnect() end
+        aiChaseActive = false
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
@@ -1678,7 +1688,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 19. SAFE CLAMPING & DRAGGING
+-- 17. SAFE CLAMPING & DRAGGING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1728,7 +1738,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 20. ENTRANCE & INTRO LOADER
+-- 18. ENTRANCE & INTRO LOADER
 local isTransitioning = false
 local isOpen = false
 
@@ -1816,7 +1826,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 21. MOBILE FLOATING BUTTON (🍁)
+-- 19. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
