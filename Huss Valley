@@ -110,14 +110,14 @@ ScreenGui.Parent = TargetParent
 
 -- 5. SETTINGS & RUNTIME
 local SETTINGS = {
-    runnerEnabled = true,
+    runnerEnabled = false,
     customSpeed = false,
     speedMultiplier = 1.0,
-    autoGems = true,
+    autoGems = false,
     gemScanInterval = 0.25,
     gemMaxDistance = 220,
     gemCollectDistance = 4.5,
-    autoRevive = true,
+    autoRevive = false,
     reviveBeforeGems = true,
     reviveMaxDistance = 220,
     avoidCatchers = true,
@@ -131,13 +131,13 @@ local SETTINGS = {
     edgeRayDepth = 52,
     edgeLookAhead = 14,
     edgeSecondLookAhead = 28,
-    autoDash = true,
+    autoDash = false,
     dashCooldown = 0.85,
     smoothMovement = true,
     turnRate = 9,
     emergencySafeZone = true,
-    showThreats = true,
-    showGoal = true,
+    showThreats = false,
+    showGoal = false,
     corridorEnabled = true,
     corridorMinWidth = 4.25,
     corridorCenterRange = 26,
@@ -150,25 +150,25 @@ local SETTINGS = {
     sideGapCommitTime = 0.8,
     sideGapForwardBias = 6.5,
 
-    catcherChase = true,
+    catcherChase = false,
     catcherCustomSpeed = false,
     catcherSpeedMultiplier = 1.0,
     catcherPrediction = 0.45,
     catcherSmoothing = 6,
     smartPriority = true,
     catcherAttackPriority = "Smart",
-    autoTackle = true,
+    autoTackle = false,
     tackleRange = 12,
     tackleCooldown = 1.2,
-    autoMelee = true,
+    autoMelee = false,
     meleeRange = 9,
     meleeCooldown = 0.35,
     smoothTurn = true,
     turnRateCatcher = 14,
-    followTarget = true,
+    followTarget = false,
 
     showHitboxes = false,
-    showGoalUtility = true,
+    showGoalUtility = false,
     showThreatUtility = false,
     cameraResponse = 0.25,
     autoSpinWheel = false,
@@ -873,13 +873,13 @@ end
 
 local function getRunnerSpeed()
     local speed = math.max(getBaseSpeed("Runner"), 1)
-    if SETTINGS.customSpeed then speed *= math.clamp(SETTINGS.speedMultiplier, 1, 2) end
+    if SETTINGS.customSpeed then speed *= math.clamp(SETTINGS.speedMultiplier, 1, 1.5) end
     return speed
 end
 
 local function getCatcherSpeed()
     local speed = math.max(getBaseSpeed("Catcher"), 1)
-    if SETTINGS.catcherCustomSpeed then speed *= math.clamp(SETTINGS.catcherSpeedMultiplier, 1, 2) end
+    if SETTINGS.catcherCustomSpeed then speed *= math.clamp(SETTINGS.catcherSpeedMultiplier, 1, 1.5) end
     return speed
 end
 
@@ -1633,7 +1633,7 @@ end
 -- 16. POPULATE CONTROLS
 AddSection(LeftCol, "RUNNER AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO RUN", "Auto safe-zone transit & dodging", "ON", SETTINGS.runnerEnabled, 2, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO RUN", "Auto safe-zone transit & dodging", "OFF", SETTINGS.runnerEnabled, 2, function(bText, bStroke, _, setActive)
     SETTINGS.runnerEnabled = not SETTINGS.runnerEnabled
     bText.Text = SETTINGS.runnerEnabled and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.runnerEnabled and C.Green or C.Muted
@@ -1641,31 +1641,31 @@ CreateActionCard(LeftCol, "AUTO RUN", "Auto safe-zone transit & dodging", "ON", 
     Notify("Runner", SETTINGS.runnerEnabled and "Auto Run Active" or "Auto Run Paused", SETTINGS.runnerEnabled and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "AUTO REVIVE", "Path & revive downed teammates", "ON", SETTINGS.autoRevive, 3, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO REVIVE", "Path & revive downed teammates", "OFF", SETTINGS.autoRevive, 3, function(bText, bStroke, _, setActive)
     SETTINGS.autoRevive = not SETTINGS.autoRevive
     bText.Text = SETTINGS.autoRevive and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoRevive and C.Green or C.Muted
     setActive(SETTINGS.autoRevive)
 end)
 
-CreateActionCard(LeftCol, "AUTO GEMS", "Sweep runner collectibles", "ON", SETTINGS.autoGems, 4, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO GEMS", "Sweep runner collectibles", "OFF", SETTINGS.autoGems, 4, function(bText, bStroke, _, setActive)
     SETTINGS.autoGems = not SETTINGS.autoGems
     bText.Text = SETTINGS.autoGems and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoGems and C.Green or C.Muted
     setActive(SETTINGS.autoGems)
 end)
 
-CreateActionCard(LeftCol, "AUTO DASH", "Boost ability escape on collision threat", "ON", SETTINGS.autoDash, 5, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO DASH", "Boost ability escape on collision threat", "OFF", SETTINGS.autoDash, 5, function(bText, bStroke, _, setActive)
     SETTINGS.autoDash = not SETTINGS.autoDash
     bText.Text = SETTINGS.autoDash and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoDash and C.Green or C.Muted
     setActive(SETTINGS.autoDash)
 end)
 
-CreateActionCard(LeftCol, "RUNNER SPEED (2.0X)", "Multiplier override for runner speed", "OFF", SETTINGS.customSpeed, 6, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "RUNNER SPEED (1.5X)", "Multiplier override for runner speed", "OFF", SETTINGS.customSpeed, 6, function(bText, bStroke, _, setActive)
     SETTINGS.customSpeed = not SETTINGS.customSpeed
-    SETTINGS.speedMultiplier = SETTINGS.customSpeed and 2.0 or 1.0
-    bText.Text = SETTINGS.customSpeed and "2.0X" or "OFF"
+    SETTINGS.speedMultiplier = SETTINGS.customSpeed and 1.5 or 1.0
+    bText.Text = SETTINGS.customSpeed and "1.5X" or "OFF"
     bText.TextColor3 = SETTINGS.customSpeed and C.Cyan or C.Muted
     setActive(SETTINGS.customSpeed, C.Cyan)
     if not SETTINGS.customSpeed then restoreNativeWalkSpeed() end
@@ -1673,31 +1673,31 @@ end)
 
 AddSection(LeftCol, "CATCHER AUTOMATION", 7)
 
-CreateActionCard(LeftCol, "AUTO CHASE", "Auto-lock & intercept best runner", "ON", SETTINGS.catcherChase, 8, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO CHASE", "Auto-lock & intercept best runner", "OFF", SETTINGS.catcherChase, 8, function(bText, bStroke, _, setActive)
     SETTINGS.catcherChase = not SETTINGS.catcherChase
     bText.Text = SETTINGS.catcherChase and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.catcherChase and C.Green or C.Muted
     setActive(SETTINGS.catcherChase)
 end)
 
-CreateActionCard(LeftCol, "AUTO TACKLE", "Trigger tackle on predicted target", "ON", SETTINGS.autoTackle, 9, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO TACKLE", "Trigger tackle on predicted target", "OFF", SETTINGS.autoTackle, 9, function(bText, bStroke, _, setActive)
     SETTINGS.autoTackle = not SETTINGS.autoTackle
     bText.Text = SETTINGS.autoTackle and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoTackle and C.Green or C.Muted
     setActive(SETTINGS.autoTackle)
 end)
 
-CreateActionCard(LeftCol, "AUTO MELEE", "Trigger melee swing within range", "ON", SETTINGS.autoMelee, 10, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "AUTO MELEE", "Trigger melee swing within range", "OFF", SETTINGS.autoMelee, 10, function(bText, bStroke, _, setActive)
     SETTINGS.autoMelee = not SETTINGS.autoMelee
     bText.Text = SETTINGS.autoMelee and "ON" or "OFF"
     bText.TextColor3 = SETTINGS.autoMelee and C.Green or C.Muted
     setActive(SETTINGS.autoMelee)
 end)
 
-CreateActionCard(LeftCol, "CATCHER SPEED (2.0X)", "Multiplier override for catcher speed", "OFF", SETTINGS.catcherCustomSpeed, 11, function(bText, bStroke, _, setActive)
+CreateActionCard(LeftCol, "CATCHER SPEED (1.5X)", "Multiplier override for catcher speed", "OFF", SETTINGS.catcherCustomSpeed, 11, function(bText, bStroke, _, setActive)
     SETTINGS.catcherCustomSpeed = not SETTINGS.catcherCustomSpeed
-    SETTINGS.catcherSpeedMultiplier = SETTINGS.catcherCustomSpeed and 2.0 or 1.0
-    bText.Text = SETTINGS.catcherCustomSpeed and "2.0X" or "OFF"
+    SETTINGS.catcherSpeedMultiplier = SETTINGS.catcherCustomSpeed and 1.5 or 1.0
+    bText.Text = SETTINGS.catcherCustomSpeed and "1.5X" or "OFF"
     bText.TextColor3 = SETTINGS.catcherCustomSpeed and C.Cyan or C.Muted
     setActive(SETTINGS.catcherCustomSpeed, C.Cyan)
     if not SETTINGS.catcherCustomSpeed then restoreNativeWalkSpeed() end
@@ -1722,15 +1722,22 @@ CreateActionCard(LeftCol, "AUTO CLAIM JOURNEY", "Claim battlepass tier rewards",
 end)
 
 local currentVoteSlot = 1
-CreateActionCard(LeftCol, "MAP VOTE PREFERENCE", "Cycle preferred map slot vote", "MAP 1", SETTINGS.autoMapVote, 15, function(bText, bStroke, _, setActive)
-    SETTINGS.autoMapVote = true
-    currentVoteSlot = (currentVoteSlot % 3) + 1
-    local slot = "Map " .. currentVoteSlot
-    SETTINGS.mapVoteSelections = {slot}
-    bText.Text = slot:upper()
-    bText.TextColor3 = C.Cyan
-    setActive(true, C.Cyan)
-    Notify("Map Vote", "Auto-vote targeting: " .. slot, C.Cyan)
+CreateActionCard(LeftCol, "MAP VOTE PREFERENCE", "Cycle preferred map slot vote", "OFF", SETTINGS.autoMapVote, 15, function(bText, bStroke, _, setActive)
+    SETTINGS.autoMapVote = not SETTINGS.autoMapVote
+    if SETTINGS.autoMapVote then
+        currentVoteSlot = (currentVoteSlot % 3) + 1
+        local slot = "Map " .. currentVoteSlot
+        SETTINGS.mapVoteSelections = {slot}
+        bText.Text = slot:upper()
+        bText.TextColor3 = C.Cyan
+        setActive(true, C.Cyan)
+        Notify("Map Vote", "Auto-vote targeting: " .. slot, C.Cyan)
+    else
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        setActive(false)
+        Notify("Map Vote", "Auto-vote disabled", C.Red)
+    end
 end)
 
 -- 17. SETTINGS DRAWER OVERLAY
@@ -2016,9 +2023,9 @@ RunService:BindToRenderStep(SPEED_RENDER_NAME, Enum.RenderPriority.Input.Value +
     if nativeOutput and nativeOutput > 0 then
         local desiredSpeed = nativeOutput
         if role == "Runner" and SETTINGS.customSpeed and SETTINGS.speedMultiplier > 1.0001 then
-            desiredSpeed = nativeOutput * math.clamp(SETTINGS.speedMultiplier, 1, 2)
+            desiredSpeed = nativeOutput * math.clamp(SETTINGS.speedMultiplier, 1, 1.5)
         elseif role == "Catcher" and SETTINGS.catcherCustomSpeed and SETTINGS.catcherSpeedMultiplier > 1.0001 then
-            desiredSpeed = nativeOutput * math.clamp(SETTINGS.catcherSpeedMultiplier, 1, 2)
+            desiredSpeed = nativeOutput * math.clamp(SETTINGS.catcherSpeedMultiplier, 1, 1.5)
         end
         if math.abs(hum.WalkSpeed - desiredSpeed) > 0.05 then hum.WalkSpeed = desiredSpeed end
     end
