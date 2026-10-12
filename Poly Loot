@@ -46,6 +46,8 @@ local C = {
     RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
     Purple     = Color3.fromRGB(175, 95, 245),
+    Gold       = Color3.fromRGB(240, 190, 60),
+    Cyan       = Color3.fromRGB(60, 200, 240),
 }
 
 local AnimationsEnabled = true
@@ -77,6 +79,15 @@ ScreenGui.Parent = TargetParent
 -- 4. DYNAMIC REMOTES RESOLVER
 local GhostSwingRemote = nil
 local ResetRequestedRemote = nil
+local DailyCheckInRemote = nil
+local ShopBuyRemote = nil
+local GoldMineCollectRemote = nil
+local MapTravelRemote = nil
+local ForeverPackClaimRemote = nil
+local EquipRequestRemote = nil
+local WeaponAttackRemote = nil
+local MapOpenRemote = nil
+local IslandTravelRemote = nil
 
 local function resolveRemotes()
     pcall(function()
@@ -85,10 +96,20 @@ local function resolveRemotes()
             local remotes = hEngine:FindFirstChild("Remotes")
             if remotes then
                 GhostSwingRemote = remotes:FindFirstChild("GhostSwing")
+                DailyCheckInRemote = remotes:FindFirstChild("DailyCheckIn")
+                IslandTravelRemote = remotes:FindFirstChild("IslandTravel")
+                ShopBuyRemote = remotes:FindFirstChild("Buy") 
+                    or remotes:FindFirstChild("AttemptBuy") 
+                    or remotes:FindFirstChild("Purchase") 
+                    or remotes:FindFirstChild("ShopBuy")
             end
         end
-        if not GhostSwingRemote then
-            GhostSwingRemote = ReplicatedStorage:FindFirstChild("GhostSwing", true)
+        if not GhostSwingRemote then GhostSwingRemote = ReplicatedStorage:FindFirstChild("GhostSwing", true) end
+        if not DailyCheckInRemote then DailyCheckInRemote = ReplicatedStorage:FindFirstChild("DailyCheckIn", true) end
+        if not IslandTravelRemote then IslandTravelRemote = ReplicatedStorage:FindFirstChild("IslandTravel", true) end
+        if not ShopBuyRemote then 
+            ShopBuyRemote = ReplicatedStorage:FindFirstChild("Buy", true) 
+                or ReplicatedStorage:FindFirstChild("Purchase", true) 
         end
     end)
 
@@ -100,8 +121,78 @@ local function resolveRemotes()
                 ResetRequestedRemote = remotes:FindFirstChild("ResetRequested")
             end
         end
-        if not ResetRequestedRemote then
-            ResetRequestedRemote = ReplicatedStorage:FindFirstChild("ResetRequested", true)
+        if not ResetRequestedRemote then ResetRequestedRemote = ReplicatedStorage:FindFirstChild("ResetRequested", true) end
+    end)
+
+    pcall(function()
+        local gmEngine = ReplicatedStorage:FindFirstChild("GoldMine_Engine") or ReplicatedStorage:FindFirstChild("GoldMine")
+        if gmEngine then
+            local remotes = gmEngine:FindFirstChild("Remotes")
+            if remotes then
+                GoldMineCollectRemote = remotes:FindFirstChild("Collect") or remotes:FindFirstChild("Claim") or remotes:FindFirstChild("GoldMineCollect")
+            end
+        end
+        if not GoldMineCollectRemote then
+            GoldMineCollectRemote = ReplicatedStorage:FindFirstChild("GoldMineCollect", true) 
+                or ReplicatedStorage:FindFirstChild("CollectGold", true)
+        end
+    end)
+
+    pcall(function()
+        local mEngine = ReplicatedStorage:FindFirstChild("Map_Engine") or ReplicatedStorage:FindFirstChild("Map")
+        if mEngine then
+            local remotes = mEngine:FindFirstChild("Remotes")
+            if remotes then
+                MapTravelRemote = remotes:FindFirstChild("Travel") or remotes:FindFirstChild("MapTravel") or remotes:FindFirstChild("FastTravel")
+                MapOpenRemote = remotes:FindFirstChild("MapOpen")
+            end
+        end
+        if not MapTravelRemote then
+            MapTravelRemote = ReplicatedStorage:FindFirstChild("MapTravel", true) 
+                or ReplicatedStorage:FindFirstChild("FastTravel", true)
+        end
+        if not MapOpenRemote then
+            MapOpenRemote = ReplicatedStorage:FindFirstChild("MapOpen", true)
+        end
+    end)
+
+    pcall(function()
+        local sEngine = ReplicatedStorage:FindFirstChild("Store_Engine") or ReplicatedStorage:FindFirstChild("Store")
+        if sEngine then
+            local remotes = sEngine:FindFirstChild("Remotes")
+            if remotes then
+                ForeverPackClaimRemote = remotes:FindFirstChild("ClaimFree") or remotes:FindFirstChild("ForeverPackClaim") or remotes:FindFirstChild("Claim")
+            end
+        end
+        if not ForeverPackClaimRemote then
+            ForeverPackClaimRemote = ReplicatedStorage:FindFirstChild("ForeverPackClaim", true) 
+                or ReplicatedStorage:FindFirstChild("ClaimForeverPack", true)
+        end
+    end)
+
+    pcall(function()
+        local invEngine = ReplicatedStorage:FindFirstChild("Inventory_Engine")
+        if invEngine then
+            local remotes = invEngine:FindFirstChild("Remotes")
+            if remotes then
+                EquipRequestRemote = remotes:FindFirstChild("EquipRequest")
+            end
+        end
+        if not EquipRequestRemote then
+            EquipRequestRemote = ReplicatedStorage:FindFirstChild("EquipRequest", true)
+        end
+    end)
+
+    pcall(function()
+        local wpnEngine = ReplicatedStorage:FindFirstChild("Weapon_Engine")
+        if wpnEngine then
+            local remotes = wpnEngine:FindFirstChild("Remotes")
+            if remotes then
+                WeaponAttackRemote = remotes:FindFirstChild("WeaponAttack")
+            end
+        end
+        if not WeaponAttackRemote then
+            WeaponAttackRemote = ReplicatedStorage:FindFirstChild("WeaponAttack", true)
         end
     end)
 end
@@ -525,7 +616,6 @@ AvatarImage.BackgroundTransparency = 1
 AvatarImage.ScaleType = Enum.ScaleType.Fit
 AvatarImage.Parent = AvatarHolder
 
--- Censor Blur Overlay for Profile Picture
 local AvatarCensorMask = Instance.new("Frame")
 AvatarCensorMask.Size = UDim2.fromScale(1, 1)
 AvatarCensorMask.BackgroundColor3 = Color3.fromRGB(15, 12, 12)
@@ -749,7 +839,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     return controller
 end
 
--- 11. GHOST DISCOVERY ENGINE (DISTANCE PRIORITIZED)
+-- 11. GHOST DISCOVERY ENGINE
 local function locateGhostFolder()
     local folder = Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
     if folder then return folder end
@@ -793,13 +883,19 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
--- 12. AUTO-EQUIP GHOST NET HELPER
+-- 12. AUTO-EQUIP GHOST NET HELPER (HYBRID BACKPACK & DIRECT INVENTORY REMOTE)
 local function autoEquipNet()
+    resolveRemotes()
+    if EquipRequestRemote then
+        pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
+    end
     local char = LocalPlayer.Character
     if not char then return end
-    local held = char:FindFirstChild("Ghost Net") or char:FindFirstChildWhichIsA("Tool")
+    local held = char:FindFirstChild("Ghost Net") or char:FindFirstChild("GhostNet") or char:FindFirstChildWhichIsA("Tool")
     if not held then
-        local net = LocalPlayer.Backpack:FindFirstChild("Ghost Net") or LocalPlayer.Backpack:FindFirstChildWhichIsA("Tool")
+        local net = LocalPlayer.Backpack:FindFirstChild("Ghost Net") 
+            or LocalPlayer.Backpack:FindFirstChild("GhostNet") 
+            or LocalPlayer.Backpack:FindFirstChildWhichIsA("Tool")
         if net then
             net.Parent = char
         end
@@ -811,7 +907,6 @@ local autoCandyFarm = false
 local isUnderground = false
 local currentTargetGhost = nil
 
--- Noclip & Physics Lock (Prevents falling into the void or taking world damage)
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if char and isUnderground then
@@ -857,7 +952,6 @@ local function executeGhostSwing(ghost)
     end
 end
 
--- Zero-Latency Target Switch & Ghost Capture Counter
 task.spawn(function()
     while true do
         local folder = locateGhostFolder()
@@ -887,7 +981,7 @@ task.spawn(function()
             if ghost and ghostPart and ghost.Parent then
                 isUnderground = true
                 if hrp then
-                    hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -7, 0)
+                    hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
                 end
                 task.wait(0.04)
                 if ghost.Parent then
@@ -904,7 +998,28 @@ task.spawn(function()
     end
 end)
 
--- 14. GHOST ESP ENGINE
+-- 14. WEAPON AUTO-ATTACK ENGINE
+local autoWeaponAttack = false
+task.spawn(function()
+    while true do
+        if autoWeaponAttack then
+            resolveRemotes()
+            if WeaponAttackRemote then
+                pcall(function() WeaponAttackRemote:FireServer(0) end)
+            end
+            local char = LocalPlayer.Character
+            local tool = char and char:FindFirstChildWhichIsA("Tool")
+            if tool then
+                pcall(function() tool:Activate() end)
+            end
+            task.wait(0.12)
+        else
+            task.wait(0.3)
+        end
+    end
+end)
+
+-- 15. GHOST ESP ENGINE
 local GhostESPActive = false
 local GhostESPStorage = {}
 
@@ -991,7 +1106,7 @@ local function toggleGhostESP(state)
     end
 end
 
--- 15. PLAYER ESP ENGINE
+-- 16. PLAYER ESP ENGINE
 local ESPActive = false
 local ESPStorage = {}
 
@@ -1077,7 +1192,7 @@ local function toggleESP(state)
     end
 end
 
--- 16. POPULATE CONTROLS IN LEFT COLUMN
+-- 17. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
 CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Nearest swipe", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
@@ -1090,9 +1205,159 @@ CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Ne
     Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Activated (Net Required)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
 end)
 
-AddSection(LeftCol, "VISUALS", 3)
+CreateActionCard(LeftCol, "AUTO WEAPON ATTACK", "Spams WeaponAttack remote & tool swing", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
+    autoWeaponAttack = not autoWeaponAttack
+    bText.Text = autoWeaponAttack and "RUNNING" or "OFF"
+    bText.TextColor3 = autoWeaponAttack and C.Green or C.Muted
+    sLbl.Text = autoWeaponAttack and "Active • Constantly attacking with equipped weapon" or "Spams WeaponAttack remote & tool swing"
+    setActive(autoWeaponAttack)
+    Notify("Combat", autoWeaponAttack and "Auto Weapon Attack Enabled" or "Auto Weapon Attack Disabled", autoWeaponAttack and C.Green or C.Red)
+end)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claims daily flame check-in reward", "CLAIM", false, 4, function()
+    resolveRemotes()
+    if DailyCheckInRemote then
+        pcall(function() DailyCheckInRemote:FireServer() end)
+        Notify("Daily Check-In", "Attempted to light daily flame", C.Green)
+    else
+        Notify("Daily Check-In", "Daily remote not found", C.Red)
+    end
+end)
+
+CreateActionCard(LeftCol, "COLLECT GOLD MINE", "Claims stored coins from Gold Mine", "CLAIM", false, 5, function()
+    resolveRemotes()
+    if GoldMineCollectRemote then
+        pcall(function() GoldMineCollectRemote:FireServer() end)
+        Notify("Gold Mine", "Collected stored mine gold", C.Gold)
+    else
+        local buyBtn = LocalPlayer.PlayerGui:FindFirstChild("GoldMine") 
+            and LocalPlayer.PlayerGui.GoldMine:FindFirstChild("Main")
+            and LocalPlayer.PlayerGui.GoldMine.Main:FindFirstChild("Main")
+            and LocalPlayer.PlayerGui.GoldMine.Main.Main:FindFirstChild("Frame")
+            and LocalPlayer.PlayerGui.GoldMine.Main.Main.Frame:FindFirstChild("Buy")
+        if buyBtn and typeof(firesignal) == "function" then
+            firesignal(buyBtn.MouseButton1Click)
+            Notify("Gold Mine", "Triggered GUI collection", C.Gold)
+        else
+            Notify("Gold Mine", "Gold Mine remote unavailable", C.Red)
+        end
+    end
+end)
+
+CreateActionCard(LeftCol, "CLAIM FOREVER PACK", "Claims daily free Forever Pack tier", "CLAIM", false, 6, function()
+    resolveRemotes()
+    if ForeverPackClaimRemote then
+        pcall(function() ForeverPackClaimRemote:FireServer(1) end)
+        pcall(function() ForeverPackClaimRemote:FireServer() end)
+        Notify("Forever Pack", "Claim request dispatched", C.Cyan)
+    else
+        Notify("Forever Pack", "Pack remote unavailable", C.Red)
+    end
+end)
+
+AddSection(LeftCol, "INVENTORY SHORTCUTS", 7)
+
+CreateActionCard(LeftCol, "EQUIP GHOST NET", "Fires inventory equip (s_1600e36b_4)", "EQUIP", false, 8, function()
+    resolveRemotes()
+    if EquipRequestRemote then
+        pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
+    end
+    autoEquipNet()
+    Notify("Inventory", "Equip Ghost Net requested", C.Accent)
+end)
+
+CreateActionCard(LeftCol, "EQUIP MAP", "Fires inventory equip (s_a9a94b1e_c4)", "EQUIP", false, 9, function()
+    resolveRemotes()
+    if EquipRequestRemote then
+        pcall(function() EquipRequestRemote:FireServer("s_a9a94b1e_c4") end)
+    end
+    local mapTool = LocalPlayer.Backpack:FindFirstChild("Map") or LocalPlayer.Character:FindFirstChild("Map")
+    if mapTool and mapTool.Parent == LocalPlayer.Backpack then
+        mapTool.Parent = LocalPlayer.Character
+    end
+    Notify("Inventory", "Equip Map requested", C.Accent)
+end)
+
+AddSection(LeftCol, "FAST TRAVEL", 10)
+
+CreateActionCard(LeftCol, "WARP TO SPAWN", "Old Town • Map state handshake", "WARP", false, 11, function()
+    resolveRemotes()
+    if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(true) end) end
+    if EquipRequestRemote then pcall(function() EquipRequestRemote:FireServer("s_a9a94b1e_c4") end) end
+    
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(689.8, 178.6, 112)
+        Notify("Fast Travel", "Warped to Old Town (Spawn)", C.Accent)
+    end
+    if MapTravelRemote then
+        pcall(function()
+            MapTravelRemote:FireServer({id = "OldTown", to = Vector3.new(689.8, 178.6, 112), kind = "depart"})
+        end)
+    end
+    task.delay(0.5, function()
+        if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(false) end) end
+    end)
+end)
+
+CreateActionCard(LeftCol, "WARP TO JUNGLE", "Jungle Village • Map state handshake", "WARP", false, 12, function()
+    resolveRemotes()
+    if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(true) end) end
+    if EquipRequestRemote then pcall(function() EquipRequestRemote:FireServer("s_a9a94b1e_c4") end) end
+
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = CFrame.new(-80, 115, -2140)
+        Notify("Fast Travel", "Warped to Jungle Village", C.Accent)
+    end
+    if MapTravelRemote then
+        pcall(function()
+            MapTravelRemote:FireServer({id = "JungleVillage", to = Vector3.new(-80, 115, -2140), kind = "depart"})
+        end)
+    end
+    task.delay(0.5, function()
+        if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(false) end) end
+    end)
+end)
+
+CreateActionCard(LeftCol, "WARP TO HALLOWEEN", "Halloween Island Gate / Event Realm", "WARP", false, 13, function()
+    resolveRemotes()
+    if IslandTravelRemote then
+        pcall(function() IslandTravelRemote:FireServer() end)
+        pcall(function() IslandTravelRemote:FireServer(true) end)
+        Notify("Event Realm", "Dispatched Halloween Island travel", C.Purple)
+    else
+        Notify("Event Realm", "Island travel remote not found", C.Red)
+    end
+end)
+
+AddSection(LeftCol, "EVENT SHOP", 14)
+
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Costs: 5,000 Candy Corn", "BUY", false, 15, function()
+    resolveRemotes()
+    if ShopBuyRemote then
+        pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
+        Notify("Event Shop", "Attempted purchase: Pumpkin Chest", C.Accent)
+    else
+        Notify("Event Shop", "Shop remote unavailable", C.Red)
+    end
+end)
+
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Pumpkin Maw • Costs: 500 Candy Corn", "BUY", false, 16, function()
+    resolveRemotes()
+    if ShopBuyRemote then
+        pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
+        Notify("Event Shop", "Attempted purchase: Halloween Dungeon (Pumpkin Maw)", C.Accent)
+    else
+        Notify("Event Shop", "Shop remote unavailable", C.Red)
+    end
+end)
+
+AddSection(LeftCol, "VISUALS", 17)
+
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 18, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1101,7 +1366,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 19, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1110,7 +1375,7 @@ CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF
     Notify("Ghost Visuals", GhostESPActive and "Ghost ESP Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 17. SETTINGS DRAWER OVERLAY
+-- 18. SETTINGS DRAWER OVERLAY
 local MobileToggle
 local setFloatingIconVisible
 
@@ -1234,7 +1499,6 @@ end)
 
 AddSection(DrawerScroll, "DANGER ZONE", 16)
 
--- Fast Respawn with Confirmation Bar
 local RespawnCard = Instance.new("TextButton")
 RespawnCard.Size = UDim2.new(1, 0, 0, 48)
 RespawnCard.BackgroundColor3 = C.CardBg
@@ -1309,7 +1573,6 @@ RespawnCard.MouseButton1Click:Connect(function()
     end
 end)
 
--- Destroy Interface Card
 local DestroyCard = Instance.new("TextButton")
 DestroyCard.Size = UDim2.new(1, 0, 0, 48)
 DestroyCard.BackgroundColor3 = C.CardBg
@@ -1367,6 +1630,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     else
         if timerThread then task.cancel(timerThread) end
         autoCandyFarm = false
+        autoWeaponAttack = false
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
@@ -1392,7 +1656,7 @@ end
 
 SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
 
--- 18. SAFE CLAMPING & DRAGGING
+-- 19. SAFE CLAMPING & DRAGGING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1442,7 +1706,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 19. ENTRANCE & INTRO LOADER
+-- 20. ENTRANCE & INTRO LOADER
 local isTransitioning = false
 local isOpen = false
 
@@ -1530,7 +1794,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 20. MOBILE FLOATING BUTTON (🍁)
+-- 21. MOBILE FLOATING BUTTON (🍁)
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
