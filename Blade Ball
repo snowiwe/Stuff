@@ -1,4 +1,4 @@
--- // LUMACORE - BLADE BALL DEFINITIVE SUITE //
+-- // LUMACORE - BLADE BALL AUTO PARRY SUITE //
 -- Developed by Lumacore
 repeat task.wait() until game:IsLoaded()
 
@@ -7,13 +7,12 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
 local Stats = game:GetService("Stats")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-local ScreenName = "Lumacore_BladeBall"
+local ScreenName = "Lumacore_BladeBall_Parry"
 
 -- 1. CONTAINER MOUNTING & SINGLE INSTANCE
 local function resolveContainer()
@@ -76,88 +75,162 @@ ScreenGui.DisplayOrder = 999999
 ScreenGui.Enabled = true
 ScreenGui.Parent = TargetParent
 
--- 4. CONFIG UTILITIES & HOOK SHIMS
-local SKIN_LAST_EQUIPPED_CONFIG_KEY = "Skin.LastEquippedSword"
-local EXPLOSION_LAST_EQUIPPED_CONFIG_KEY = "Skin.LastEquippedExplosion"
-local AUTO_CONFIG_FILE = "UnlockSuite/auto_config.json"
+-- 4. PARRY CONFIG & CORE STATE
+local PARRY_SETTINGS = {
+    AutoParry       = false,
+    ParryCurve      = "High Velocity", -- "High Velocity" or "Default"
+    DistanceBuffer  = 12,
+    SpamParry       = false,
+    SpamThreshold   = 22,
+    Visualizer      = false,
+}
 
-local function readUnlockSuiteAutoConfig()
-    local data = {}
+local lastParryTick = 0
+local parryRemotes = {}
+
+local function resolveParryRemote()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if remotes then
+        local names = {"ParryAttempt", "ParryButtonPress", "Parry", "ParrySuccess"}
+        for _, name in ipairs(names) do
+            local rem = remotes:FindFirstChild(name)
+            if rem and (rem:IsA("RemoteEvent") or rem:IsA("RemoteFunction")) then
+                table.insert(parryRemotes, rem)
+            end
+        end
+    end
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") and string.find(string.lower(obj.Name), "parry") then
+            if not table.find(parryRemotes, obj) then
+                table.insert(parryRemotes, obj)
+            end
+        end
+    end
+end
+task.spawn(resolveParryRemote)
+
+local function triggerParry()
+    if tick() - lastParryTick < 0.08 and not PARRY_SETTINGS.SpamParry then return end
+    lastParryTick = tick()
+
     pcall(function()
-        if isfile and isfile(AUTO_CONFIG_FILE) then
-            local decoded = HttpService:JSONDecode(readfile(AUTO_CONFIG_FILE))
-            if type(decoded) == "table" then data = decoded end
+        local VirtualInputManager = game:GetService("VirtualInputManager")
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+        task.wait(0.01)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+    end)
+
+    for _, remote in ipairs(parryRemotes) do
+        pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(0.5, CFrame.new(), {}, {})
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(0.5, CFrame.new(), {}, {})
+            end
+        end)
+    end
+end
+
+-- Ball Detection & Distance Solver
+local function locateTargetBall()
+    local ballsFolder = Workspace:FindFirstChild("Balls")
+    if ballsFolder then
+        for _, child in ipairs(ballsFolder:GetChildren()) do
+            if child:IsA("BasePart") and child:GetAttribute("realBall") ~= false then
+                return child
+            end
+            local part = child:FindFirstChildWhichIsA("BasePart")
+            if part then return part end
         end
-    end)
-    return data
-end
-
-local function writeUnlockSuiteAutoConfig(data)
-    pcall(function()
-        if isfolder and makefolder and not isfolder("UnlockSuite") then makefolder("UnlockSuite") end
-        if writefile then writefile(AUTO_CONFIG_FILE, HttpService:JSONEncode(data or {})) end
-    end)
-end
-
-local function loadLastEquippedSword()
-    local data = readUnlockSuiteAutoConfig()
-    local saved = data[SKIN_LAST_EQUIPPED_CONFIG_KEY]
-    return type(saved) == "string" and saved or ""
-end
-
-local function loadLastEquippedExplosion()
-    local data = readUnlockSuiteAutoConfig()
-    local saved = data[EXPLOSION_LAST_EQUIPPED_CONFIG_KEY]
-    return type(saved) == "string" and saved or ""
-end
-
-getgenv().saveLastEquippedSword = function(swordName)
-    if type(swordName) ~= "string" or swordName == "" then return end
-    local data = readUnlockSuiteAutoConfig()
-    data[SKIN_LAST_EQUIPPED_CONFIG_KEY] = swordName
-    writeUnlockSuiteAutoConfig(data)
-end
-
-getgenv().saveLastEquippedExplosion = function(explosionName)
-    if type(explosionName) ~= "string" or explosionName == "" then return end
-    local data = readUnlockSuiteAutoConfig()
-    data[EXPLOSION_LAST_EQUIPPED_CONFIG_KEY] = explosionName
-    writeUnlockSuiteAutoConfig(data)
-end
-
--- Environment State Initialization
-do
-    local savedSword = loadLastEquippedSword()
-    local savedExplosion = loadLastEquippedExplosion()
-    getgenv().skinChanger = getgenv().skinChanger or (savedSword ~= "")
-    getgenv().swordModel = type(getgenv().swordModel) == "string" and getgenv().swordModel ~= "" and getgenv().swordModel or savedSword
-    getgenv().swordAnimations = getgenv().swordModel
-    getgenv().swordFX = getgenv().swordModel
-    getgenv().explosionChanger = getgenv().explosionChanger or (savedExplosion ~= "")
-    getgenv().explosionFX = type(getgenv().explosionFX) == "string" and getgenv().explosionFX ~= "" and getgenv().explosionFX or savedExplosion
-    getgenv().emoteVFXEnabled = getgenv().emoteVFXEnabled or false
-    getgenv().emoteLooped = getgenv().emoteLooped or false
-end
-
--- Anti-Detection Debug Hooks
-pcall(function()
-    local oldInfo
-    oldInfo = hookfunction(getrenv().debug.info, function(f, t)
-        if type(f) == "function" then
-            return "[C]"
-        elseif f == 4 and t == "s" then
-            return "ReplicatedStorage.Controllers.SwordsController "
+    end
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if child:IsA("BasePart") and string.find(string.lower(child.Name), "ball") then
+            return child
         end
-        return oldInfo(f, t)
-    end)
-    
-    local oldFenv
-    oldFenv = hookfunction(getrenv().getfenv, function(l)
-        if l ~= nil and type(l) == "number" and l >= 1 and l <= 10 then
-            return oldFenv(10)
+    end
+    return nil
+end
+
+local VisualizerPart = nil
+local function updateVisualizer(pos, radius, active)
+    if not PARRY_SETTINGS.Visualizer or not active then
+        if VisualizerPart then VisualizerPart.Transparency = 1 end
+        return
+    end
+    if not VisualizerPart then
+        VisualizerPart = Instance.new("Part")
+        VisualizerPart.Name = "Lumacore_ParryVisualizer"
+        VisualizerPart.Shape = Enum.PartType.Ball
+        VisualizerPart.Material = Enum.Material.ForceField
+        VisualizerPart.Color = C.Cyan
+        VisualizerPart.CanCollide = false
+        VisualizerPart.CanTouch = false
+        VisualizerPart.CanQuery = false
+        VisualizerPart.Anchored = true
+        VisualizerPart.Parent = Workspace
+    end
+    VisualizerPart.Size = Vector3.new(radius * 2, radius * 2, radius * 2)
+    VisualizerPart.CFrame = CFrame.new(pos)
+    VisualizerPart.Transparency = 0.75
+end
+
+-- Core Parry Step Runner
+RunService.PostSimulation:Connect(function()
+    if not PARRY_SETTINGS.AutoParry then
+        if VisualizerPart then VisualizerPart.Transparency = 1 end
+        return
+    end
+
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local ball = locateTargetBall()
+    if not ball then
+        if VisualizerPart then VisualizerPart.Transparency = 1 end
+        return
+    end
+
+    local ballPos = ball.Position
+    local charPos = hrp.Position
+    local distance = (ballPos - charPos).Magnitude
+    local ballVelocity = ball.AssemblyLinearVelocity
+    local ballSpeed = ballVelocity.Magnitude
+
+    local targetAttr = ball:GetAttribute("target") or ball:GetAttribute("Target")
+    local isTargeted = false
+    if targetAttr then
+        isTargeted = (tostring(targetAttr) == LocalPlayer.Name or targetAttr == LocalPlayer)
+    else
+        isTargeted = true
+    end
+
+    local ping = LocalPlayer:GetNetworkPing()
+    local pingOffset = ping * ballSpeed
+    local threshold = PARRY_SETTINGS.DistanceBuffer + (ballSpeed * 0.45) + pingOffset
+
+    if PARRY_SETTINGS.ParryCurve == "High Velocity" then
+        threshold = PARRY_SETTINGS.DistanceBuffer + (ballSpeed * 0.55) + (pingOffset * 1.2)
+    end
+
+    updateVisualizer(charPos, threshold, true)
+
+    if isTargeted then
+        local dot = 1
+        if ballSpeed > 2 then
+            local toChar = (charPos - ballPos).Unit
+            dot = ballVelocity.Unit:Dot(toChar)
         end
-        return oldFenv(l)
-    end)
+
+        if dot > -0.15 then
+            if distance <= threshold then
+                triggerParry()
+            end
+            if PARRY_SETTINGS.SpamParry and distance <= PARRY_SETTINGS.SpamThreshold then
+                triggerParry()
+            end
+        end
+    end
 end)
 
 -- 5. HUD TELEMETRY ENGINE
@@ -349,7 +422,7 @@ local NotifyQueue = {}
 local isDisplayingNotify = false
 
 local function processNextNotification()
-    if #NotifyQueue == 0 or isDisplayingNotify or not NotificationsEnabled then return end
+    if #NotifyQueue == 0 or isDisplayingNotify or not AnimationsEnabled then return end
     isDisplayingNotify = true
     local item = table.remove(NotifyQueue, 1)
 
@@ -387,7 +460,6 @@ local function processNextNotification()
 end
 
 local function Notify(titleText, subText, color)
-    if not NotificationsEnabled then return end
     table.insert(NotifyQueue, {title = titleText, sub = subText, color = color})
     if not isDisplayingNotify then task.spawn(processNextNotification) end
 end
@@ -543,10 +615,10 @@ local function createInfoLabel()
     return lbl
 end
 
-local userRow   = createInfoLabel()
-local swordRow  = createInfoLabel()
-local boomRow   = createInfoLabel()
-local uptimeRow = createInfoLabel()
+local userRow    = createInfoLabel()
+local parryRow   = createInfoLabel()
+local curveRow   = createInfoLabel()
+local uptimeRow  = createInfoLabel()
 
 local tDiv = Instance.new("Frame")
 tDiv.Size = UDim2.new(1, -16, 0, 1)
@@ -695,188 +767,66 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     }
 end
 
--- 9. SHOP UNLOCK SYSTEM & ENGINE HOOKS
-local shopUnlocked = false
+-- 9. POPULATE AUTO PARRY CONTROLS
+AddSection(LeftCol, "AUTO PARRY ENGINE", 1)
 
-local function setShopButtonText(button, text)
-    if not button then return end
-    for _, object in ipairs(button:GetDescendants()) do
-        if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
-            object.Text = text
-        end
-    end
-    if button:IsA("TextButton") then button.Text = text end
-end
+CreateActionCard(LeftCol, "AUTO PARRY", "Real-time ball trajectory & ping compensation", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+    PARRY_SETTINGS.AutoParry = not PARRY_SETTINGS.AutoParry
+    bText.Text = PARRY_SETTINGS.AutoParry and "ACTIVE" or "OFF"
+    bText.TextColor3 = PARRY_SETTINGS.AutoParry and C.Green or C.Muted
+    setActive(PARRY_SETTINGS.AutoParry)
+    Notify("Auto Parry", PARRY_SETTINGS.AutoParry and "Auto Parry Armed" or "Auto Parry Disabled", PARRY_SETTINGS.AutoParry and C.Green or C.Red)
+end)
 
-local function getShopItemName(shop)
-    local name = ""
-    pcall(function()
-        local info = shop.Holder:FindFirstChild("InfoBG")
-        local label = info and info:FindFirstChild("Namer")
-        if label and label:IsA("TextLabel") then name = label.Text end
-    end)
-    if name == "" then name = getgenv()._usCurrentInfoItem or "" end
-    return name
-end
-
-local function getShopItemKind(name)
-    local ok, isSword = pcall(function()
-        local swords = require(ReplicatedStorage.Shared.ReplicatedInstances.Swords)
-        return swords:GetSword(name) ~= nil
-    end)
-    return ok and isSword and "Sword" or "Explosion"
-end
-
-local function equipShopItem(shop, button)
-    local itemName = getShopItemName(shop)
-    if itemName == "" or itemName == "Title" then return end
-    local kind = getShopItemKind(itemName)
-    setShopButtonText(button, "Equipped")
-
-    if kind == "Explosion" then
-        getgenv().explosionFX = itemName
-        getgenv().explosionChanger = true
-        if getgenv().updateExplosion then task.spawn(getgenv().updateExplosion) end
-        Notify("Explosion Changer", "Equipped: " .. itemName, C.Purple)
+CreateActionCard(LeftCol, "VELOCITY CURVE", "Toggle standard vs hyper-speed compensation", "FAST", true, 3, function(bText, bStroke, sLbl, setActive)
+    if PARRY_SETTINGS.ParryCurve == "High Velocity" then
+        PARRY_SETTINGS.ParryCurve = "Default"
+        bText.Text = "NORMAL"
+        bText.TextColor3 = C.Cyan
+        sLbl.Text = "Standard velocity calculation curve"
+        setActive(true, C.Cyan)
     else
-        getgenv().swordModel = itemName
-        getgenv().swordAnimations = itemName
-        getgenv().swordFX = itemName
-        getgenv().skinChanger = true
-        if getgenv().updateSword then task.spawn(getgenv().updateSword) end
-        Notify("Skin Changer", "Equipped: " .. itemName, C.Cyan)
+        PARRY_SETTINGS.ParryCurve = "High Velocity"
+        bText.Text = "FAST"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Hyper-velocity compensation curve"
+        setActive(true, C.AccentGlow)
     end
-end
+    Notify("Parry Mode", "Switched calculation to: " .. PARRY_SETTINGS.ParryCurve, C.Cyan)
+end)
 
-local function unlockShopCards(shop)
-    if getgenv()._usStandaloneUnlockLoop then return end
-    getgenv()._usStandaloneUnlockLoop = true
-    task.spawn(function()
-        while shop.Parent and shopUnlocked do
-            local holder = shop:FindFirstChild("Holder")
-            local pages = holder and holder:FindFirstChild("Pages")
-            for _, pageName in ipairs({"Sword", "Explosion"}) do
-                local page = pages and pages:FindFirstChild(pageName)
-                if page then
-                    local header = page:FindFirstChild("HeaderTitle")
-                    if header then header.Visible = false end
-                    for _, child in ipairs(page:GetDescendants()) do
-                        if child.Name == "Lock" and child:IsA("GuiObject") then
-                            child.Visible = false
-                            local card = child.Parent
-                            if card and card:IsA("GuiObject") then
-                                card.LayoutOrder = 0
-                                if card.Parent and card.Parent.Name == "Unowned" then
-                                    local owned = page:FindFirstChild("Owned", true)
-                                    if owned and owned:IsA("GuiObject") then card.Parent = owned end
-                                end
-                                if not card:FindFirstChild("UnlockSuiteStandaloneItemHook") then
-                                    local tag = Instance.new("BoolValue")
-                                    tag.Name = "UnlockSuiteStandaloneItemHook"
-                                    tag.Parent = card
-                                    local itemName = card.Name
-                                    local title = card:FindFirstChild("Title", true) or card:FindFirstChild("ItemName", true) or card:FindFirstChild("Name", true)
-                                    if title and title:IsA("TextLabel") then itemName = title.Text end
-                                    card.InputEnded:Connect(function(input)
-                                        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                                            getgenv()._usCurrentInfoItem = itemName
-                                        end
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end
-            end
+local bufferDistances = {8, 12, 16, 20}
+local bufferIndex = 2
+CreateActionCard(LeftCol, "DISTANCE BUFFER", "Cycle safety distance buffer", "12 STUDS", true, 4, function(bText, bStroke, sLbl, setActive)
+    bufferIndex = (bufferIndex % #bufferDistances) + 1
+    PARRY_SETTINGS.DistanceBuffer = bufferDistances[bufferIndex]
+    bText.Text = tostring(PARRY_SETTINGS.DistanceBuffer) .. "S"
+    bText.TextColor3 = C.Cyan
+    sLbl.Text = "Base distance threshold: " .. tostring(PARRY_SETTINGS.DistanceBuffer) .. " studs"
+    setActive(true, C.Cyan)
+    Notify("Distance Buffer", "Threshold adjusted to " .. tostring(PARRY_SETTINGS.DistanceBuffer) .. " studs", C.Cyan)
+end)
 
-            local info = holder and holder:FindFirstChild("InfoBG")
-            local button = info and (info:FindFirstChild("BuyButton") or info:FindFirstChild("EquipButton"))
-            if not button and info then
-                for _, child in ipairs(info:GetChildren()) do
-                    if (child:IsA("TextButton") or child:IsA("ImageButton")) and not child.Name:lower():find("close", 1, true) then
-                        button = child
-                        break
-                    end
-                end
-            end
+CreateActionCard(LeftCol, "SPAM PARRY", "Clash spam when ball is in close proximity", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+    PARRY_SETTINGS.SpamParry = not PARRY_SETTINGS.SpamParry
+    bText.Text = PARRY_SETTINGS.SpamParry and "ON" or "OFF"
+    bText.TextColor3 = PARRY_SETTINGS.SpamParry and C.Purple or C.Muted
+    setActive(PARRY_SETTINGS.SpamParry, C.Purple)
+    Notify("Spam Parry", PARRY_SETTINGS.SpamParry and "Close-range spam parry Armed" or "Disabled", PARRY_SETTINGS.SpamParry and C.Purple or C.Red)
+end)
 
-            if button then
-                button.Visible = true
-                if not button:FindFirstChild("UnlockSuiteStandaloneEquipHook") then
-                    local tag = Instance.new("BoolValue")
-                    tag.Name = "UnlockSuiteStandaloneEquipHook"
-                    tag.Parent = button
-                    button.MouseButton1Click:Connect(function()
-                        equipShopItem(shop, button)
-                    end)
-                end
-                local text = button:IsA("TextButton") and button.Text or ""
-                if text ~= "Equipped" then setShopButtonText(button, "Equip") end
-            end
-            task.wait(0.25)
-        end
-        getgenv()._usStandaloneUnlockLoop = false
-    end)
-end
-
--- 10. POPULATE CONTROLS IN LEFT COLUMN
-AddSection(LeftCol, "COSMETICS & UNLOCKS", 1)
-
-CreateActionCard(LeftCol, "FREE SHOP SKINS", "Equip unowned Swords & Explosions in shop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
-    shopUnlocked = not shopUnlocked
-    bText.Text = shopUnlocked and "UNLOCKED" or "OFF"
-    bText.TextColor3 = shopUnlocked and C.Green or C.Muted
-    setActive(shopUnlocked)
-    if shopUnlocked then
-        local shop = LocalPlayer.PlayerGui:FindFirstChild("Shop")
-        if shop then unlockShopCards(shop) end
-        Notify("Shop Unlocks", "All sword/explosion cards unlocked", C.Green)
-    else
-        Notify("Shop Unlocks", "Shop card bypass suspended", C.Red)
+CreateActionCard(LeftCol, "PARRY VISUALIZER", "Show dynamic 3D parry range sphere", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
+    PARRY_SETTINGS.Visualizer = not PARRY_SETTINGS.Visualizer
+    bText.Text = PARRY_SETTINGS.Visualizer and "ACTIVE" or "OFF"
+    bText.TextColor3 = PARRY_SETTINGS.Visualizer and C.Cyan or C.Muted
+    setActive(PARRY_SETTINGS.Visualizer, C.Cyan)
+    if not PARRY_SETTINGS.Visualizer and VisualizerPart then
+        VisualizerPart.Transparency = 1
     end
+    Notify("Visualizer", PARRY_SETTINGS.Visualizer and "3D Range sphere Enabled" or "Hidden", C.Cyan)
 end)
 
-CreateActionCard(LeftCol, "EMOTE WHEEL UNLOCK", "Equip all emotes directly into wheel", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
-    local state = not (getgenv().emoteVFXEnabled == true)
-    if getgenv().setBladeBallEmoteUnlock then
-        getgenv().setBladeBallEmoteUnlock(state)
-    else
-        getgenv().emoteVFXEnabled = state
-    end
-    bText.Text = state and "ACTIVE" or "OFF"
-    bText.TextColor3 = state and C.Cyan or C.Muted
-    setActive(state, C.Cyan)
-    Notify("Emotes", state and "All Emotes Injected into Wheel" or "Emote Wheel Restored", state and C.Cyan or C.Red)
-end)
-
-CreateActionCard(LeftCol, "SKIN CHANGER", "Persist visual custom sword skin", getgenv().skinChanger and "ACTIVE" or "OFF", getgenv().skinChanger, 4, function(bText, bStroke, sLbl, setActive)
-    getgenv().skinChanger = not getgenv().skinChanger
-    bText.Text = getgenv().skinChanger and "ACTIVE" or "OFF"
-    bText.TextColor3 = getgenv().skinChanger and C.Green or C.Muted
-    setActive(getgenv().skinChanger)
-    if getgenv().updateSword then task.spawn(getgenv().updateSword) end
-    Notify("Skin Changer", getgenv().skinChanger and "Skin Changer Active" or "Disabled", getgenv().skinChanger and C.Green or C.Red)
-end)
-
-CreateActionCard(LeftCol, "EXPLOSION CHANGER", "Persist visual death explosion effect", getgenv().explosionChanger and "ACTIVE" or "OFF", getgenv().explosionChanger, 5, function(bText, bStroke, sLbl, setActive)
-    getgenv().explosionChanger = not getgenv().explosionChanger
-    bText.Text = getgenv().explosionChanger and "ACTIVE" or "OFF"
-    bText.TextColor3 = getgenv().explosionChanger and C.Green or C.Muted
-    setActive(getgenv().explosionChanger)
-    if getgenv().updateExplosion then task.spawn(getgenv().updateExplosion) end
-    Notify("Explosion Changer", getgenv().explosionChanger and "Explosion FX Active" or "Disabled", getgenv().explosionChanger and C.Green or C.Red)
-end)
-
-CreateActionCard(LeftCol, "TEST EXPLOSION FX", "Preview equipped explosion on your character", "TEST", false, 6, function()
-    if getgenv().testExplosion then
-        getgenv().testExplosion()
-        Notify("Explosion Preview", "Played explosion FX locally", C.Purple)
-    else
-        Notify("Explosion Preview", "Explosion handler not initialized", C.Red)
-    end
-end)
-
--- 11. SETTINGS DRAWER OVERLAY
+-- 10. SETTINGS DRAWER OVERLAY
 local Drawer = Instance.new("TextButton")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -916,7 +866,7 @@ task.spawn(function()
     LocalPlayer.Idled:Connect(function()
         if antiAfk then
             pcall(function()
-                if vu then vu:CaptureController(); vu:ClickButton2(Vector2.new(0,0)) end
+                if vu then vu:CaptureController(); vu:ClickButton2(Vector2.new(0, 0)) end
             end)
         end
     end)
@@ -960,7 +910,7 @@ CreateActionCard(DrawerScroll, "SHOW UPTIME", "Displays session time counter", "
     bText.TextColor3 = MonitorUptime and C.Green or C.Muted; setActive(MonitorUptime)
 end)
 
--- Potato Mode Optimizer
+-- Performance Potato Mode
 local deepPerformanceActive = false
 local originalLighting = {}
 local modifiedParts = {}
@@ -1126,7 +1076,8 @@ DestroyCard.MouseButton1Click:Connect(function()
         end)
     else
         if timerThread then task.cancel(timerThread) end
-        shopUnlocked = false
+        PARRY_SETTINGS.AutoParry = false
+        if VisualizerPart then VisualizerPart:Destroy() end
         if deepPerformanceActive then applyAggressiveOptimization(false) end
         if monitorConn then monitorConn:Disconnect() end
         pcall(function() ScreenGui:Destroy() end)
@@ -1146,7 +1097,7 @@ SettingsBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- 12. RUNTIME TELEMETRY & INPUT DRAGGING
+-- 11. RUNTIME TELEMETRY & INPUT DRAGGING
 local function clampPosition(rawPos, obj)
     local cam = Workspace.CurrentCamera
     local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
@@ -1255,16 +1206,16 @@ end)
 RunService.Heartbeat:Connect(function()
     if SensorInfoActive then
         userRow.Text = "Account: [HIDDEN / SECURE]"
-        swordRow.Text = "Sword: [MASKED]"
-        boomRow.Text = "Explosion: [MASKED]"
+        parryRow.Text = "Auto Parry: [MASKED]"
+        curveRow.Text = "Curve: [MASKED]"
     else
         userRow.Text = "Account: @" .. LocalPlayer.Name
-        swordRow.Text = "Sword: " .. (getgenv().swordModel ~= "" and getgenv().swordModel or "Default")
-        boomRow.Text = "Boom: " .. (getgenv().explosionFX ~= "" and getgenv().explosionFX or "Default")
+        parryRow.Text = "Auto Parry: " .. (PARRY_SETTINGS.AutoParry and "ACTIVE" or "OFF")
+        curveRow.Text = "Curve: " .. PARRY_SETTINGS.ParryCurve
     end
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
 openMenu()
-Notify("Lumacore", "Blade Ball Definitive Suite Loaded", C.Accent)
-print("[Lumacore] Blade Ball Suite active.")
+Notify("Lumacore", "Blade Ball Auto Parry Suite Loaded", C.Accent)
+print("[Lumacore] Blade Ball Auto Parry Suite active.")
