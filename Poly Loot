@@ -893,6 +893,62 @@ local autoCandyCard = nil
 local farmStanceCard = nil
 local aiChaseCard = nil
 
+local lastAttackedGhost = nil
+local lastAttackTick = 0
+
+-- DUAL METHOD GHOST CAPTURE TRACKING
+local function hookGhostDestruction(ghost)
+    if not ghost or ghost:GetAttribute("Lumacore_Hooked") then return end
+    ghost:SetAttribute("Lumacore_Hooked", true)
+
+    local function onRemoved()
+        if ghost == lastAttackedGhost or (tick() - lastAttackTick < 1.2 and ghost == currentTargetGhost) then
+            GhostCaptures = GhostCaptures + 1
+            lastAttackedGhost = nil
+            currentTargetGhost = nil
+        end
+    end
+
+    ghost.AncestryChanged:Connect(function(_, parent)
+        if parent == nil then onRemoved() end
+    end)
+    ghost.Destroying:Connect(onRemoved)
+end
+
+task.spawn(function()
+    while true do
+        local folder = locateGhostFolder()
+        if folder then
+            for _, g in ipairs(folder:GetChildren()) do
+                hookGhostDestruction(g)
+            end
+            folder.ChildAdded:Connect(function(g)
+                task.wait(0.05)
+                hookGhostDestruction(g)
+            end)
+            break
+        end
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    pcall(function()
+        local rewardEngine = ReplicatedStorage:WaitForChild("Reward_Engine", 5)
+        if rewardEngine then
+            local remotes = rewardEngine:WaitForChild("Remotes", 5)
+            local popup = remotes and remotes:FindFirstChild("ShowRewardPopup")
+            if popup and popup:IsA("RemoteEvent") then
+                popup.OnClientEvent:Connect(function()
+                    if tick() - lastAttackTick < 1.5 then
+                        GhostCaptures = GhostCaptures + 1
+                    end
+                end)
+            end
+        end
+    end)
+end)
+
 local function restoreSurface()
     if not isUnderground then return end
     isUnderground = false
@@ -909,6 +965,9 @@ end
 
 local function executeGhostSwing(ghost)
     resolveRemotes()
+    lastAttackedGhost = ghost
+    lastAttackTick = tick()
+
     if GhostSwingRemote and ghost and ghost.Parent then
         pcall(function() GhostSwingRemote:FireServer(ghost.Name) end)
         pcall(function() GhostSwingRemote:FireServer(ghost) end)
@@ -920,7 +979,7 @@ local function executeGhostSwing(ghost)
     end
 end
 
--- Collision & Stabilizer Loop
+-- Collision & Anti-Clip Controller
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if not char or not autoCandyFarm then return end
@@ -971,7 +1030,6 @@ task.spawn(function()
 
                     hum:MoveTo(targetPos)
 
-                    -- Anti-stuck obstacle check
                     local rayParams = RaycastParams.new()
                     rayParams.FilterDescendantsInstances = {char}
                     local rayHit = Workspace:Raycast(myPos, (targetPos - myPos).Unit * 4.5, rayParams)
@@ -987,8 +1045,10 @@ task.spawn(function()
                         isUnderground = true
                         hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
                     else
+                        -- Smoothed +4.8 Stud Elevated Hover (No ground clipping)
                         if isUnderground then restoreSurface() end
-                        hrp.CFrame = CFrame.new(ghostPart.Position + Vector3.new(0, 2.8, 0), ghostPart.Position)
+                        local elevatedPosition = ghostPart.Position + Vector3.new(0, 4.8, 0)
+                        hrp.CFrame = CFrame.new(elevatedPosition, ghostPart.Position)
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     end
@@ -1487,56 +1547,116 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
 
+-- AGGRESSIVE LOW PERFORMANCE / POTATO MODE
 local deepPerformanceActive = false
-local originalLightingSettings = {}
-local culledParticleCache = {}
+local originalLighting = {}
+local modifiedParts = {}
+local culledEffects = {}
 
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Aggressive FPS boost • Disables VFX & post-FX", "OFF", false, 14, function(bText, bStroke, _, setActive)
-    deepPerformanceActive = not deepPerformanceActive
-    bText.Text = deepPerformanceActive and "ON" or "OFF"
-    bText.TextColor3 = deepPerformanceActive and C.AccentGlow or C.Muted
-    setActive(deepPerformanceActive)
+local function setPartLowDetail(part)
+    if not part:IsA("BasePart") and not part:IsA("MeshPart") then return end
+    if not modifiedParts[part] then
+        modifiedParts[part] = {
+            Material = part.Material,
+            CastShadow = part.CastShadow,
+            Reflectance = part.Reflectance
+        }
+    end
+    part.Material = Enum.Material.SmoothPlastic
+    part.CastShadow = false
+    part.Reflectance = 0
+end
 
-    if deepPerformanceActive then
-        originalLightingSettings.GlobalShadows = Lighting.GlobalShadows
-        originalLightingSettings.FogEnd = Lighting.FogEnd
+local function applyAggressiveOptimization(enable)
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+    
+    if enable then
+        originalLighting.GlobalShadows = Lighting.GlobalShadows
+        originalLighting.FogEnd = Lighting.FogEnd
+        originalLighting.Brightness = Lighting.Brightness
         
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
 
         for _, item in ipairs(Lighting:GetChildren()) do
-            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") then
+            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") or item:IsA("Sky") then
+                if not culledEffects[item] then
+                    culledEffects[item] = item.Enabled
+                end
                 item.Enabled = false
             end
+        end
+
+        if Terrain then
+            pcall(function()
+                Terrain.Decoration = false
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                Terrain.WaterReflectance = 0
+            end)
         end
 
         for _, desc in ipairs(Workspace:GetDescendants()) do
             if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Smoke") or desc:IsA("Fire") or desc:IsA("Sparkles") then
                 if desc.Enabled then
-                    culledParticleCache[desc] = true
+                    culledEffects[desc] = true
                     desc.Enabled = false
+                end
+            elseif desc:IsA("Decal") or desc:IsA("Texture") then
+                if desc.Transparency < 1 then
+                    culledEffects[desc] = desc.Transparency
+                    desc.Transparency = 1
+                end
+            elseif desc:IsA("BasePart") then
+                setPartLowDetail(desc)
+            end
+        end
+    else
+        Lighting.GlobalShadows = originalLighting.GlobalShadows ~= nil and originalLighting.GlobalShadows or true
+        Lighting.FogEnd = originalLighting.FogEnd or 100000
+        Lighting.Brightness = originalLighting.Brightness or 2
+
+        for item, state in pairs(culledEffects) do
+            if item and item.Parent then
+                if item:IsA("Decal") or item:IsA("Texture") then
+                    item.Transparency = state
+                else
+                    pcall(function() item.Enabled = state end)
                 end
             end
         end
-        Notify("Graphics Engine", "Aggressive FPS Boost Active", C.Accent)
-    else
-        Lighting.GlobalShadows = originalLightingSettings.GlobalShadows ~= nil and originalLightingSettings.GlobalShadows or true
-        Lighting.FogEnd = originalLightingSettings.FogEnd or 100000
+        table.clear(culledEffects)
 
-        for _, item in ipairs(Lighting:GetChildren()) do
-            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") then
-                item.Enabled = true
-            end
+        if Terrain then
+            pcall(function()
+                Terrain.Decoration = true
+                Terrain.WaterWaveSize = 0.15
+                Terrain.WaterWaveSpeed = 10
+            end)
         end
 
-        for item in pairs(culledParticleCache) do
-            if item and item.Parent then
-                pcall(function() item.Enabled = true end)
+        for part, data in pairs(modifiedParts) do
+            if part and part.Parent then
+                pcall(function()
+                    part.Material = data.Material
+                    part.CastShadow = data.CastShadow
+                    part.Reflectance = data.Reflectance
+                end)
             end
         end
-        table.clear(culledParticleCache)
-        Notify("Graphics Engine", "Visual Effects Restored", C.Accent)
+        table.clear(modifiedParts)
     end
+end
+
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Aggressive potato mode • Strips textures & VFX", "OFF", false, 14, function(bText, bStroke, _, setActive)
+    deepPerformanceActive = not deepPerformanceActive
+    bText.Text = deepPerformanceActive and "ON" or "OFF"
+    bText.TextColor3 = deepPerformanceActive and C.AccentGlow or C.Muted
+    setActive(deepPerformanceActive)
+
+    applyAggressiveOptimization(deepPerformanceActive)
+    Notify("Performance", deepPerformanceActive and "Aggressive Potato Mode Active" or "Full Visuals Restored", C.Accent)
 end)
 
 CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner notifications", "ON", true, 15, function(bText, bStroke, _, setActive)
