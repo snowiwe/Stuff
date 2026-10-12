@@ -1,0 +1,1311 @@
+-- // LUMACORE - SURVIVE THE APOCALYPSE DEFINITIVE SUITE //
+-- Developed by Lumacore
+local Players          = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService     = game:GetService("TweenService")
+local Lighting         = game:GetService("Lighting")
+local Stats            = game:GetService("Stats")
+local Workspace        = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui", 10)
+local ScreenName  = "Lumacore_SurviveTheApocalypse"
+
+-- 1. CONTAINER MOUNTING & SINGLE INSTANCE
+local function resolveContainer()
+    local okHui, h = pcall(function()
+        if typeof(gethui) == "function" then return gethui() end
+    end)
+    if okHui and h then return h end
+    return PlayerGui
+end
+
+local TargetParent = resolveContainer()
+if not TargetParent then return end
+
+local oldUI = TargetParent:FindFirstChild(ScreenName)
+if oldUI then oldUI:Destroy() end
+
+-- 2. PALETTE SYSTEM
+local C = {
+    Bg         = Color3.fromRGB(16, 14, 13),
+    CardBg     = Color3.fromRGB(24, 21, 19),
+    Surface    = Color3.fromRGB(32, 28, 25),
+    Hover      = Color3.fromRGB(44, 38, 34),
+    Border     = Color3.fromRGB(56, 48, 44),
+    BorderHot  = Color3.fromRGB(80, 68, 62),
+    Accent     = Color3.fromRGB(224, 112, 43),
+    AccentGlow = Color3.fromRGB(245, 148, 68),
+    Text       = Color3.fromRGB(250, 244, 238),
+    Muted      = Color3.fromRGB(186, 172, 162),
+    Dim        = Color3.fromRGB(130, 118, 110),
+    Red        = Color3.fromRGB(224, 64, 78),
+    RedDark    = Color3.fromRGB(138, 32, 25),
+    Green      = Color3.fromRGB(64, 192, 110),
+    Purple     = Color3.fromRGB(175, 95, 245),
+    Cyan       = Color3.fromRGB(60, 200, 240),
+}
+
+local AnimationsEnabled = true
+local function tw(obj, props, dur, style, dir)
+    if not AnimationsEnabled then
+        for prop, val in pairs(props) do
+            pcall(function() obj[prop] = val end)
+        end
+        return {Completed = {Wait = function() end, Connect = function(_, fn) fn() end}}
+    end
+    local t = TweenService:Create(
+        obj,
+        TweenInfo.new(dur or 0.22, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out),
+        props
+    )
+    t:Play()
+    return t
+end
+
+-- 3. ROOT GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = ScreenName
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999999
+ScreenGui.Enabled = true
+ScreenGui.Parent = TargetParent
+
+-- 4. ESP CORE & ITEM REGISTRY
+local espEnabled = {
+    Zombie = false,
+    Heals  = false,
+    Food   = false,
+    Gas    = false,
+    Armor  = false,
+    Weapon = false,
+    Scrap  = false,
+}
+
+local espDistance = 150
+
+local ESP_COLORS = {
+    Zombie = Color3.fromRGB(255, 60, 60),
+    Heals  = Color3.fromRGB(80, 255, 160),
+    Food   = Color3.fromRGB(80, 255, 80),
+    Gas    = Color3.fromRGB(220, 100, 255),
+    Armor  = Color3.fromRGB(80, 150, 255),
+    Weapon = Color3.fromRGB(255, 140, 0),
+    Scrap  = Color3.fromRGB(200, 160, 70),
+}
+
+local TAG_MAP = {
+    Zombie = {"zombie","undead","infected","walker","crawler","ghoul","zomb"},
+    Heals  = {
+        "medkit", "med kit", "firstaid", "first aid", "medbox", "health kit",
+        "bandage", "gauze", "wrap",
+    },
+    Food   = {
+        "food","cola","soda","water bottle","can of","canned","snack","bloxy",
+        "chips","candy","juice","coffee","energy drink","apple","banana","pizza",
+        "burger","soup","meal","ration","hearts","heart","bread","beef",
+    },
+    Gas    = {"gas can","gascan","gas_can","jerry can","jerrycan","fuel can","fuelcan","canister","fuel jug","fuel"},
+    Armor  = {
+        "light armor","lightarmor","light_armor","medium armor","mediumarmor","medium_armor",
+        "heavy armor","heavyarmor","heavy_armor","power arm","powerarm","power_arm",
+        "power core","powercore","power_core","vest","helmet","plate carrier","body armor","armor","armour",
+    },
+    Weapon = {
+        "heavy sniper","heavysniper","uzi","pistol","revolver","rifle","shotgun","smg","sniper",
+        "carbine","assault","lmg","dmr","ak","m4","m16","m1911","mp5","mp40","ump",
+        "deagle","glock","beretta","colt","awp","awm","kar98","mosin","barrett",
+        "remington","winchester","spas","aa12","rpg","crossbow","flamethrower",
+        "crowbar","hammer","wrench","bat","knife","machete","hatchet","axe","sword","katana","gun","weapon","firearm",
+        "pistol ammo","medium ammo","long ammo","shotgun ammo","sniper ammo",
+        "rifle ammo","shells","shell","ammo","rounds","bullets","magazine","mag",
+    },
+    Scrap  = {"scrap","scraps","metal scrap","junk","salvage","batteries","battery"},
+}
+
+local CAR_EXACT = {
+    ["Crashed Car 1"] = true,
+    ["Crashed Car 2"] = true,
+}
+local CAR_CONTAINS = {"vehicle","truck","van","sedan","suv"}
+
+local function isCarName(name)
+    if CAR_EXACT[name] then return true end
+    local low = name:lower()
+    for _, kw in ipairs(CAR_CONTAINS) do
+        if low:find(kw, 1, true) then return true end
+    end
+    return false
+end
+
+local function matchItem(name)
+    local low = name:lower()
+    for item, kws in pairs(TAG_MAP) do
+        for _, kw in ipairs(kws) do
+            if low:find(kw, 1, true) then return item end
+        end
+    end
+    return nil
+end
+
+local cachedObjects = {}
+for item in pairs(TAG_MAP) do cachedObjects[item] = {} end
+
+local function alreadyCached(obj, item)
+    for _, v in ipairs(cachedObjects[item]) do
+        if v == obj then return true end
+    end
+    return false
+end
+
+local function tryRegister(obj)
+    local parent = obj.Parent
+    if not parent then return end
+    if parent.Name == "DroppedItems" or (parent.Parent and parent.Parent.Name == "DroppedItems") then
+        local item = matchItem(obj.Name)
+        if item and not alreadyCached(obj, item) then
+            table.insert(cachedObjects[item], obj)
+        end
+    elseif parent.Name == "Characters" then
+        local isPlayer = false
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character == obj then isPlayer = true; break end
+        end
+        if not isPlayer and not alreadyCached(obj, "Zombie") then
+            table.insert(cachedObjects["Zombie"], obj)
+        end
+    end
+end
+
+local function tryRegisterCar(obj)
+    if not (obj:IsA("Model") or obj:IsA("BasePart")) then return end
+    if isCarName(obj.Name) and not alreadyCached(obj, "Scrap") then
+        table.insert(cachedObjects["Scrap"], obj)
+    end
+end
+
+local function unregister(obj)
+    for _, list in pairs(cachedObjects) do
+        for i = #list, 1, -1 do
+            if list[i] == obj then
+                table.remove(list, i)
+            end
+        end
+    end
+end
+
+local function scanFolder(name)
+    local folder = Workspace:FindFirstChild(name)
+    if not folder then return end
+    for _, obj in ipairs(folder:GetChildren()) do
+        tryRegister(obj)
+        for _, child in ipairs(obj:GetChildren()) do
+            tryRegister(child)
+        end
+    end
+    folder.ChildAdded:Connect(tryRegister)
+    folder.ChildRemoved:Connect(unregister)
+end
+
+scanFolder("DroppedItems")
+scanFolder("Characters")
+task.delay(3, function() scanFolder("DroppedItems"); scanFolder("Characters") end)
+
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    tryRegisterCar(obj)
+end
+Workspace.DescendantAdded:Connect(tryRegisterCar)
+Workspace.DescendantRemoving:Connect(unregister)
+
+local activeESP = {}
+
+local function getBasePart(obj)
+    if obj:IsA("BasePart") then return obj end
+    if obj:IsA("Model") and obj.PrimaryPart then return obj.PrimaryPart end
+    return obj:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local function showESP(obj, item, dist)
+    local color = ESP_COLORS[item]
+    local data  = activeESP[obj]
+    if not data then
+        local h = Instance.new("Highlight")
+        h.FillColor           = color
+        h.OutlineColor        = Color3.fromRGB(255, 255, 255)
+        h.FillTransparency    = 0.65
+        h.OutlineTransparency = 0.1
+        h.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+        h.Adornee             = obj
+        h.Parent              = ScreenGui
+
+        local adornee = getBasePart(obj)
+        local bb
+        if adornee then
+            bb = Instance.new("BillboardGui")
+            bb.Size           = UDim2.new(0, 140, 0, 32)
+            bb.StudsOffset    = Vector3.new(0, 3.2, 0)
+            bb.AlwaysOnTop    = true
+            bb.LightInfluence = 0
+            bb.Adornee        = adornee
+            bb.Parent         = ScreenGui
+
+            local nameLbl = Instance.new("TextLabel", bb)
+            nameLbl.Size                   = UDim2.new(1, 0, 0.55, 0)
+            nameLbl.BackgroundTransparency = 1
+            nameLbl.Text                   = obj.Name
+            nameLbl.TextColor3             = color
+            nameLbl.Font                   = Enum.Font.GothamBold
+            nameLbl.TextSize               = 11
+            nameLbl.TextXAlignment         = Enum.TextXAlignment.Center
+            nameLbl.TextStrokeTransparency = 0.35
+            nameLbl.TextStrokeColor3       = Color3.fromRGB(15, 12, 10)
+
+            local distLbl = Instance.new("TextLabel", bb)
+            distLbl.Name                   = "DistLabel"
+            distLbl.Size                   = UDim2.new(1, 0, 0.45, 0)
+            distLbl.Position               = UDim2.new(0, 0, 0.55, 0)
+            distLbl.BackgroundTransparency = 1
+            distLbl.Text                   = math.floor(dist) .. "m"
+            distLbl.TextColor3             = Color3.fromRGB(230, 225, 220)
+            distLbl.Font                   = Enum.Font.GothamMedium
+            distLbl.TextSize               = 10
+            distLbl.TextXAlignment         = Enum.TextXAlignment.Center
+            distLbl.TextStrokeTransparency = 0.35
+            distLbl.TextStrokeColor3       = Color3.fromRGB(15, 12, 10)
+        end
+        activeESP[obj] = { highlight = h, billboard = bb, adornee = adornee }
+    else
+        if data.billboard then
+            local distLbl = data.billboard:FindFirstChild("DistLabel")
+            if distLbl then distLbl.Text = math.floor(dist) .. "m" end
+        end
+    end
+end
+
+local function hideESP(obj)
+    local data = activeESP[obj]
+    if not data then return end
+    if data.highlight and data.highlight.Parent then data.highlight:Destroy() end
+    if data.billboard and data.billboard.Parent then data.billboard:Destroy() end
+    activeESP[obj] = nil
+end
+
+local TICK_RATE = 0.1
+local ticker    = 0
+
+RunService.Heartbeat:Connect(function(dt)
+    ticker = ticker + dt
+    if ticker < TICK_RATE then return end
+    ticker = 0
+
+    local char   = LocalPlayer.Character
+    local root   = char and char:FindFirstChild("HumanoidRootPart")
+    local origin = root and root.Position
+    local shouldShow = {}
+
+    if origin then
+        for item, enabled in pairs(espEnabled) do
+            if enabled then
+                for _, obj in ipairs(cachedObjects[item]) do
+                    if obj and obj.Parent then
+                        local bp = getBasePart(obj)
+                        if bp then
+                            local d = (bp.Position - origin).Magnitude
+                            if d <= espDistance then
+                                shouldShow[obj] = {item = item, dist = d}
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    for obj, info in pairs(shouldShow) do showESP(obj, info.item, info.dist) end
+    for obj in pairs(activeESP) do
+        if not shouldShow[obj] then hideESP(obj) end
+    end
+end)
+
+-- 5. ANTI-AFK ENGINE
+local AntiAFKActive = true
+task.spawn(function()
+    local VirtualUser = nil
+    pcall(function() VirtualUser = game:GetService("VirtualUser") end)
+
+    LocalPlayer.Idled:Connect(function()
+        if AntiAFKActive then
+            pcall(function()
+                if VirtualUser then
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0, 0))
+                else
+                    local char = LocalPlayer.Character
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+                    if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+                end
+            end)
+        end
+    end)
+end)
+
+-- 6. HUD TELEMETRY ENGINE
+local MonitorFPS = false
+local MonitorPing = false
+local MonitorMem = false
+local MonitorUptime = false
+local StartEpoch = os.time()
+
+local function formatUptime(seconds)
+    local hrs = math.floor(seconds / 3600)
+    local mins = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hrs, mins, secs)
+end
+
+local MonitorUI = Instance.new("Frame")
+MonitorUI.Size = UDim2.new(0, 115, 0, 0)
+MonitorUI.Position = UDim2.new(1, -125, 0, 12)
+MonitorUI.BackgroundColor3 = C.Surface
+MonitorUI.BackgroundTransparency = 0.15
+MonitorUI.Visible = false
+MonitorUI.ZIndex = 900
+MonitorUI.Parent = ScreenGui
+
+Instance.new("UICorner", MonitorUI).CornerRadius = UDim.new(0, 6)
+local mStroke = Instance.new("UIStroke")
+mStroke.Color = C.Border
+mStroke.Thickness = 1
+mStroke.Parent = MonitorUI
+
+local mLayout = Instance.new("UIListLayout")
+mLayout.Padding = UDim.new(0, 2)
+mLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+mLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+mLayout.Parent = MonitorUI
+
+local function createMonitorRow()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -8, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Text
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Visible = false
+    lbl.ZIndex = 901
+    lbl.Parent = MonitorUI
+    return lbl
+end
+
+local fpsRow = createMonitorRow()
+local pingRow = createMonitorRow()
+local memRow = createMonitorRow()
+local upRow = createMonitorRow()
+
+local monitorConn = RunService.RenderStepped:Connect(function(dt)
+    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorUptime and 1 or 0)
+    if active == 0 then
+        MonitorUI.Visible = false
+    else
+        MonitorUI.Visible = true
+        MonitorUI.Size = UDim2.new(0, 115, 0, (active * 18) + 6)
+        fpsRow.Visible = MonitorFPS
+        if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / math.max(dt, 0.001)) end
+        pingRow.Visible = MonitorPing
+        if MonitorPing then pingRow.Text = "Ping: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms" end
+        memRow.Visible = MonitorMem
+        if MonitorMem then memRow.Text = "Mem: " .. math.floor(Stats:GetTotalMemoryUsageMb()) .. "MB" end
+        upRow.Visible = MonitorUptime
+        if MonitorUptime then upRow.Text = "Time: " .. formatUptime(os.time() - StartEpoch) end
+    end
+end)
+
+-- 7. CARD SHELL & HEADER
+local Backdrop = Instance.new("TextButton")
+Backdrop.Size = UDim2.fromScale(1, 1)
+Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Backdrop.BackgroundTransparency = 1
+Backdrop.AutoButtonColor = false
+Backdrop.Text = ""
+Backdrop.Visible = false
+Backdrop.Parent = ScreenGui
+
+local Card = Instance.new("Frame")
+Card.Name = "ProfileCard"
+Card.Size = UDim2.new(0, 580, 0, 345)
+Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+Card.AnchorPoint = Vector2.new(0.5, 0.5)
+Card.BackgroundColor3 = C.Bg
+Card.BorderSizePixel = 0
+Card.ClipsDescendants = true
+Card.Active = true
+Card.Visible = false
+Card.Parent = ScreenGui
+
+Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 14)
+local cStroke = Instance.new("UIStroke")
+cStroke.Color = C.Border
+cStroke.Thickness = 1.3
+cStroke.Parent = Card
+
+local Header = Instance.new("TextButton")
+Header.Name = "Header"
+Header.Size = UDim2.new(1, 0, 0, 48)
+Header.BackgroundTransparency = 1
+Header.Text = ""
+Header.AutoButtonColor = false
+Header.Parent = Card
+
+local TitleDot = Instance.new("Frame")
+TitleDot.Size = UDim2.new(0, 7, 0, 7)
+TitleDot.Position = UDim2.new(0, 18, 0.5, -3)
+TitleDot.BackgroundColor3 = C.Accent
+Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
+TitleDot.Parent = Header
+
+local Title = Instance.new("TextLabel")
+Title.Text = "SURVIVE APOCALYPSE"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 13
+Title.TextColor3 = C.Text
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Position = UDim2.new(0, 32, 0, 9)
+Title.Size = UDim2.new(0, 180, 0, 16)
+Title.BackgroundTransparency = 1
+Title.Parent = Header
+
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Text = "Credit: Lumacore"
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.TextSize = 10
+SubTitle.TextColor3 = C.AccentGlow
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Position = UDim2.new(0, 32, 0, 26)
+SubTitle.Size = UDim2.new(0, 180, 0, 14)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Parent = Header
+
+-- NOTIFICATION BANNER
+local NotificationsEnabled = true
+local NotificationBanner = Instance.new("Frame")
+NotificationBanner.Size = UDim2.new(0, 230, 0, 34)
+NotificationBanner.Position = UDim2.new(0.5, 0, 0, 7)
+NotificationBanner.AnchorPoint = Vector2.new(0.5, 0)
+NotificationBanner.BackgroundColor3 = Color3.fromRGB(10, 8, 8)
+NotificationBanner.BorderSizePixel = 0
+NotificationBanner.ClipsDescendants = true
+NotificationBanner.Visible = false
+NotificationBanner.ZIndex = 120
+NotificationBanner.Parent = Header
+
+Instance.new("UICorner", NotificationBanner).CornerRadius = UDim.new(0, 8)
+local nbStroke = Instance.new("UIStroke")
+nbStroke.Color = C.Accent
+nbStroke.Thickness = 1.4
+nbStroke.Parent = NotificationBanner
+
+local nbBar = Instance.new("Frame")
+nbBar.Size = UDim2.new(0, 4, 0.75, 0)
+nbBar.Position = UDim2.new(0, 8, 0.125, 0)
+nbBar.BackgroundColor3 = C.Accent
+nbBar.BorderSizePixel = 0
+nbBar.ZIndex = 121
+nbBar.Parent = NotificationBanner
+Instance.new("UICorner", nbBar).CornerRadius = UDim.new(1, 0)
+
+local nbTitle = Instance.new("TextLabel")
+nbTitle.Size = UDim2.new(1, -24, 0, 14)
+nbTitle.Position = UDim2.new(0, 18, 0, 4)
+nbTitle.BackgroundTransparency = 1
+nbTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+nbTitle.Font = Enum.Font.GothamBold
+nbTitle.TextSize = 10
+nbTitle.TextXAlignment = Enum.TextXAlignment.Left
+nbTitle.ZIndex = 122
+nbTitle.Parent = NotificationBanner
+
+local nbSub = Instance.new("TextLabel")
+nbSub.Size = UDim2.new(1, -24, 0, 12)
+nbSub.Position = UDim2.new(0, 18, 0, 17)
+nbSub.BackgroundTransparency = 1
+nbSub.TextColor3 = Color3.fromRGB(220, 215, 210)
+nbSub.Font = Enum.Font.GothamMedium
+nbSub.TextSize = 9
+nbSub.TextXAlignment = Enum.TextXAlignment.Left
+nbSub.ZIndex = 122
+nbSub.Parent = NotificationBanner
+
+local NotifyQueue = {}
+local isDisplayingNotify = false
+
+local function processNextNotification()
+    if #NotifyQueue == 0 or isDisplayingNotify or not NotificationsEnabled then return end
+    isDisplayingNotify = true
+    local item = table.remove(NotifyQueue, 1)
+
+    nbTitle.Text = item.title
+    nbSub.Text = item.sub or "System update"
+    nbStroke.Color = item.color or C.Accent
+    nbBar.BackgroundColor3 = item.color or C.Accent
+
+    NotificationBanner.Visible = true
+    NotificationBanner.Position = UDim2.new(0.5, 0, 0, -42)
+    NotificationBanner.BackgroundTransparency = 1
+    nbTitle.TextTransparency = 1
+    nbSub.TextTransparency = 1
+    nbStroke.Transparency = 1
+    nbBar.BackgroundTransparency = 1
+
+    tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, 7), BackgroundTransparency = 0}, 0.22, Enum.EasingStyle.Back)
+    tw(nbTitle, {TextTransparency = 0}, 0.2)
+    tw(nbSub, {TextTransparency = 0}, 0.2)
+    tw(nbStroke, {Transparency = 0}, 0.2)
+    tw(nbBar, {BackgroundTransparency = 0}, 0.2)
+
+    task.wait(2.2)
+
+    local exit = tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, -42), BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quart)
+    tw(nbTitle, {TextTransparency = 1}, 0.2)
+    tw(nbSub, {TextTransparency = 1}, 0.2)
+    tw(nbStroke, {Transparency = 1}, 0.2)
+    tw(nbBar, {BackgroundTransparency = 1}, 0.2)
+    exit.Completed:Wait()
+
+    NotificationBanner.Visible = false
+    isDisplayingNotify = false
+    if #NotifyQueue > 0 then processNextNotification() end
+end
+
+local function Notify(titleText, subText, color)
+    if not NotificationsEnabled then return end
+    table.insert(NotifyQueue, {title = titleText, sub = subText, color = color})
+    if not isDisplayingNotify then task.spawn(processNextNotification) end
+end
+
+local HeaderBtns = Instance.new("Frame")
+HeaderBtns.Size = UDim2.new(0, 68, 0, 28)
+HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
+HeaderBtns.AnchorPoint = Vector2.new(1, 0.5)
+HeaderBtns.BackgroundTransparency = 1
+HeaderBtns.Parent = Header
+
+local SettingsBtn = Instance.new("TextButton")
+SettingsBtn.Size = UDim2.new(0, 28, 0, 28)
+SettingsBtn.Position = UDim2.new(0, 0, 0, 0)
+SettingsBtn.BackgroundColor3 = C.CardBg
+SettingsBtn.Text = "⚙"
+SettingsBtn.TextColor3 = C.Muted
+SettingsBtn.Font = Enum.Font.GothamBold
+SettingsBtn.TextSize = 12
+SettingsBtn.AutoButtonColor = false
+SettingsBtn.ZIndex = 70
+SettingsBtn.Parent = HeaderBtns
+Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 7)
+local sBtnStroke = Instance.new("UIStroke")
+sBtnStroke.Color = C.Border
+sBtnStroke.Thickness = 1
+sBtnStroke.Parent = SettingsBtn
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(1, -28, 0, 0)
+CloseBtn.BackgroundColor3 = C.RedDark
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 11
+CloseBtn.AutoButtonColor = false
+CloseBtn.ZIndex = 70
+CloseBtn.Parent = HeaderBtns
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
+
+-- 8. BODY LAYOUT
+local Body = Instance.new("Frame")
+Body.Size = UDim2.new(1, -32, 1, -60)
+Body.Position = UDim2.new(0, 16, 0, 48)
+Body.BackgroundTransparency = 1
+Body.Parent = Card
+
+local LeftCol = Instance.new("ScrollingFrame")
+LeftCol.Size = UDim2.new(0.58, -6, 1, 0)
+LeftCol.BackgroundTransparency = 1
+LeftCol.BorderSizePixel = 0
+LeftCol.ScrollBarThickness = 2
+LeftCol.ScrollBarImageColor3 = C.Border
+LeftCol.AutomaticCanvasSize = Enum.AutomaticSize.Y
+LeftCol.CanvasSize = UDim2.new(0, 0, 0, 0)
+LeftCol.Parent = Body
+
+local leftLayout = Instance.new("UIListLayout")
+leftLayout.Padding = UDim.new(0, 6)
+leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+leftLayout.Parent = LeftCol
+
+local RightCol = Instance.new("Frame")
+RightCol.Size = UDim2.new(0.42, -6, 1, 0)
+RightCol.Position = UDim2.new(0.58, 6, 0, 0)
+RightCol.BackgroundColor3 = C.CardBg
+RightCol.BorderSizePixel = 0
+RightCol.Parent = Body
+
+Instance.new("UICorner", RightCol).CornerRadius = UDim.new(0, 10)
+local rStroke = Instance.new("UIStroke")
+rStroke.Color = C.Border
+rStroke.Thickness = 1
+rStroke.Parent = RightCol
+
+local AvatarHolder = Instance.new("Frame")
+AvatarHolder.Size = UDim2.new(0, 78, 0, 78)
+AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
+AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
+AvatarHolder.BackgroundColor3 = C.Surface
+AvatarHolder.ClipsDescendants = true
+AvatarHolder.Parent = RightCol
+
+Instance.new("UICorner", AvatarHolder).CornerRadius = UDim.new(1, 0)
+local avStroke = Instance.new("UIStroke")
+avStroke.Color = C.Accent
+avStroke.Thickness = 2
+avStroke.Parent = AvatarHolder
+
+local AvatarImage = Instance.new("ImageLabel")
+AvatarImage.Size = UDim2.fromScale(1, 1)
+AvatarImage.BackgroundTransparency = 1
+AvatarImage.ScaleType = Enum.ScaleType.Fit
+AvatarImage.Parent = AvatarHolder
+Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
+
+local BlurStack = Instance.new("Frame")
+BlurStack.Size = UDim2.fromScale(1, 1)
+BlurStack.BackgroundTransparency = 1
+BlurStack.Visible = false
+BlurStack.ZIndex = 5
+BlurStack.Parent = AvatarHolder
+Instance.new("UICorner", BlurStack).CornerRadius = UDim.new(1, 0)
+
+local blurTint = Instance.new("Frame")
+blurTint.Size = UDim2.fromScale(1, 1)
+blurTint.BackgroundColor3 = Color3.fromRGB(18, 16, 15)
+blurTint.BackgroundTransparency = 0.25
+blurTint.BorderSizePixel = 0
+blurTint.ZIndex = 6
+blurTint.Parent = BlurStack
+Instance.new("UICorner", blurTint).CornerRadius = UDim.new(1, 0)
+
+task.spawn(function()
+    local ok, content = pcall(function()
+        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
+    end)
+    if ok and content and content ~= "" then
+        AvatarImage.Image = content
+    else
+        AvatarImage.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+    end
+end)
+
+local SensorInfoActive = false
+local TelemetryFrame = Instance.new("Frame")
+TelemetryFrame.Size = UDim2.new(1, -12, 1, -98)
+TelemetryFrame.Position = UDim2.new(0, 6, 0, 92)
+TelemetryFrame.BackgroundColor3 = C.Surface
+TelemetryFrame.Parent = RightCol
+Instance.new("UICorner", TelemetryFrame).CornerRadius = UDim.new(0, 8)
+local tfStroke = Instance.new("UIStroke")
+tfStroke.Color = C.Border
+tfStroke.Thickness = 1
+tfStroke.Parent = TelemetryFrame
+
+local tLayout = Instance.new("UIListLayout")
+tLayout.Padding = UDim.new(0, 1)
+tLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+tLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tLayout.Parent = TelemetryFrame
+
+local function createInfoLabel()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -14, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Muted
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = TelemetryFrame
+    return lbl
+end
+
+local userRow   = createInfoLabel()
+local placeRow  = createInfoLabel()
+local distRow   = createInfoLabel()
+local uptimeRow = createInfoLabel()
+
+local tDiv = Instance.new("Frame")
+tDiv.Size = UDim2.new(1, -16, 0, 1)
+tDiv.BackgroundColor3 = C.Border
+tDiv.BorderSizePixel = 0
+tDiv.Parent = TelemetryFrame
+
+local keybindRow = createInfoLabel()
+keybindRow.Text = "Toggle Menu: [RightCtrl]"
+keybindRow.TextColor3 = C.AccentGlow
+keybindRow.Font = Enum.Font.GothamMedium
+
+local function setCensorState(censor)
+    SensorInfoActive = censor
+    BlurStack.Visible = censor
+    tw(AvatarImage, {ImageTransparency = censor and 0.85 or 0}, 0.2)
+end
+
+-- 9. ACTION CARDS FACTORY
+local function AddSection(parent, text, order)
+    local lbl = Instance.new("TextLabel")
+    lbl.Text = text
+    lbl.Size = UDim2.new(1, 0, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Accent
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.LayoutOrder = order or 0
+    lbl.ZIndex = parent.ZIndex + 1
+    lbl.Parent = parent
+    return lbl
+end
+
+local function CreateActionCard(parent, title, defaultSub, initialBadgeText, initialActive, order, callback)
+    local row = Instance.new("TextButton")
+    row.Size = UDim2.new(1, 0, 0, 48)
+    row.BackgroundColor3 = initialActive and C.Hover or C.CardBg
+    row.AutoButtonColor = false
+    row.Text = ""
+    row.LayoutOrder = order or 0
+    row.ZIndex = parent.ZIndex
+    row.ClipsDescendants = true
+    row.Parent = parent
+
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke")
+    s.Color = initialActive and C.Accent or C.Border
+    s.Thickness = initialActive and 1.4 or 1
+    s.Parent = row
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Text = title
+    tLbl.Font = Enum.Font.GothamBold
+    tLbl.TextSize = 11
+    tLbl.TextColor3 = C.Text
+    tLbl.Position = UDim2.new(0, 10, 0, 8)
+    tLbl.Size = UDim2.new(1, -94, 0, 14)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    tLbl.BackgroundTransparency = 1
+    tLbl.ZIndex = row.ZIndex + 1
+    tLbl.Parent = row
+
+    local sLbl = Instance.new("TextLabel")
+    sLbl.Text = defaultSub
+    sLbl.Font = Enum.Font.Gotham
+    sLbl.TextSize = 9
+    sLbl.TextColor3 = C.Dim
+    sLbl.Position = UDim2.new(0, 10, 0, 24)
+    sLbl.Size = UDim2.new(1, -94, 0, 14)
+    sLbl.TextXAlignment = Enum.TextXAlignment.Left
+    sLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    sLbl.BackgroundTransparency = 1
+    sLbl.ZIndex = row.ZIndex + 1
+    sLbl.Parent = row
+
+    local badge = Instance.new("Frame")
+    badge.Size = UDim2.new(0, 74, 0, 24)
+    badge.Position = UDim2.new(1, -10, 0.5, 0)
+    badge.AnchorPoint = Vector2.new(1, 0.5)
+    badge.BackgroundColor3 = C.Surface
+    badge.ZIndex = row.ZIndex + 1
+    badge.Parent = row
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+
+    local bStroke = Instance.new("UIStroke")
+    bStroke.Color = initialActive and C.Green or C.Border
+    bStroke.Thickness = 1
+    bStroke.Parent = badge
+
+    local bText = Instance.new("TextLabel")
+    bText.Size = UDim2.fromScale(1, 1)
+    bText.BackgroundTransparency = 1
+    bText.Text = initialBadgeText
+    bText.Font = Enum.Font.GothamBold
+    bText.TextSize = 10
+    bText.TextColor3 = initialActive and C.Green or C.Muted
+    bText.ZIndex = row.ZIndex + 2
+    bText.Parent = badge
+
+    local isCardActive = initialActive or false
+    local function setCardActiveState(active, accentOverride)
+        isCardActive = active
+        local activeColor = accentOverride or C.Accent
+        if isCardActive then
+            tw(s, {Color = activeColor, Thickness = 1.4}, 0.15)
+            tw(row, {BackgroundColor3 = C.Hover}, 0.15)
+            tw(bStroke, {Color = activeColor}, 0.15)
+        else
+            tw(s, {Color = C.Border, Thickness = 1}, 0.15)
+            tw(row, {BackgroundColor3 = C.CardBg}, 0.15)
+            tw(bStroke, {Color = C.Border}, 0.15)
+        end
+    end
+
+    row.MouseEnter:Connect(function()
+        if not isCardActive then
+            tw(row, {BackgroundColor3 = C.Hover}, 0.14)
+            tw(s, {Color = C.BorderHot}, 0.14)
+        end
+    end)
+    row.MouseLeave:Connect(function()
+        if not isCardActive then
+            tw(row, {BackgroundColor3 = C.CardBg}, 0.14)
+            tw(s, {Color = C.Border}, 0.14)
+        end
+    end)
+
+    row.MouseButton1Click:Connect(function()
+        if AnimationsEnabled then
+            tw(row, {Size = UDim2.new(1, -4, 0, 46)}, 0.06)
+            task.delay(0.06, function()
+                tw(row, {Size = UDim2.new(1, 0, 0, 48)}, 0.12, Enum.EasingStyle.Back)
+            end)
+        end
+        callback(bText, bStroke, sLbl, setCardActiveState, {
+            row = row, stroke = s, titleLabel = tLbl, subLabel = sLbl,
+            badgeText = bText, badgeStroke = bStroke, setActive = setCardActiveState
+        })
+    end)
+
+    return {
+        row = row, stroke = s, titleLabel = tLbl, subLabel = sLbl,
+        badgeText = bText, badgeStroke = bStroke, setActive = setCardActiveState
+    }
+end
+
+-- 10. POPULATE ESP TOGGLES & DISTANCE CYCLE
+AddSection(LeftCol, "GLOBAL CONTROLS", 1)
+
+local distCard
+local distances = {100, 150, 250, 500, 1000}
+local distIdx = 2
+
+distCard = CreateActionCard(LeftCol, "ESP DISTANCE", "Cycle visual check radius", "150M", true, 2, function(bText, bStroke, sLbl, setActive)
+    distIdx = (distIdx % #distances) + 1
+    espDistance = distances[distIdx]
+    bText.Text = espDistance .. "M"
+    bText.TextColor3 = C.Cyan
+    sLbl.Text = "Rendering targets within " .. espDistance .. "m"
+    setActive(true, C.Cyan)
+    Notify("ESP Distance", "Range set to " .. espDistance .. " meters", C.Cyan)
+end)
+
+AddSection(LeftCol, "RADAR & ENTITY VISUALS", 3)
+
+local espMeta = {
+    {Id = "Zombie", Name = "ZOMBIES / INFECTED", Desc = "Live hostile tracking & distance", Color = ESP_COLORS.Zombie, Order = 4},
+    {Id = "Weapon", Name = "WEAPONS & AMMO", Desc = "Guns, melee, and ammunition crates", Color = ESP_COLORS.Weapon, Order = 5},
+    {Id = "Armor",  Name = "ARMOR & GEAR", Desc = "Vests, helmets & power units", Color = ESP_COLORS.Armor, Order = 6},
+    {Id = "Heals",  Name = "MEDICAL SUPPLIES", Desc = "Medkits, bandages & first aid", Color = ESP_COLORS.Heals, Order = 7},
+    {Id = "Food",   Name = "FOOD & PROVISIONS", Desc = "Sodas, canned food & meals", Color = ESP_COLORS.Food, Order = 8},
+    {Id = "Gas",    Name = "FUEL & GAS CANS", Desc = "Jerrycans & fuel canisters", Color = ESP_COLORS.Gas, Order = 9},
+    {Id = "Scrap",  Name = "SCRAP & VEHICLES", Desc = "Salvage, metal scrap & cars", Color = ESP_COLORS.Scrap, Order = 10},
+}
+
+for _, meta in ipairs(espMeta) do
+    CreateActionCard(LeftCol, meta.Name, meta.Desc, "OFF", false, meta.Order, function(bText, bStroke, sLbl, setActive)
+        espEnabled[meta.Id] = not espEnabled[meta.Id]
+        local on = espEnabled[meta.Id]
+        bText.Text = on and "ACTIVE" or "OFF"
+        bText.TextColor3 = on and meta.Color or C.Muted
+        setActive(on, on and meta.Color or nil)
+        if not on then
+            for _, obj in ipairs(cachedObjects[meta.Id]) do hideESP(obj) end
+        end
+        Notify("ESP", meta.Id .. " tracking " .. (on and "Enabled" or "Disabled"), on and meta.Color or C.Red)
+    end)
+end
+
+-- 11. SETTINGS DRAWER OVERLAY
+local Drawer = Instance.new("TextButton")
+Drawer.Size = UDim2.new(1, 0, 1, -48)
+Drawer.Position = UDim2.new(0, 0, 1, 0)
+Drawer.BackgroundColor3 = C.Bg
+Drawer.AutoButtonColor = false
+Drawer.Text = ""
+Drawer.ZIndex = 50
+Drawer.BorderSizePixel = 0
+Drawer.Parent = Card
+
+local DrawerScroll = Instance.new("ScrollingFrame")
+DrawerScroll.Size = UDim2.fromScale(1, 1)
+DrawerScroll.BackgroundTransparency = 1
+DrawerScroll.BorderSizePixel = 0
+DrawerScroll.ScrollBarThickness = 2
+DrawerScroll.ScrollBarImageColor3 = C.Border
+DrawerScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+DrawerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+DrawerScroll.ZIndex = 51
+DrawerScroll.Parent = Drawer
+
+local dPad = Instance.new("UIPadding")
+dPad.PaddingTop = UDim.new(0, 12); dPad.PaddingLeft = UDim.new(0, 14); dPad.PaddingRight = UDim.new(0, 14); dPad.PaddingBottom = UDim.new(0, 14)
+dPad.Parent = DrawerScroll
+
+local dList = Instance.new("UIListLayout")
+dList.Padding = UDim.new(0, 6)
+dList.SortOrder = Enum.SortOrder.LayoutOrder
+dList.Parent = DrawerScroll
+
+AddSection(DrawerScroll, "IDLE & AFK", 1)
+CreateActionCard(DrawerScroll, "ANTI IDLE KICK", "Bypasses 20min Roblox idle disconnect", "ON", AntiAFKActive, 2, function(bText, bStroke, _, setActive)
+    AntiAFKActive = not AntiAFKActive
+    bText.Text = AntiAFKActive and "ON" or "OFF"
+    bText.TextColor3 = AntiAFKActive and C.Green or C.Muted
+    setActive(AntiAFKActive)
+    Notify("System", AntiAFKActive and "Anti-AFK Armed" or "Anti-AFK Disarmed", C.Accent)
+end)
+
+AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
+CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & censors account IDs", "OFF", false, 4, function(bText, bStroke, _, setActive)
+    setCensorState(not SensorInfoActive)
+    bText.Text = SensorInfoActive and "ON" or "OFF"
+    bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
+    setActive(SensorInfoActive)
+    Notify("Privacy", SensorInfoActive and "Telemetry Masked" or "Telemetry Visible", C.Accent)
+end)
+
+AddSection(DrawerScroll, "MONITORING OVERLAYS", 5)
+CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false, 6, function(bText, bStroke, _, setActive)
+    MonitorFPS = not MonitorFPS; bText.Text = MonitorFPS and "ON" or "OFF"
+    bText.TextColor3 = MonitorFPS and C.Green or C.Muted; setActive(MonitorFPS)
+end)
+
+CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", false, 7, function(bText, bStroke, _, setActive)
+    MonitorPing = not MonitorPing; bText.Text = MonitorPing and "ON" or "OFF"
+    bText.TextColor3 = MonitorPing and C.Green or C.Muted; setActive(MonitorPing)
+end)
+
+CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", false, 8, function(bText, bStroke, _, setActive)
+    MonitorMem = not MonitorMem; bText.Text = MonitorMem and "ON" or "OFF"
+    bText.TextColor3 = MonitorMem and C.Green or C.Muted; setActive(MonitorMem)
+end)
+
+CreateActionCard(DrawerScroll, "SHOW UPTIME", "Displays session time counter", "OFF", false, 9, function(bText, bStroke, _, setActive)
+    MonitorUptime = not MonitorUptime; bText.Text = MonitorUptime and "ON" or "OFF"
+    bText.TextColor3 = MonitorUptime and C.Green or C.Muted; setActive(MonitorUptime)
+end)
+
+-- POTATO PERFORMANCE MODE
+local deepPerformanceActive = false
+local originalLighting = {}
+local modifiedParts = {}
+local culledEffects = {}
+
+local function setPartLowDetail(part)
+    if not part:IsA("BasePart") and not part:IsA("MeshPart") then return end
+    if not modifiedParts[part] then
+        modifiedParts[part] = {
+            Material = part.Material,
+            CastShadow = part.CastShadow,
+            Reflectance = part.Reflectance
+        }
+    end
+    part.Material = Enum.Material.SmoothPlastic
+    part.CastShadow = false
+    part.Reflectance = 0
+end
+
+local function applyAggressiveOptimization(enable)
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+    if enable then
+        originalLighting.GlobalShadows = Lighting.GlobalShadows
+        originalLighting.FogEnd = Lighting.FogEnd
+        originalLighting.Brightness = Lighting.Brightness
+
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
+
+        for _, item in ipairs(Lighting:GetChildren()) do
+            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") or item:IsA("Sky") then
+                if not culledEffects[item] then culledEffects[item] = item.Enabled end
+                item.Enabled = false
+            end
+        end
+
+        if Terrain then
+            pcall(function()
+                Terrain.Decoration = false
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                Terrain.WaterReflectance = 0
+            end)
+        end
+
+        for _, desc in ipairs(Workspace:GetDescendants()) do
+            if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Smoke") or desc:IsA("Fire") or desc:IsA("Sparkles") then
+                if desc.Enabled then
+                    culledEffects[desc] = true
+                    desc.Enabled = false
+                end
+            elseif desc:IsA("Decal") or desc:IsA("Texture") then
+                if desc.Transparency < 1 then
+                    culledEffects[desc] = desc.Transparency
+                    desc.Transparency = 1
+                end
+            elseif desc:IsA("BasePart") then
+                setPartLowDetail(desc)
+            end
+        end
+    else
+        Lighting.GlobalShadows = originalLighting.GlobalShadows ~= nil and originalLighting.GlobalShadows or true
+        Lighting.FogEnd = originalLighting.FogEnd or 100000
+        Lighting.Brightness = originalLighting.Brightness or 2
+
+        for item, state in pairs(culledEffects) do
+            if item and item.Parent then
+                if item:IsA("Decal") or item:IsA("Texture") then
+                    item.Transparency = state
+                else
+                    pcall(function() item.Enabled = state end)
+                end
+            end
+        end
+        table.clear(culledEffects)
+
+        if Terrain then
+            pcall(function()
+                Terrain.Decoration = true
+                Terrain.WaterWaveSize = 0.15
+                Terrain.WaterWaveSpeed = 10
+            end)
+        end
+
+        for part, data in pairs(modifiedParts) do
+            if part and part.Parent then
+                pcall(function()
+                    part.Material = data.Material
+                    part.CastShadow = data.CastShadow
+                    part.Reflectance = data.Reflectance
+                end)
+            end
+        end
+        table.clear(modifiedParts)
+    end
+end
+
+AddSection(DrawerScroll, "GRAPHICS ENGINE", 10)
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Potato mode • Strips textures & shadows", "OFF", false, 11, function(bText, bStroke, _, setActive)
+    deepPerformanceActive = not deepPerformanceActive
+    bText.Text = deepPerformanceActive and "ON" or "OFF"
+    bText.TextColor3 = deepPerformanceActive and C.AccentGlow or C.Muted
+    setActive(deepPerformanceActive)
+    applyAggressiveOptimization(deepPerformanceActive)
+    Notify("Graphics", deepPerformanceActive and "Potato Mode Enabled" or "Full Detail Restored", C.Accent)
+end)
+
+AddSection(DrawerScroll, "DANGER ZONE", 12)
+local DestroyCard = Instance.new("TextButton")
+DestroyCard.Size = UDim2.new(1, 0, 0, 48)
+DestroyCard.BackgroundColor3 = C.CardBg
+DestroyCard.AutoButtonColor = false
+DestroyCard.Text = ""
+DestroyCard.ClipsDescendants = true
+DestroyCard.ZIndex = 52
+DestroyCard.LayoutOrder = 13
+DestroyCard.Parent = DrawerScroll
+
+Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
+local dCardStroke = Instance.new("UIStroke")
+dCardStroke.Color = C.Border
+dCardStroke.Thickness = 1
+dCardStroke.Parent = DestroyCard
+
+local FillBar = Instance.new("Frame")
+FillBar.Size = UDim2.new(0, 0, 1, 0)
+FillBar.BackgroundColor3 = C.RedDark
+FillBar.BorderSizePixel = 0
+FillBar.ZIndex = 53
+FillBar.Parent = DestroyCard
+
+local DestroyLbl = Instance.new("TextLabel")
+DestroyLbl.Text = "Destroy Interface"
+DestroyLbl.Font = Enum.Font.GothamBold
+DestroyLbl.TextSize = 12
+DestroyLbl.TextColor3 = C.Red
+DestroyLbl.Size = UDim2.fromScale(1, 1)
+DestroyLbl.BackgroundTransparency = 1
+DestroyLbl.ZIndex = 54
+DestroyLbl.Parent = DestroyCard
+
+local confirmState = false
+local timerThread = nil
+
+DestroyCard.MouseButton1Click:Connect(function()
+    if not confirmState then
+        confirmState = true
+        DestroyLbl.Text = "Tap Again to Confirm"
+        DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(dCardStroke, {Color = C.Red}, 0.2)
+        FillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(FillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        timerThread = task.delay(3, function()
+            if confirmState and ScreenGui.Parent then
+                confirmState = false
+                DestroyLbl.Text = "Destroy Interface"
+                DestroyLbl.TextColor3 = C.Red
+                tw(dCardStroke, {Color = C.Border}, 0.2)
+                FillBar.Size = UDim2.new(0, 0, 1, 0)
+            end
+        end)
+    else
+        if timerThread then task.cancel(timerThread) end
+        for obj in pairs(activeESP) do hideESP(obj) end
+        if deepPerformanceActive then applyAggressiveOptimization(false) end
+        if monitorConn then monitorConn:Disconnect() end
+        pcall(function() ScreenGui:Destroy() end)
+    end
+end)
+
+local drawerOpen = false
+SettingsBtn.MouseButton1Click:Connect(function()
+    drawerOpen = not drawerOpen
+    tw(SettingsBtn, {Rotation = drawerOpen and 90 or 0}, 0.25, Enum.EasingStyle.Back)
+    if drawerOpen then
+        Body.Visible = false
+        tw(Drawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+    else
+        local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.25, Enum.EasingStyle.Quart)
+        anim.Completed:Connect(function() if not drawerOpen then Body.Visible = true end end)
+    end
+end)
+
+-- 12. RUNTIME TELEMETRY & INPUT DRAGGING
+local function clampPosition(rawPos, obj)
+    local cam = Workspace.CurrentCamera
+    local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
+    local oWidth = (obj.AbsoluteSize.X > 0 and obj.AbsoluteSize.X) or 580
+    local oHeight = (obj.AbsoluteSize.Y > 0 and obj.AbsoluteSize.Y) or 345
+    local absX = (rawPos.X.Scale * vSize.X) + rawPos.X.Offset
+    local absY = (rawPos.Y.Scale * vSize.Y) + rawPos.Y.Offset
+    return UDim2.new(0, math.clamp(absX, obj.AnchorPoint.X * oWidth + 6, vSize.X - ((1 - obj.AnchorPoint.X) * oWidth) - 6),
+                     0, math.clamp(absY, obj.AnchorPoint.Y * oHeight + 6, vSize.Y - ((1 - obj.AnchorPoint.Y) * oHeight) - 6))
+end
+
+local dragging, dragStart, startPos = false, nil, nil
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = input.Position; startPos = Card.Position
+        local moveConn, endConn
+        moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+            if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and dragging then
+                local delta = moveInput.Position - dragStart
+                Card.Position = clampPosition(UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y), Card)
+            end
+        end)
+        endConn = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+                if moveConn then moveConn:Disconnect() end
+                if endConn then endConn:Disconnect() end
+            end
+        end)
+    end
+end)
+
+local isOpen = false
+local function openMenu()
+    isOpen = true
+    Backdrop.Visible = true
+    tw(Backdrop, {BackgroundTransparency = 0.5}, 0.2)
+    Card.Visible = true
+    tw(Card, {Position = UDim2.new(0.5, 0, 0.5, 0), Size = UDim2.new(0, 580, 0, 345), Rotation = 0, BackgroundTransparency = 0}, 0.35, Enum.EasingStyle.Back)
+end
+
+local function closeMenu()
+    isOpen = false
+    tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
+    local anim = tw(Card, {Position = UDim2.new(0.5, 0, 0.53, 0), Size = UDim2.new(0, 500, 0, 280), Rotation = 6, BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quart)
+    anim.Completed:Connect(function()
+        Backdrop.Visible = false
+        Card.Visible = false
+    end)
+end
+
+local function toggleMenu()
+    if isOpen then closeMenu() else openMenu() end
+end
+
+CloseBtn.MouseButton1Click:Connect(closeMenu)
+Backdrop.MouseButton1Click:Connect(closeMenu)
+
+-- MOBILE TOGGLE BUTTON
+local MobileToggle = Instance.new("TextButton")
+MobileToggle.Size = UDim2.new(0, 38, 0, 38)
+MobileToggle.Position = UDim2.new(0, 30, 0.5, 0)
+MobileToggle.AnchorPoint = Vector2.new(0.5, 0.5)
+MobileToggle.BackgroundColor3 = C.Surface
+MobileToggle.Text = "🍁"
+MobileToggle.TextSize = 18
+MobileToggle.AutoButtonColor = false
+MobileToggle.ZIndex = 1500
+MobileToggle.Parent = ScreenGui
+Instance.new("UICorner", MobileToggle).CornerRadius = UDim.new(0, 10)
+local mtStroke = Instance.new("UIStroke")
+mtStroke.Color = C.Border
+mtStroke.Thickness = 1.2
+mtStroke.Parent = MobileToggle
+
+local iconDragging, iconDragStart, iconStartPos = false, nil, nil
+MobileToggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        iconDragging = false; iconDragStart = input.Position; iconStartPos = MobileToggle.Position
+        local moveConn, endConn
+        moveConn = UserInputService.InputChanged:Connect(function(moveInput)
+            if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and iconDragStart then
+                local delta = moveInput.Position - iconDragStart
+                if delta.Magnitude > 6 then
+                    iconDragging = true
+                    MobileToggle.Position = clampPosition(UDim2.new(iconStartPos.X.Scale, iconStartPos.X.Offset + delta.X, iconStartPos.Y.Scale, iconStartPos.Y.Offset + delta.Y), MobileToggle)
+                end
+            end
+        end)
+        endConn = UserInputService.InputEnded:Connect(function(endInput)
+            if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
+                if moveConn then moveConn:Disconnect() end
+                if endConn then endConn:Disconnect() end
+                if not iconDragging then toggleMenu() end
+            end
+        end)
+    end
+end)
+
+UserInputService.InputBegan:Connect(function(inp, gpe)
+    if not gpe and (inp.KeyCode == Enum.KeyCode.RightControl or inp.KeyCode == Enum.KeyCode.P) then
+        toggleMenu()
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if SensorInfoActive then
+        userRow.Text = "Account: [HIDDEN / SECURE]"
+        placeRow.Text = "Place ID: [HIDDEN]"
+        distRow.Text = "Radar Range: [MASKED]"
+    else
+        userRow.Text = "Account: @" .. LocalPlayer.Name
+        placeRow.Text = "Place: " .. tostring(game.PlaceId)
+        distRow.Text = "Max Range: " .. espDistance .. "m"
+    end
+    uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
+end)
+
+openMenu()
+Notify("Lumacore", "Survive The Apocalypse Suite Loaded", C.Accent)
+print("[Lumacore] Survive The Apocalypse Suite active.")
