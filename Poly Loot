@@ -659,7 +659,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (UNCLUTTERED FIT)
+-- 10. REUSABLE ACTION CARD BUILDER
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -842,8 +842,15 @@ local hasEquippedNetOnce = false
 
 local function ensureGhostNetEquipped()
     local char = LocalPlayer.Character
-    local held = char and (char:FindFirstChild("Ghost Net") or char:FindFirstChild("GhostNet"))
-    if held then
+    if not char then return end
+
+    local function isNet(item)
+        if not item or not item:IsA("Tool") then return false end
+        local name = string.lower(item.Name)
+        return string.find(name, "net") or item:GetAttribute("NET_ITEM") ~= nil
+    end
+
+    if isNet(char:FindFirstChildWhichIsA("Tool")) then
         hasEquippedNetOnce = true
         return
     end
@@ -853,14 +860,13 @@ local function ensureGhostNetEquipped()
         if EquipRequestRemote then
             pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
         end
-        if char then
-            local net = LocalPlayer.Backpack:FindFirstChild("Ghost Net") 
-                or LocalPlayer.Backpack:FindFirstChild("GhostNet")
-            if net then
-                net.Parent = char
+        for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
+            if isNet(item) then
+                item.Parent = char
+                hasEquippedNetOnce = true
+                break
             end
         end
-        hasEquippedNetOnce = true
     end
 end
 
@@ -868,53 +874,24 @@ local function unequipGhostNet()
     hasEquippedNetOnce = false
     local char = LocalPlayer.Character
     if not char then return end
-    local net = char:FindFirstChild("Ghost Net") or char:FindFirstChild("GhostNet")
-    if net and net:IsA("Tool") then
-        net.Parent = LocalPlayer.Backpack
+    for _, item in ipairs(char:GetChildren()) do
+        if item:IsA("Tool") and (string.find(string.lower(item.Name), "net") or item:GetAttribute("NET_ITEM")) then
+            item.Parent = LocalPlayer.Backpack
+        end
     end
 end
 
--- 13. POLISHED CANDY CORN AUTO-FARM ENGINE (WITH AI CHASE OPTION)
+-- 13. AUTOMATION STATE & LOGIC
 local autoCandyFarm = false
 local farmStance = "Underground" -- "Underground" or "Above Ground"
 local aiChaseActive = false
 local isUnderground = false
 local currentTargetGhost = nil
+local waitingForModeChoice = false
 
-local farmStanceController = nil
-
-RunService.Stepped:Connect(function()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    
-    if autoCandyFarm then
-        if farmStance == "Underground" and isUnderground and not aiChaseActive then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-            if hrp and hum then
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                hum:ChangeState(Enum.HumanoidStateType.Physics)
-            end
-        elseif farmStance == "Above Ground" and not aiChaseActive then
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-            if hrp and hum then
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                hum:ChangeState(Enum.HumanoidStateType.Hover)
-            end
-        end
-    end
-end)
+local autoCandyCard = nil
+local farmStanceCard = nil
+local aiChaseCard = nil
 
 local function restoreSurface()
     if not isUnderground then return end
@@ -943,29 +920,40 @@ local function executeGhostSwing(ghost)
     end
 end
 
-task.spawn(function()
-    while true do
-        local folder = locateGhostFolder()
-        if folder then
-            folder.ChildRemoved:Connect(function(child)
-                if currentTargetGhost and child == currentTargetGhost then
-                    GhostCaptures = GhostCaptures + 1
-                    currentTargetGhost = nil
-                end
-            end)
-            break
+-- Collision & Stabilizer Loop
+RunService.Stepped:Connect(function()
+    local char = LocalPlayer.Character
+    if not char or not autoCandyFarm then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    if not aiChaseActive then
+        if farmStance == "Underground" and isUnderground then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+            if hrp and hum then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+        elseif farmStance == "Above Ground" then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+            if hrp and hum then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hum:ChangeState(Enum.HumanoidStateType.Hover)
+            end
         end
-        task.wait(1)
     end
 end)
 
--- Main Farm Loop (TP Stance & Ground AI Chase)
-local lastStuckPos = Vector3.new(0, 0, 0)
-local lastStuckCheck = tick()
-
+-- Main Farm Worker Thread
 task.spawn(function()
     while true do
-        if autoCandyFarm then
+        if autoCandyFarm and not waitingForModeChoice then
             ensureGhostNetEquipped()
             local ghost, ghostPart = getNearestGhost()
             currentTargetGhost = ghost
@@ -976,45 +964,31 @@ task.spawn(function()
 
             if ghost and ghostPart and ghost.Parent and hrp and hum then
                 if aiChaseActive then
-                    -- Smooth Ground AI Pathing with Dynamic Jump Raycast
                     restoreSurface()
                     local myPos = hrp.Position
                     local targetPos = ghostPart.Position
-                    local dist = (targetPos - myPos).Magnitude
+                    local dist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(myPos.X, myPos.Z)).Magnitude
 
                     hum:MoveTo(targetPos)
 
-                    -- Obstacle and elevation detection
+                    -- Anti-stuck obstacle check
                     local rayParams = RaycastParams.new()
                     rayParams.FilterDescendantsInstances = {char}
-                    rayParams.FilterType = RaycastFilterType.Exclude
-
-                    local fwdHit = Workspace:Raycast(myPos, (targetPos - myPos).Unit * 5, rayParams)
-                    if (fwdHit and fwdHit.Instance and fwdHit.Instance.CanCollide) or (targetPos.Y > myPos.Y + 2.2) then
+                    local rayHit = Workspace:Raycast(myPos, (targetPos - myPos).Unit * 4.5, rayParams)
+                    if (rayHit and rayHit.Instance and rayHit.Instance.CanCollide) or (targetPos.Y > myPos.Y + 2.5) then
                         hum.Jump = true
                     end
 
-                    -- Anti-stuck velocity failsafe
-                    if tick() - lastStuckCheck >= 0.55 then
-                        if (myPos - lastStuckPos).Magnitude < 1.2 and dist > 4 then
-                            hum.Jump = true
-                            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-                        end
-                        lastStuckPos = myPos
-                        lastStuckCheck = tick()
-                    end
-
-                    if dist <= 8.5 then
+                    if dist <= 9.0 then
                         executeGhostSwing(ghost)
                     end
                 else
-                    -- Precision Teleport Farm (Underground / Above Ground)
                     if farmStance == "Underground" then
                         isUnderground = true
                         hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
                     else
                         if isUnderground then restoreSurface() end
-                        hrp.CFrame = CFrame.new(ghostPart.Position + Vector3.new(0, 2.6, 0), ghostPart.Position)
+                        hrp.CFrame = CFrame.new(ghostPart.Position + Vector3.new(0, 2.8, 0), ghostPart.Position)
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     end
@@ -1026,7 +1000,7 @@ task.spawn(function()
             else
                 restoreSurface()
             end
-            task.wait(aiChaseActive and 0.08 or 0.08)
+            task.wait(aiChaseActive and 0.05 or 0.08)
         else
             restoreSurface()
             task.wait(0.2)
@@ -1106,7 +1080,6 @@ local function toggleGhostESP(state)
     end
 end
 
--- Live Ghost Tracking & Workspace Fallback Poll
 task.spawn(function()
     while true do
         if GhostESPActive then
@@ -1123,7 +1096,6 @@ task.spawn(function()
     end
 end)
 
--- PLAYER ESP ENGINE
 local ESPActive = false
 local ESPStorage = {}
 
@@ -1197,7 +1169,6 @@ local function toggleESP(state)
     end
 end
 
--- Render loop for Live Distance & Health Tracking
 RunService.RenderStepped:Connect(function()
     local myChar = LocalPlayer.Character
     local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
@@ -1233,30 +1204,65 @@ end)
 -- 15. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips on stop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
-    autoCandyFarm = not autoCandyFarm
-    if autoCandyFarm then
+autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips on stop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+    if not autoCandyFarm then
+        autoCandyFarm = true
+        waitingForModeChoice = true
         hasEquippedNetOnce = false
-        bText.Text = "RUNNING"
-        bText.TextColor3 = C.Green
-        sLbl.Text = "Active • Sweeping nearest ghosts"
-        setActive(true)
-        Notify("Candy Corn Farm", "Farm Loop Activated", C.Green)
+        ensureGhostNetEquipped()
+        bText.Text = "SELECT"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Choose Stance or AI Chase below to start"
+        setActive(true, C.AccentGlow)
+        Notify("Farm Setup", "Select Farm Stance or AI Chase below", C.AccentGlow)
     else
+        autoCandyFarm = false
+        waitingForModeChoice = false
+        aiChaseActive = false
         bText.Text = "OFF"
         bText.TextColor3 = C.Muted
         sLbl.Text = "Auto-equips net • Auto-unequips on stop"
         setActive(false)
+
+        if aiChaseCard then
+            aiChaseCard.badgeText.Text = "OFF"
+            aiChaseCard.badgeText.TextColor3 = C.Muted
+            aiChaseCard.badgeStroke.Color = C.Border
+            aiChaseCard.subLabel.Text = "Ground navigation with jump assist"
+            aiChaseCard.setActive(false)
+        end
+
+        if farmStanceCard then
+            farmStanceCard.badgeText.Text = farmStance == "Above Ground" and "ABOVE" or "UNDER"
+            farmStanceCard.badgeText.TextColor3 = farmStance == "Above Ground" and C.Cyan or C.Muted
+            farmStanceCard.badgeStroke.Color = C.Border
+            farmStanceCard.subLabel.Text = "Positioning above or under ghost"
+            farmStanceCard.setActive(false)
+        end
+
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp then hum:MoveTo(hrp.Position) end
+
         restoreSurface()
         unequipGhostNet()
-        Notify("Candy Corn Farm", "Farm Paused • Net Unequipped", C.Red)
+        Notify("Candy Corn Farm", "Farm Stopped • Net Unequipped", C.Red)
     end
 end)
 
-farmStanceController = CreateActionCard(LeftCol, "FARM STANCE", "Positioning above or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+farmStanceCard = CreateActionCard(LeftCol, "FARM STANCE", "Positioning above or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
     if aiChaseActive then
         Notify("Stance Locked", "Disable AI Chase before changing stance", C.Red)
         return
+    end
+
+    if waitingForModeChoice then
+        waitingForModeChoice = false
+        autoCandyCard.badgeText.Text = "RUNNING"
+        autoCandyCard.badgeText.TextColor3 = C.Green
+        autoCandyCard.subLabel.Text = "Active • Sweeping nearest ghosts"
+        autoCandyCard.setActive(true, C.Green)
     end
 
     if farmStance == "Underground" then
@@ -1273,40 +1279,52 @@ farmStanceController = CreateActionCard(LeftCol, "FARM STANCE", "Positioning abo
         sLbl.Text = "Positioning beneath ghosts (-6.5s)"
         setActive(false)
     end
-    Notify("Farm Stance", "Switched stance to: " .. farmStance, C.Accent)
+    Notify("Farm Stance", "Stance set to: " .. farmStance, C.Accent)
 end)
 
-CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with jump assist", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with jump assist", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
     aiChaseActive = not aiChaseActive
-    bText.Text = aiChaseActive and "ON" or "OFF"
-    bText.TextColor3 = aiChaseActive and C.Green or C.Muted
-    setActive(aiChaseActive)
 
     if aiChaseActive then
-        sLbl.Text = "Active • Ground pathing & jumping"
-        if farmStanceController then
-            farmStanceController.badgeText.Text = "LOCKED"
-            farmStanceController.badgeText.TextColor3 = C.Red
-            farmStanceController.badgeStroke.Color = C.Red
-            farmStanceController.subLabel.Text = "Locked (AI Chase is running)"
-            farmStanceController.setActive(false)
+        if waitingForModeChoice then
+            waitingForModeChoice = false
+            autoCandyCard.badgeText.Text = "RUNNING"
+            autoCandyCard.badgeText.TextColor3 = C.Green
+            autoCandyCard.subLabel.Text = "Active • Ground pathing & jumping"
+            autoCandyCard.setActive(true, C.Green)
         end
+
+        bText.Text = "ON"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Active • Ground pathing & jumping"
+        setActive(true, C.Green)
+
+        farmStanceCard.badgeText.Text = "LOCKED"
+        farmStanceCard.badgeText.TextColor3 = C.Red
+        farmStanceCard.badgeStroke.Color = C.Red
+        farmStanceCard.subLabel.Text = "Locked (AI Chase is running)"
+        farmStanceCard.setActive(false)
+
         restoreSurface()
         Notify("AI Chase", "AI Chase Active • Stance Locked", C.Green)
     else
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
         sLbl.Text = "Ground navigation with jump assist"
-        if farmStanceController then
-            local isAbove = farmStance == "Above Ground"
-            farmStanceController.badgeText.Text = isAbove and "ABOVE" or "UNDER"
-            farmStanceController.badgeText.TextColor3 = isAbove and C.Cyan or C.Accent
-            farmStanceController.badgeStroke.Color = isAbove and C.Cyan or C.Border
-            farmStanceController.subLabel.Text = isAbove and "Hovering smoothly over ghosts" or "Positioning beneath ghosts (-6.5s)"
-            farmStanceController.setActive(isAbove, isAbove and C.Cyan or nil)
-        end
+        setActive(false)
+
+        local isAbove = farmStance == "Above Ground"
+        farmStanceCard.badgeText.Text = isAbove and "ABOVE" or "UNDER"
+        farmStanceCard.badgeText.TextColor3 = isAbove and C.Cyan or C.Muted
+        farmStanceCard.badgeStroke.Color = isAbove and C.Cyan or C.Border
+        farmStanceCard.subLabel.Text = isAbove and "Hovering smoothly over ghosts" or "Positioning beneath ghosts (-6.5s)"
+        farmStanceCard.setActive(isAbove, isAbove and C.Cyan or nil)
+
         local char = LocalPlayer.Character
         local hum = char and char:FindFirstChildOfClass("Humanoid")
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hum and hrp then hum:MoveTo(hrp.Position) end
+
         Notify("AI Chase", "AI Chase Disabled • Stance Unlocked", C.Red)
     end
 end)
