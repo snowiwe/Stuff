@@ -6,7 +6,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 local Stats = game:GetService("Stats")
 local Workspace = game:GetService("Workspace")
 
@@ -81,57 +81,26 @@ local PARRY_SETTINGS = {
     ParryCurve      = "High Velocity", -- "High Velocity" or "Default"
     DistanceBuffer  = 12,
     SpamParry       = false,
-    SpamThreshold   = 22,
+    SpamThreshold   = 18,
     Visualizer      = false,
 }
 
 local lastParryTick = 0
-local parryRemotes = {}
-
-local function resolveParryRemote()
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if remotes then
-        local names = {"ParryAttempt", "ParryButtonPress", "Parry", "ParrySuccess"}
-        for _, name in ipairs(names) do
-            local rem = remotes:FindFirstChild(name)
-            if rem and (rem:IsA("RemoteEvent") or rem:IsA("RemoteFunction")) then
-                table.insert(parryRemotes, rem)
-            end
-        end
-    end
-    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") and string.find(string.lower(obj.Name), "parry") then
-            if not table.find(parryRemotes, obj) then
-                table.insert(parryRemotes, obj)
-            end
-        end
-    end
-end
-task.spawn(resolveParryRemote)
 
 local function triggerParry()
-    if tick() - lastParryTick < 0.08 and not PARRY_SETTINGS.SpamParry then return end
-    lastParryTick = tick()
+    local now = os.clock()
+    local minInterval = PARRY_SETTINGS.SpamParry and 0.05 or 0.15
+    if (now - lastParryTick) < minInterval then return end
+    lastParryTick = now
 
     pcall(function()
-        local VirtualInputManager = game:GetService("VirtualInputManager")
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
         task.wait(0.01)
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
     end)
-
-    for _, remote in ipairs(parryRemotes) do
-        pcall(function()
-            if remote:IsA("RemoteEvent") then
-                remote:FireServer(0.5, CFrame.new(), {}, {})
-            elseif remote:IsA("RemoteFunction") then
-                remote:InvokeServer(0.5, CFrame.new(), {}, {})
-            end
-        end)
-    end
 end
 
--- Ball Detection & Distance Solver
+-- Ball Detection & Trajectory Solver
 local function locateTargetBall()
     local ballsFolder = Workspace:FindFirstChild("Balls")
     if ballsFolder then
@@ -174,8 +143,8 @@ local function updateVisualizer(pos, radius, active)
     VisualizerPart.Transparency = 0.75
 end
 
--- Core Parry Step Runner
-RunService.PostSimulation:Connect(function()
+-- Core Parry Step Runner (PreSimulation for clean frame timing)
+RunService.PreSimulation:Connect(function()
     if not PARRY_SETTINGS.AutoParry then
         if VisualizerPart then VisualizerPart.Transparency = 1 end
         return
@@ -210,7 +179,7 @@ RunService.PostSimulation:Connect(function()
     local threshold = PARRY_SETTINGS.DistanceBuffer + (ballSpeed * 0.45) + pingOffset
 
     if PARRY_SETTINGS.ParryCurve == "High Velocity" then
-        threshold = PARRY_SETTINGS.DistanceBuffer + (ballSpeed * 0.55) + (pingOffset * 1.2)
+        threshold = PARRY_SETTINGS.DistanceBuffer + (ballSpeed * 0.55) + (pingOffset * 1.1)
     end
 
     updateVisualizer(charPos, threshold, true)
@@ -510,6 +479,7 @@ Body.Parent = Card
 
 local LeftCol = Instance.new("ScrollingFrame")
 LeftCol.Size = UDim2.new(0.58, -6, 1, 0)
+LeftCol.Position = UDim2.new(0, 0, 0, 0)
 LeftCol.BackgroundTransparency = 1
 LeftCol.BorderSizePixel = 0
 LeftCol.ScrollBarThickness = 2
