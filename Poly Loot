@@ -46,8 +46,6 @@ local C = {
     RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
     Purple     = Color3.fromRGB(175, 95, 245),
-    Gold       = Color3.fromRGB(240, 190, 60),
-    Cyan       = Color3.fromRGB(60, 200, 240),
 }
 
 local AnimationsEnabled = true
@@ -81,13 +79,7 @@ local GhostSwingRemote = nil
 local ResetRequestedRemote = nil
 local DailyCheckInRemote = nil
 local ShopBuyRemote = nil
-local GoldMineCollectRemote = nil
-local MapTravelRemote = nil
-local ForeverPackClaimRemote = nil
 local EquipRequestRemote = nil
-local WeaponAttackRemote = nil
-local MapOpenRemote = nil
-local IslandTravelRemote = nil
 
 local function resolveRemotes()
     pcall(function()
@@ -97,7 +89,6 @@ local function resolveRemotes()
             if remotes then
                 GhostSwingRemote = remotes:FindFirstChild("GhostSwing")
                 DailyCheckInRemote = remotes:FindFirstChild("DailyCheckIn")
-                IslandTravelRemote = remotes:FindFirstChild("IslandTravel")
                 ShopBuyRemote = remotes:FindFirstChild("Buy") 
                     or remotes:FindFirstChild("AttemptBuy") 
                     or remotes:FindFirstChild("Purchase") 
@@ -106,7 +97,6 @@ local function resolveRemotes()
         end
         if not GhostSwingRemote then GhostSwingRemote = ReplicatedStorage:FindFirstChild("GhostSwing", true) end
         if not DailyCheckInRemote then DailyCheckInRemote = ReplicatedStorage:FindFirstChild("DailyCheckIn", true) end
-        if not IslandTravelRemote then IslandTravelRemote = ReplicatedStorage:FindFirstChild("IslandTravel", true) end
         if not ShopBuyRemote then 
             ShopBuyRemote = ReplicatedStorage:FindFirstChild("Buy", true) 
                 or ReplicatedStorage:FindFirstChild("Purchase", true) 
@@ -125,52 +115,6 @@ local function resolveRemotes()
     end)
 
     pcall(function()
-        local gmEngine = ReplicatedStorage:FindFirstChild("GoldMine_Engine") or ReplicatedStorage:FindFirstChild("GoldMine")
-        if gmEngine then
-            local remotes = gmEngine:FindFirstChild("Remotes")
-            if remotes then
-                GoldMineCollectRemote = remotes:FindFirstChild("Collect") or remotes:FindFirstChild("Claim") or remotes:FindFirstChild("GoldMineCollect")
-            end
-        end
-        if not GoldMineCollectRemote then
-            GoldMineCollectRemote = ReplicatedStorage:FindFirstChild("GoldMineCollect", true) 
-                or ReplicatedStorage:FindFirstChild("CollectGold", true)
-        end
-    end)
-
-    pcall(function()
-        local mEngine = ReplicatedStorage:FindFirstChild("Map_Engine") or ReplicatedStorage:FindFirstChild("Map")
-        if mEngine then
-            local remotes = mEngine:FindFirstChild("Remotes")
-            if remotes then
-                MapTravelRemote = remotes:FindFirstChild("Travel") or remotes:FindFirstChild("MapTravel") or remotes:FindFirstChild("FastTravel")
-                MapOpenRemote = remotes:FindFirstChild("MapOpen")
-            end
-        end
-        if not MapTravelRemote then
-            MapTravelRemote = ReplicatedStorage:FindFirstChild("MapTravel", true) 
-                or ReplicatedStorage:FindFirstChild("FastTravel", true)
-        end
-        if not MapOpenRemote then
-            MapOpenRemote = ReplicatedStorage:FindFirstChild("MapOpen", true)
-        end
-    end)
-
-    pcall(function()
-        local sEngine = ReplicatedStorage:FindFirstChild("Store_Engine") or ReplicatedStorage:FindFirstChild("Store")
-        if sEngine then
-            local remotes = sEngine:FindFirstChild("Remotes")
-            if remotes then
-                ForeverPackClaimRemote = remotes:FindFirstChild("ClaimFree") or remotes:FindFirstChild("ForeverPackClaim") or remotes:FindFirstChild("Claim")
-            end
-        end
-        if not ForeverPackClaimRemote then
-            ForeverPackClaimRemote = ReplicatedStorage:FindFirstChild("ForeverPackClaim", true) 
-                or ReplicatedStorage:FindFirstChild("ClaimForeverPack", true)
-        end
-    end)
-
-    pcall(function()
         local invEngine = ReplicatedStorage:FindFirstChild("Inventory_Engine")
         if invEngine then
             local remotes = invEngine:FindFirstChild("Remotes")
@@ -180,19 +124,6 @@ local function resolveRemotes()
         end
         if not EquipRequestRemote then
             EquipRequestRemote = ReplicatedStorage:FindFirstChild("EquipRequest", true)
-        end
-    end)
-
-    pcall(function()
-        local wpnEngine = ReplicatedStorage:FindFirstChild("Weapon_Engine")
-        if wpnEngine then
-            local remotes = wpnEngine:FindFirstChild("Remotes")
-            if remotes then
-                WeaponAttackRemote = remotes:FindFirstChild("WeaponAttack")
-            end
-        end
-        if not WeaponAttackRemote then
-            WeaponAttackRemote = ReplicatedStorage:FindFirstChild("WeaponAttack", true)
         end
     end)
 end
@@ -404,7 +335,7 @@ SubTitle.Size = UDim2.new(0, 180, 0, 14)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Parent = Header
 
--- HIGH-CONTRAST IN-UI NOTIFICATION BANNER
+-- HIGH-CONTRAST NOTIFICATION BANNER
 local NotificationsEnabled = true
 local NotificationBanner = Instance.new("Frame")
 NotificationBanner.Name = "InUINotifier"
@@ -883,22 +814,30 @@ local function getNearestGhost()
     return nearestGhost, nearestPart
 end
 
--- 12. AUTO-EQUIP GHOST NET HELPER (HYBRID BACKPACK & DIRECT INVENTORY REMOTE)
-local function autoEquipNet()
-    resolveRemotes()
-    if EquipRequestRemote then
-        pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
-    end
+-- 12. GHOST NET AUTO-EQUIP ENGINE (TRIGGERED ONCE ONLY)
+local hasEquippedNetOnce = false
+
+local function ensureGhostNetEquipped()
     local char = LocalPlayer.Character
-    if not char then return end
-    local held = char:FindFirstChild("Ghost Net") or char:FindFirstChild("GhostNet") or char:FindFirstChildWhichIsA("Tool")
-    if not held then
-        local net = LocalPlayer.Backpack:FindFirstChild("Ghost Net") 
-            or LocalPlayer.Backpack:FindFirstChild("GhostNet") 
-            or LocalPlayer.Backpack:FindFirstChildWhichIsA("Tool")
-        if net then
-            net.Parent = char
+    local held = char and (char:FindFirstChild("Ghost Net") or char:FindFirstChild("GhostNet"))
+    if held then
+        hasEquippedNetOnce = true
+        return
+    end
+
+    if not hasEquippedNetOnce then
+        resolveRemotes()
+        if EquipRequestRemote then
+            pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
         end
+        if char then
+            local net = LocalPlayer.Backpack:FindFirstChild("Ghost Net") 
+                or LocalPlayer.Backpack:FindFirstChild("GhostNet")
+            if net then
+                net.Parent = char
+            end
+        end
+        hasEquippedNetOnce = true
     end
 end
 
@@ -971,7 +910,7 @@ end)
 task.spawn(function()
     while true do
         if autoCandyFarm then
-            autoEquipNet()
+            ensureGhostNetEquipped()
             local ghost, ghostPart = getNearestGhost()
             currentTargetGhost = ghost
 
@@ -998,26 +937,72 @@ task.spawn(function()
     end
 end)
 
--- 14. WEAPON AUTO-ATTACK ENGINE
-local autoWeaponAttack = false
-task.spawn(function()
-    while true do
-        if autoWeaponAttack then
-            resolveRemotes()
-            if WeaponAttackRemote then
-                pcall(function() WeaponAttackRemote:FireServer(0) end)
-            end
-            local char = LocalPlayer.Character
-            local tool = char and char:FindFirstChildWhichIsA("Tool")
-            if tool then
-                pcall(function() tool:Activate() end)
-            end
-            task.wait(0.12)
-        else
-            task.wait(0.3)
-        end
+-- 14. ANTI-CHEAT SAFE GLIDE TRAVEL ENGINE
+local isGliding = false
+local currentGlideConn = nil
+
+local function glideTravelTo(targetPos, destinationName)
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    if not (hrp and hum and hum.Health > 0) then return end
+
+    if isGliding then
+        Notify("Fast Travel", "Glide travel already in progress", C.Red)
+        return
     end
-end)
+
+    isGliding = true
+    Notify("Fast Travel", "Gliding safely to " .. destinationName .. "...", C.Accent)
+
+    -- Noclip player during glide to prevent getting stuck in terrain
+    local noclipConn = RunService.Stepped:Connect(function()
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+
+    local startPos = hrp.Position
+    local totalDist = (targetPos - startPos).Magnitude
+    local glideSpeed = 160 -- studs per second (Anti-cheat safe threshold)
+    local glideDuration = math.clamp(totalDist / glideSpeed, 1.2, 18.0)
+    local elapsed = 0
+
+    if currentGlideConn then currentGlideConn:Disconnect() end
+
+    currentGlideConn = RunService.Heartbeat:Connect(function(dt)
+        elapsed = elapsed + dt
+        local alpha = math.clamp(elapsed / glideDuration, 0, 1)
+        
+        -- High arc parabolic curve (Y elevation) to fly smoothly over mountains and trees
+        local arcHeight = math.clamp(totalDist * 0.12, 25, 120)
+        local arcBonus = math.sin(alpha * math.pi) * arcHeight
+
+        local currentWaypoint = startPos:Lerp(targetPos, alpha) + Vector3.new(0, arcBonus, 0)
+        
+        if hrp and hum and hum.Health > 0 then
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            hrp.CFrame = CFrame.new(currentWaypoint, targetPos)
+        end
+
+        if alpha >= 1 then
+            if currentGlideConn then currentGlideConn:Disconnect() end
+            if noclipConn then noclipConn:Disconnect() end
+            if hrp then
+                hrp.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            end
+            isGliding = false
+            Notify("Fast Travel", "Safely arrived at " .. destinationName, C.Green)
+        end
+    end)
+end
 
 -- 15. GHOST ESP ENGINE
 local GhostESPActive = false
@@ -1195,26 +1180,20 @@ end
 -- 17. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
-CreateActionCard(LeftCol, "AUTO CANDY CORN", "Requires Ghost Net equipped • Nearest swipe", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net once • Underground sweep", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     autoCandyFarm = not autoCandyFarm
+    if autoCandyFarm then
+        hasEquippedNetOnce = false -- Trigger single equip pass on toggle on
+    end
     bText.Text = autoCandyFarm and "RUNNING" or "OFF"
     bText.TextColor3 = autoCandyFarm and C.Green or C.Muted
-    sLbl.Text = autoCandyFarm and "Active • Ensure Ghost Net is equipped" or "Requires Ghost Net equipped • Nearest swipe"
+    sLbl.Text = autoCandyFarm and "Active • Sweeping nearest ghosts underground" or "Auto-equips net once • Underground sweep"
     setActive(autoCandyFarm)
     if not autoCandyFarm then restoreSurface() end
-    Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Activated (Net Required)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
+    Notify("Candy Corn Farm", autoCandyFarm and "Farm Loop Active (Net Equipping)" or "Farm Loop Paused", autoCandyFarm and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "AUTO WEAPON ATTACK", "Spams WeaponAttack remote & tool swing", "OFF", false, 3, function(bText, bStroke, sLbl, setActive)
-    autoWeaponAttack = not autoWeaponAttack
-    bText.Text = autoWeaponAttack and "RUNNING" or "OFF"
-    bText.TextColor3 = autoWeaponAttack and C.Green or C.Muted
-    sLbl.Text = autoWeaponAttack and "Active • Constantly attacking with equipped weapon" or "Spams WeaponAttack remote & tool swing"
-    setActive(autoWeaponAttack)
-    Notify("Combat", autoWeaponAttack and "Auto Weapon Attack Enabled" or "Auto Weapon Attack Disabled", autoWeaponAttack and C.Green or C.Red)
-end)
-
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claims daily flame check-in reward", "CLAIM", false, 4, function()
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claims daily flame check-in reward", "CLAIM", false, 3, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1224,118 +1203,19 @@ CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claims daily flame check-in re
     end
 end)
 
-CreateActionCard(LeftCol, "COLLECT GOLD MINE", "Claims stored coins from Gold Mine", "CLAIM", false, 5, function()
-    resolveRemotes()
-    if GoldMineCollectRemote then
-        pcall(function() GoldMineCollectRemote:FireServer() end)
-        Notify("Gold Mine", "Collected stored mine gold", C.Gold)
-    else
-        local buyBtn = LocalPlayer.PlayerGui:FindFirstChild("GoldMine") 
-            and LocalPlayer.PlayerGui.GoldMine:FindFirstChild("Main")
-            and LocalPlayer.PlayerGui.GoldMine.Main:FindFirstChild("Main")
-            and LocalPlayer.PlayerGui.GoldMine.Main.Main:FindFirstChild("Frame")
-            and LocalPlayer.PlayerGui.GoldMine.Main.Main.Frame:FindFirstChild("Buy")
-        if buyBtn and typeof(firesignal) == "function" then
-            firesignal(buyBtn.MouseButton1Click)
-            Notify("Gold Mine", "Triggered GUI collection", C.Gold)
-        else
-            Notify("Gold Mine", "Gold Mine remote unavailable", C.Red)
-        end
-    end
+AddSection(LeftCol, "FAST TRAVEL", 4)
+
+CreateActionCard(LeftCol, "GLIDE TO SPAWN", "Old Town • Anti-cheat safe arc glide", "GLIDE", false, 5, function()
+    glideTravelTo(Vector3.new(689.8, 178.6, 112), "Old Town (Spawn)")
 end)
 
-CreateActionCard(LeftCol, "CLAIM FOREVER PACK", "Claims daily free Forever Pack tier", "CLAIM", false, 6, function()
-    resolveRemotes()
-    if ForeverPackClaimRemote then
-        pcall(function() ForeverPackClaimRemote:FireServer(1) end)
-        pcall(function() ForeverPackClaimRemote:FireServer() end)
-        Notify("Forever Pack", "Claim request dispatched", C.Cyan)
-    else
-        Notify("Forever Pack", "Pack remote unavailable", C.Red)
-    end
+CreateActionCard(LeftCol, "GLIDE TO JUNGLE", "Jungle Village • Anti-cheat safe arc glide", "GLIDE", false, 6, function()
+    glideTravelTo(Vector3.new(-80, 115, -2140), "Jungle Village")
 end)
 
-AddSection(LeftCol, "INVENTORY SHORTCUTS", 7)
+AddSection(LeftCol, "EVENT SHOP", 7)
 
-CreateActionCard(LeftCol, "EQUIP GHOST NET", "Fires inventory equip (s_1600e36b_4)", "EQUIP", false, 8, function()
-    resolveRemotes()
-    if EquipRequestRemote then
-        pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
-    end
-    autoEquipNet()
-    Notify("Inventory", "Equip Ghost Net requested", C.Accent)
-end)
-
-CreateActionCard(LeftCol, "EQUIP MAP", "Fires inventory equip (s_a9a94b1e_c4)", "EQUIP", false, 9, function()
-    resolveRemotes()
-    if EquipRequestRemote then
-        pcall(function() EquipRequestRemote:FireServer("s_a9a94b1e_c4") end)
-    end
-    local mapTool = LocalPlayer.Backpack:FindFirstChild("Map") or LocalPlayer.Character:FindFirstChild("Map")
-    if mapTool and mapTool.Parent == LocalPlayer.Backpack then
-        mapTool.Parent = LocalPlayer.Character
-    end
-    Notify("Inventory", "Equip Map requested", C.Accent)
-end)
-
-AddSection(LeftCol, "FAST TRAVEL", 10)
-
-CreateActionCard(LeftCol, "WARP TO SPAWN", "Old Town • Map state handshake", "WARP", false, 11, function()
-    resolveRemotes()
-    if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(true) end) end
-    if EquipRequestRemote then pcall(function() EquipRequestRemote:FireServer("s_a9a94b1e_c4") end) end
-    
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(689.8, 178.6, 112)
-        Notify("Fast Travel", "Warped to Old Town (Spawn)", C.Accent)
-    end
-    if MapTravelRemote then
-        pcall(function()
-            MapTravelRemote:FireServer({id = "OldTown", to = Vector3.new(689.8, 178.6, 112), kind = "depart"})
-        end)
-    end
-    task.delay(0.5, function()
-        if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(false) end) end
-    end)
-end)
-
-CreateActionCard(LeftCol, "WARP TO JUNGLE", "Jungle Village • Map state handshake", "WARP", false, 12, function()
-    resolveRemotes()
-    if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(true) end) end
-    if EquipRequestRemote then pcall(function() EquipRequestRemote:FireServer("s_a9a94b1e_c4") end) end
-
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        hrp.CFrame = CFrame.new(-80, 115, -2140)
-        Notify("Fast Travel", "Warped to Jungle Village", C.Accent)
-    end
-    if MapTravelRemote then
-        pcall(function()
-            MapTravelRemote:FireServer({id = "JungleVillage", to = Vector3.new(-80, 115, -2140), kind = "depart"})
-        end)
-    end
-    task.delay(0.5, function()
-        if MapOpenRemote then pcall(function() MapOpenRemote:FireServer(false) end) end
-    end)
-end)
-
-CreateActionCard(LeftCol, "WARP TO HALLOWEEN", "Halloween Island Gate / Event Realm", "WARP", false, 13, function()
-    resolveRemotes()
-    if IslandTravelRemote then
-        pcall(function() IslandTravelRemote:FireServer() end)
-        pcall(function() IslandTravelRemote:FireServer(true) end)
-        Notify("Event Realm", "Dispatched Halloween Island travel", C.Purple)
-    else
-        Notify("Event Realm", "Island travel remote not found", C.Red)
-    end
-end)
-
-AddSection(LeftCol, "EVENT SHOP", 14)
-
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Costs: 5,000 Candy Corn", "BUY", false, 15, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Costs: 5,000 Candy Corn", "BUY", false, 8, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
@@ -1345,7 +1225,7 @@ CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Costs: 5,000 Candy Corn", "BUY",
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Pumpkin Maw • Costs: 500 Candy Corn", "BUY", false, 16, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Pumpkin Maw • Costs: 500 Candy Corn", "BUY", false, 9, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
@@ -1355,9 +1235,9 @@ CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Pumpkin Maw • Costs: 500 C
     end
 end)
 
-AddSection(LeftCol, "VISUALS", 17)
+AddSection(LeftCol, "VISUALS", 10)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 18, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 11, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1366,7 +1246,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 19, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1630,7 +1510,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     else
         if timerThread then task.cancel(timerThread) end
         autoCandyFarm = false
-        autoWeaponAttack = false
+        if currentGlideConn then currentGlideConn:Disconnect() end
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
