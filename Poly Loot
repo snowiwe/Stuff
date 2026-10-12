@@ -336,7 +336,7 @@ SubTitle.Size = UDim2.new(0, 180, 0, 14)
 SubTitle.BackgroundTransparency = 1
 SubTitle.Parent = Header
 
--- HIGH-CONTRAST NOTIFICATION BANNER
+-- NOTIFICATION BANNER
 local NotificationsEnabled = true
 local NotificationBanner = Instance.new("Frame")
 NotificationBanner.Name = "InUINotifier"
@@ -514,7 +514,7 @@ leftLayout.Padding = UDim.new(0, 6)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
--- RIGHT COLUMN (REFINED PROFILE & TELEMETRY SECTION)
+-- RIGHT COLUMN (PROFILE & TELEMETRY)
 local RightCol = Instance.new("Frame")
 RightCol.Size = UDim2.new(0.42, -6, 1, 0)
 RightCol.Position = UDim2.new(0.58, 6, 0, 0)
@@ -528,7 +528,6 @@ rStroke.Color = C.Border
 rStroke.Thickness = 1
 rStroke.Parent = RightCol
 
--- 1:1 Aspect Ratio Perfect Circle Avatar Container
 local AvatarHolder = Instance.new("Frame")
 AvatarHolder.Size = UDim2.new(0, 78, 0, 78)
 AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
@@ -550,7 +549,6 @@ AvatarImage.ScaleType = Enum.ScaleType.Fit
 AvatarImage.Parent = AvatarHolder
 Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
 
--- Multi-layered Frosted Blur Overlay (No Lock Icon)
 local BlurStack = Instance.new("Frame")
 BlurStack.Size = UDim2.fromScale(1, 1)
 BlurStack.BackgroundTransparency = 1
@@ -572,7 +570,7 @@ local blurNoise = Instance.new("ImageLabel")
 blurNoise.Size = UDim2.fromScale(1.4, 1.4)
 blurNoise.Position = UDim2.new(-0.2, 0, -0.2, 0)
 blurNoise.BackgroundTransparency = 1
-blurNoise.Image = "rbxassetid://8992230677" -- Smooth dispersion blur diffusion asset
+blurNoise.Image = "rbxassetid://8992230677"
 blurNoise.ImageTransparency = 0.35
 blurNoise.ImageColor3 = Color3.fromRGB(220, 210, 200)
 blurNoise.ZIndex = 7
@@ -590,7 +588,6 @@ local function updateProfilePicture()
 end
 task.spawn(updateProfilePicture)
 
--- TELEMETRY DATA PANEL WITH DIVIDER ACCENTS
 local SensorInfoActive = false
 
 local TelemetryFrame = Instance.new("Frame")
@@ -662,7 +659,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER
+-- 10. REUSABLE ACTION CARD BUILDER (UNCLUTTERED FIT)
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -686,6 +683,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     row.Text = ""
     row.LayoutOrder = order or 0
     row.ZIndex = parent.ZIndex
+    row.ClipsDescendants = true
     row.Parent = parent
 
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
@@ -699,9 +697,10 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     tLbl.Font = Enum.Font.GothamBold
     tLbl.TextSize = 11
     tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 12, 0, 8)
-    tLbl.Size = UDim2.new(0.62, 0, 0, 14)
+    tLbl.Position = UDim2.new(0, 10, 0, 8)
+    tLbl.Size = UDim2.new(1, -94, 0, 14)
     tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.TextTruncate = Enum.TextTruncate.AtEnd
     tLbl.BackgroundTransparency = 1
     tLbl.ZIndex = row.ZIndex + 1
     tLbl.Parent = row
@@ -709,11 +708,12 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     local sLbl = Instance.new("TextLabel")
     sLbl.Text = defaultSub
     sLbl.Font = Enum.Font.Gotham
-    sLbl.TextSize = 10
+    sLbl.TextSize = 9
     sLbl.TextColor3 = C.Dim
-    sLbl.Position = UDim2.new(0, 12, 0, 24)
-    sLbl.Size = UDim2.new(0.62, 0, 0, 14)
+    sLbl.Position = UDim2.new(0, 10, 0, 24)
+    sLbl.Size = UDim2.new(1, -94, 0, 14)
     sLbl.TextXAlignment = Enum.TextXAlignment.Left
+    sLbl.TextTruncate = Enum.TextTruncate.AtEnd
     sLbl.BackgroundTransparency = 1
     sLbl.ZIndex = row.ZIndex + 1
     sLbl.Parent = row
@@ -874,7 +874,7 @@ local function unequipGhostNet()
     end
 end
 
--- 13. POLISHED CANDY CORN AUTO-FARM (DUAL STANCE: UNDERGROUND & ABOVE GROUND)
+-- 13. POLISHED CANDY CORN AUTO-FARM (SMOOTH ABOVE & UNDERGROUND)
 local autoCandyFarm = false
 local farmStance = "Underground"
 local isUnderground = false
@@ -882,18 +882,33 @@ local currentTargetGhost = nil
 
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
-    if char and isUnderground and farmStance == "Underground" then
-        for _, part in ipairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    
+    if autoCandyFarm then
+        if farmStance == "Underground" and isUnderground then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
             end
-        end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hrp and hum then
-            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-            hum:ChangeState(Enum.HumanoidStateType.Physics)
+            if hrp and hum then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+        elseif farmStance == "Above Ground" then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+            if hrp and hum then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hum:ChangeState(Enum.HumanoidStateType.Hover)
+            end
         end
     end
 end)
@@ -960,7 +975,8 @@ task.spawn(function()
                 else
                     if isUnderground then restoreSurface() end
                     if hrp then
-                        hrp.CFrame = ghostPart.CFrame * CFrame.new(0, 3.2, 0)
+                        local smoothCF = CFrame.new(ghostPart.Position + Vector3.new(0, 2.6, 0), ghostPart.Position)
+                        hrp.CFrame = smoothCF
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     end
@@ -972,7 +988,7 @@ task.spawn(function()
             else
                 restoreSurface()
             end
-            task.wait(0.1)
+            task.wait(0.08)
         else
             restoreSurface()
             task.wait(0.2)
@@ -1038,9 +1054,10 @@ local function glideTravelTo(targetPos, destinationName)
     end)
 end
 
--- 15. GHOST ESP ENGINE
+-- 15. IMPROVED LIVE OUTLINE CHAMS ESP ENGINES (GHOST & PLAYER)
 local GhostESPActive = false
 local GhostESPStorage = {}
+local ghostFolderConn = nil
 
 local function clearGhostESP()
     for _, item in pairs(GhostESPStorage) do
@@ -1051,6 +1068,7 @@ local function clearGhostESP()
 end
 
 local function applyGhostESP(ghost)
+    if GhostESPStorage[ghost] then return end
     local part = ghost:IsA("BasePart") and ghost
         or ghost.PrimaryPart
         or ghost:FindFirstChildWhichIsA("BasePart", true)
@@ -1060,15 +1078,15 @@ local function applyGhostESP(ghost)
     hl.Name = "Lumacore_GhostHighlight"
     hl.Adornee = ghost
     hl.FillColor = C.Purple
-    hl.FillTransparency = 0.5
-    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-    hl.OutlineTransparency = 0.15
+    hl.FillTransparency = 0.8
+    hl.OutlineColor = Color3.fromRGB(240, 190, 255)
+    hl.OutlineTransparency = 0
     hl.Parent = ScreenGui
 
     local bb = Instance.new("BillboardGui")
     bb.Name = "Lumacore_GhostESP"
     bb.Adornee = part
-    bb.Size = UDim2.new(0, 140, 0, 20)
+    bb.Size = UDim2.new(0, 140, 0, 18)
     bb.StudsOffset = Vector3.new(0, 2.5, 0)
     bb.AlwaysOnTop = true
     bb.Parent = ScreenGui
@@ -1076,30 +1094,15 @@ local function applyGhostESP(ghost)
     local lbl = Instance.new("TextLabel")
     lbl.Size = UDim2.fromScale(1, 1)
     lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = C.Purple
+    lbl.TextColor3 = Color3.fromRGB(240, 200, 255)
     lbl.Font = Enum.Font.GothamBold
     lbl.TextSize = 10
+    lbl.TextStrokeTransparency = 0.4
+    lbl.TextStrokeColor3 = Color3.fromRGB(15, 10, 20)
     lbl.Parent = bb
 
     GhostESPStorage[ghost] = {Highlight = hl, Billboard = bb, Label = lbl, Part = part}
 end
-
-RunService.RenderStepped:Connect(function()
-    if not GhostESPActive then return end
-    local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-    for ghost, item in pairs(GhostESPStorage) do
-        if ghost.Parent and item.Part and hrp then
-            local dist = math.floor((item.Part.Position - hrp.Position).Magnitude)
-            item.Label.Text = string.format("👻 %s • %dm", ghost.Name, dist)
-        else
-            if item.Highlight then item.Highlight:Destroy() end
-            if item.Billboard then item.Billboard:Destroy() end
-            GhostESPStorage[ghost] = nil
-        end
-    end
-end)
 
 local function toggleGhostESP(state)
     GhostESPActive = state
@@ -1109,23 +1112,38 @@ local function toggleGhostESP(state)
             for _, g in ipairs(folder:GetChildren()) do
                 applyGhostESP(g)
             end
-            folder.ChildAdded:Connect(function(g)
-                if GhostESPActive then task.wait(0.2); applyGhostESP(g) end
-            end)
-            folder.ChildRemoved:Connect(function(g)
-                if GhostESPStorage[g] then
-                    if GhostESPStorage[g].Highlight then GhostESPStorage[g].Highlight:Destroy() end
-                    if GhostESPStorage[g].Billboard then GhostESPStorage[g].Billboard:Destroy() end
-                    GhostESPStorage[g] = nil
+            if ghostFolderConn then ghostFolderConn:Disconnect() end
+            ghostFolderConn = folder.ChildAdded:Connect(function(g)
+                if GhostESPActive then 
+                    task.wait(0.05)
+                    applyGhostESP(g) 
                 end
             end)
         end
     else
+        if ghostFolderConn then ghostFolderConn:Disconnect() end
         clearGhostESP()
     end
 end
 
--- 16. PLAYER ESP ENGINE
+-- Live Ghost Tracking & Workspace Fallback Poll
+task.spawn(function()
+    while true do
+        if GhostESPActive then
+            local folder = locateGhostFolder()
+            if folder then
+                for _, g in ipairs(folder:GetChildren()) do
+                    if not GhostESPStorage[g] then
+                        applyGhostESP(g)
+                    end
+                end
+            end
+        end
+        task.wait(1.2)
+    end
+end)
+
+-- PLAYER ESP ENGINE
 local ESPActive = false
 local ESPStorage = {}
 
@@ -1150,15 +1168,15 @@ local function applyESP(player)
     hl.Name = "Lumacore_Highlight"
     hl.Adornee = char
     hl.FillColor = C.Accent
-    hl.FillTransparency = 0.5
+    hl.FillTransparency = 0.78
     hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-    hl.OutlineTransparency = 0.15
+    hl.OutlineTransparency = 0
     hl.Parent = ScreenGui
 
     local bb = Instance.new("BillboardGui")
     bb.Name = "Lumacore_ESP"
     bb.Adornee = root
-    bb.Size = UDim2.new(0, 160, 0, 24)
+    bb.Size = UDim2.new(0, 160, 0, 20)
     bb.StudsOffset = Vector3.new(0, 3.2, 0)
     bb.AlwaysOnTop = true
     bb.Parent = ScreenGui
@@ -1169,24 +1187,12 @@ local function applyESP(player)
     infoLbl.TextColor3 = C.Text
     infoLbl.Font = Enum.Font.GothamBold
     infoLbl.TextSize = 10
+    infoLbl.TextStrokeTransparency = 0.4
+    infoLbl.TextStrokeColor3 = Color3.fromRGB(15, 10, 10)
     infoLbl.Parent = bb
 
     ESPStorage[player] = {Highlight = hl, Billboard = bb, Label = infoLbl, Hum = hum, Root = root}
 end
-
-RunService.RenderStepped:Connect(function()
-    if not ESPActive then return end
-    local myChar = LocalPlayer.Character
-    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-
-    for player, data in pairs(ESPStorage) do
-        if data.Root and data.Hum and myRoot then
-            local dist = math.floor((data.Root.Position - myRoot.Position).Magnitude)
-            local hpPercent = math.clamp(math.floor((data.Hum.Health / math.max(data.Hum.MaxHealth, 1)) * 100), 0, 100)
-            data.Label.Text = string.format("%s • %dm • %d%%", player.DisplayName, dist, hpPercent)
-        end
-    end
-end)
 
 local function toggleESP(state)
     ESPActive = state
@@ -1194,12 +1200,12 @@ local function toggleESP(state)
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LocalPlayer and p.Character then applyESP(p) end
             p.CharacterAdded:Connect(function()
-                if ESPActive then task.wait(0.5); applyESP(p) end
+                if ESPActive then task.wait(0.3); applyESP(p) end
             end)
         end
         Players.PlayerAdded:Connect(function(p)
             p.CharacterAdded:Connect(function()
-                if ESPActive then task.wait(0.5); applyESP(p) end
+                if ESPActive then task.wait(0.3); applyESP(p) end
             end)
         end)
     else
@@ -1211,6 +1217,39 @@ local function toggleESP(state)
     end
 end
 
+-- Render loop for Live Distance & Health Tracking
+RunService.RenderStepped:Connect(function()
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+    if GhostESPActive and myRoot then
+        for ghost, item in pairs(GhostESPStorage) do
+            if ghost.Parent and item.Part then
+                local dist = math.floor((item.Part.Position - myRoot.Position).Magnitude)
+                item.Label.Text = string.format("👻 %s • %dm", ghost.Name, dist)
+            else
+                if item.Highlight then item.Highlight:Destroy() end
+                if item.Billboard then item.Billboard:Destroy() end
+                GhostESPStorage[ghost] = nil
+            end
+        end
+    end
+
+    if ESPActive and myRoot then
+        for player, data in pairs(ESPStorage) do
+            if data.Root and data.Hum and player.Parent and data.Root.Parent then
+                local dist = math.floor((data.Root.Position - myRoot.Position).Magnitude)
+                local hpPercent = math.clamp(math.floor((data.Hum.Health / math.max(data.Hum.MaxHealth, 1)) * 100), 0, 100)
+                data.Label.Text = string.format("%s • %dm • %d%%", player.DisplayName, dist, hpPercent)
+            else
+                if data.Highlight then data.Highlight:Destroy() end
+                if data.Billboard then data.Billboard:Destroy() end
+                ESPStorage[player] = nil
+            end
+        end
+    end
+end)
+
 -- 17. POPULATE CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
@@ -1220,7 +1259,7 @@ CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips 
         hasEquippedNetOnce = false
         bText.Text = "RUNNING"
         bText.TextColor3 = C.Green
-        sLbl.Text = "Active • Sweeping nearest ghosts (" .. farmStance .. ")"
+        sLbl.Text = "Active • Sweeping nearest ghosts"
         setActive(true)
         Notify("Candy Corn Farm", "Farm Loop Activated", C.Green)
     else
@@ -1234,25 +1273,25 @@ CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips 
     end
 end)
 
-CreateActionCard(LeftCol, "FARM STANCE", "Mode: Underground / Above Ground", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "FARM STANCE", "Toggle positioning above or under", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
     if farmStance == "Underground" then
         farmStance = "Above Ground"
         bText.Text = "ABOVE"
         bText.TextColor3 = C.Cyan
-        sLbl.Text = "Mode: Sweeping directly above ghosts (+3.2 studs)"
+        sLbl.Text = "Hovering smoothly over ghosts"
         setActive(true, C.Cyan)
         restoreSurface()
     else
         farmStance = "Underground"
         bText.Text = "UNDER"
         bText.TextColor3 = C.Accent
-        sLbl.Text = "Mode: Sweeping beneath ghosts (-6.5 studs)"
+        sLbl.Text = "Sweeping beneath ghosts (-6.5s)"
         setActive(false)
     end
     Notify("Farm Stance", "Switched stance to: " .. farmStance, C.Accent)
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween zone near middle", "CLAIM", false, 4, function()
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 4, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1264,7 +1303,7 @@ end)
 
 AddSection(LeftCol, "EVENT SHOP", 5)
 
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Must be in Halloween zone near middle", "BUY", false, 6, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 6, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
@@ -1274,11 +1313,11 @@ CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "Must be in Halloween zone near m
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "Must be in Halloween zone near middle", "BUY", false, 7, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 7, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
-        Notify("Event Shop", "Attempted purchase: Pumpkin Maw (500)", C.Accent)
+        Notify("Event Shop", "Attempted purchase: Halloween Dungeon (500)", C.Accent)
     else
         Notify("Event Shop", "Shop remote unavailable", C.Red)
     end
@@ -1286,32 +1325,32 @@ end)
 
 AddSection(LeftCol, "FAST TRAVEL", 8)
 
-CreateActionCard(LeftCol, "GLIDE TO SPAWN", "Old Town • Safe ground-snapping travel", "GLIDE", false, 9, function()
+CreateActionCard(LeftCol, "GLIDE TO SPAWN", "Old Town • Anti-cheat safe ground glide", "GLIDE", false, 9, function()
     glideTravelTo(Vector3.new(689.8, 178.6, 112), "Old Town (Spawn)")
 end)
 
-CreateActionCard(LeftCol, "GLIDE TO JUNGLE", "Jungle Village • Safe ground-snapping travel", "GLIDE", false, 10, function()
+CreateActionCard(LeftCol, "GLIDE TO JUNGLE", "Jungle Village • Anti-cheat safe glide", "GLIDE", false, 10, function()
     glideTravelTo(Vector3.new(-80, 115, -2140), "Jungle Village")
 end)
 
 AddSection(LeftCol, "VISUALS", 11)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
-    sLbl.Text = ESPActive and "Showing distance, outline & HP %" or "Outline chams, distance & HP %"
+    sLbl.Text = ESPActive and "Tracking active players live" or "Outline chams, live distance & HP %"
     setActive(ESPActive)
-    Notify("ESP Visuals", ESPActive and "Player Chams & Telemetry Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
+    Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Locates & highlights candy ghosts", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
-    sLbl.Text = GhostESPActive and "Showing active ghosts & distances" or "Locates & highlights candy ghosts"
+    sLbl.Text = GhostESPActive and "Tracking spawned ghosts live" or "Outline chams & live distance tags"
     setActive(GhostESPActive, C.Purple)
-    Notify("Ghost Visuals", GhostESPActive and "Ghost ESP Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
+    Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
 -- 18. OPTIMIZED SETTINGS DRAWER OVERLAY
@@ -1420,7 +1459,6 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
 
--- ENHANCED DEEP PERFORMANCE MODE (Culls particle emitters, lights, atmosphere, and post-effects)
 local deepPerformanceActive = false
 local originalLightingSettings = {}
 local culledParticleCache = {}
