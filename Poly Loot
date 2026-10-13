@@ -13,7 +13,7 @@ local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
 local ScreenName = "Lumacore_PolyLoot"
 
--- PRE-DECLARE ALL FORWARD-REFERENCED CONTROLLERS
+-- PRE-DECLARE NAVIGATION CONTROLLERS
 local closeActiveDrawer = function() end
 local closeMenu = function() end
 local openMenu = function() end
@@ -177,7 +177,7 @@ local MonitorFPS = false
 local MonitorPing = false
 local MonitorMem = false
 local MonitorUptime = false
-local MonitorGhostCount = false
+local MonitorGhostCount = true
 
 local GhostCaptures = 0
 local StartEpoch = os.time()
@@ -190,11 +190,11 @@ local function formatUptime(seconds)
 end
 
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 115, 0, 0)
-MonitorUI.Position = UDim2.new(1, -125, 0, 12)
+MonitorUI.Size = UDim2.new(0, 118, 0, 0)
+MonitorUI.Position = UDim2.new(1, -128, 0, 14)
 MonitorUI.BackgroundColor3 = C.Surface
 MonitorUI.BackgroundTransparency = 0.15
-MonitorUI.Visible = false
+MonitorUI.Visible = true
 MonitorUI.ZIndex = 900
 MonitorUI.Parent = ScreenGui
 
@@ -212,10 +212,10 @@ mLayout.Parent = MonitorUI
 
 local function createMonitorRow()
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -8, 0, 16)
+    lbl.Size = UDim2.new(1, -10, 0, 16)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Text
-    lbl.Font = Enum.Font.Gotham
+    lbl.Font = Enum.Font.GothamMedium
     lbl.TextSize = 10
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.Visible = false
@@ -224,29 +224,37 @@ local function createMonitorRow()
     return lbl
 end
 
+local ghostRow = createMonitorRow()
 local fpsRow = createMonitorRow()
 local pingRow = createMonitorRow()
 local memRow = createMonitorRow()
 local upRow = createMonitorRow()
-local ghostRow = createMonitorRow()
 
 local monitorConn = RunService.RenderStepped:Connect(function(dt)
-    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorUptime and 1 or 0) + (MonitorGhostCount and 1 or 0)
+    local active = (MonitorGhostCount and 1 or 0) + (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorUptime and 1 or 0)
     if active == 0 then
         MonitorUI.Visible = false
     else
         MonitorUI.Visible = true
-        MonitorUI.Size = UDim2.new(0, 115, 0, (active * 18) + 6)
+        MonitorUI.Size = UDim2.new(0, 118, 0, (active * 18) + 6)
+        
+        ghostRow.Visible = MonitorGhostCount
+        if MonitorGhostCount then 
+            ghostRow.Text = "Ghosts: " .. tostring(GhostCaptures)
+            ghostRow.TextColor3 = C.AccentGlow
+        end
+        
         fpsRow.Visible = MonitorFPS
         if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / math.max(dt, 0.001)) end
+        
         pingRow.Visible = MonitorPing
         if MonitorPing then pingRow.Text = "Ping: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms" end
+        
         memRow.Visible = MonitorMem
         if MonitorMem then memRow.Text = "Mem: " .. math.floor(Stats:GetTotalMemoryUsageMb()) .. "MB" end
+        
         upRow.Visible = MonitorUptime
         if MonitorUptime then upRow.Text = "Time: " .. formatUptime(os.time() - StartEpoch) end
-        ghostRow.Visible = MonitorGhostCount
-        if MonitorGhostCount then ghostRow.Text = "Ghosts: " .. tostring(GhostCaptures) end
     end
 end)
 
@@ -278,7 +286,7 @@ BeamGlow.Color = C.AccentGlow
 BeamGlow.Thickness = 2
 BeamGlow.Parent = WireframeBeam
 
--- 8. MAIN CHASSIS CARD
+-- 8. MAIN CARD
 local Card = Instance.new("Frame")
 Card.Name = "ProfileCard"
 Card.Size = UDim2.new(0, 580, 0, 345)
@@ -312,14 +320,6 @@ veilLaser.Position = UDim2.new(0, 0, 1, -2)
 veilLaser.BackgroundColor3 = C.AccentGlow
 veilLaser.BorderSizePixel = 0
 veilLaser.Parent = AssemblyVeil
-
-local DestroyShield = Instance.new("Frame")
-DestroyShield.Size = UDim2.fromScale(1, 1)
-DestroyShield.BackgroundColor3 = C.RedDark
-DestroyShield.BackgroundTransparency = 1
-DestroyShield.ZIndex = 1200
-DestroyShield.Visible = false
-DestroyShield.Parent = Card
 
 -- HEADER BAR
 local Header = Instance.new("TextButton")
@@ -464,7 +464,7 @@ local function Notify(titleText, subText, color)
     end
 end
 
--- HEADER BUTTONS
+-- HEADER BUTTONS (★ CREDITS, ⚙ SETTINGS, ✕ CLOSE WITH ICONIC STYLING)
 local HeaderBtns = Instance.new("Frame")
 HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
@@ -498,7 +498,7 @@ SettingsBtn.BackgroundColor3 = C.CardBg
 SettingsBtn.Text = "⚙"
 SettingsBtn.TextColor3 = C.Muted
 SettingsBtn.Font = Enum.Font.GothamBold
-SettingsBtn.TextSize = 12
+SettingsBtn.TextSize = 13
 SettingsBtn.AutoButtonColor = false
 SettingsBtn.ZIndex = 70
 SettingsBtn.Parent = HeaderBtns
@@ -516,11 +516,15 @@ CloseBtn.BackgroundColor3 = C.RedDark
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.TextSize = 11
+CloseBtn.TextSize = 12
 CloseBtn.AutoButtonColor = false
 CloseBtn.ZIndex = 70
 CloseBtn.Parent = HeaderBtns
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
+local clBtnStroke = Instance.new("UIStroke")
+clBtnStroke.Color = C.Red
+clBtnStroke.Thickness = 1
+clBtnStroke.Parent = CloseBtn
 
 -- 9. BODY CONTAINER
 local Body = Instance.new("Frame")
@@ -541,7 +545,7 @@ LeftCol.CanvasSize = UDim2.new(0, 0, 0, 0)
 LeftCol.Parent = Body
 
 local leftLayout = Instance.new("UIListLayout")
-leftLayout.Padding = UDim.new(0, 5)
+leftLayout.Padding = UDim.new(0, 6)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
@@ -559,7 +563,7 @@ rStroke.Thickness = 1
 rStroke.Parent = RightCol
 
 local AvatarHolder = Instance.new("Frame")
-AvatarHolder.Size = UDim2.new(0, 78, 0, 78)
+AvatarHolder.Size = UDim2.new(0, 76, 0, 76)
 AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
 AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
 AvatarHolder.BackgroundColor3 = C.Surface
@@ -572,12 +576,23 @@ avStroke.Color = C.Accent
 avStroke.Thickness = 2
 avStroke.Parent = AvatarHolder
 
+-- FALLBACK & SECURE AVATAR LOADER (Fixes blank pfp)
 local AvatarImage = Instance.new("ImageLabel")
 AvatarImage.Size = UDim2.fromScale(1, 1)
 AvatarImage.BackgroundTransparency = 1
 AvatarImage.ScaleType = Enum.ScaleType.Fit
+AvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
 AvatarImage.Parent = AvatarHolder
 Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
+
+task.spawn(function()
+    local ok, thumb = pcall(function()
+        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size150x150)
+    end)
+    if ok and thumb and thumb ~= "" then
+        AvatarImage.Image = thumb
+    end
+end)
 
 local BlurStack = Instance.new("Frame")
 BlurStack.Size = UDim2.fromScale(1, 1)
@@ -595,18 +610,6 @@ blurTint.BorderSizePixel = 0
 blurTint.ZIndex = 6
 blurTint.Parent = BlurStack
 Instance.new("UICorner", blurTint).CornerRadius = UDim.new(1, 0)
-
-local function updateProfilePicture()
-    pcall(function()
-        local content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
-        if content and content ~= "" then
-            AvatarImage.Image = content
-        else
-            AvatarImage.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
-        end
-    end)
-end
-task.spawn(updateProfilePicture)
 
 local SensorInfoActive = false
 
@@ -668,7 +671,7 @@ end
 
 RunService.Heartbeat:Connect(function()
     if SensorInfoActive then
-        userRow.Text = "Account: [HIDDEN / SECURE]"
+        userRow.Text = "Account: [SECURE]"
         placeRow.Text = "Place ID: [HIDDEN]"
         jobRow.Text = "Job ID: [HIDDEN]"
     else
@@ -915,6 +918,7 @@ local isUnderground = false
 local currentTargetGhost = nil
 local waitingForModeChoice = false
 
+-- 3-SPEED DELAY ENGINE (NORMAL, FAST, SLOW)
 local catchSpeedMode = "Normal"
 local catchDelay = 0.12
 
@@ -931,7 +935,7 @@ local function hookGhostDestruction(ghost)
     ghost:SetAttribute("Lumacore_Hooked", true)
 
     local function onRemoved()
-        if ghost == lastAttackedGhost or (tick() - lastAttackTick < 1.2 and ghost == currentTargetGhost) then
+        if ghost == lastAttackedGhost or (tick() - lastAttackTick < 1.4 and ghost == currentTargetGhost) then
             GhostCaptures = GhostCaptures + 1
             lastAttackedGhost = nil
             currentTargetGhost = nil
@@ -969,7 +973,7 @@ task.spawn(function()
             local popup = remotes and remotes:FindFirstChild("ShowRewardPopup")
             if popup and popup:IsA("RemoteEvent") then
                 popup.OnClientEvent:Connect(function()
-                    if tick() - lastAttackTick < 1.5 then
+                    if tick() - lastAttackTick < 1.6 then
                         GhostCaptures = GhostCaptures + 1
                     end
                 end)
@@ -1078,6 +1082,7 @@ task.spawn(function()
                     else
                         if isUnderground then restoreSurface() end
                         
+                        -- Anti-clip floor raycast check
                         local ghostPos = ghostPart.Position
                         local floorRayParams = RaycastParams.new()
                         floorRayParams.FilterDescendantsInstances = {char, ghost, locateGhostFolder()}
@@ -1134,7 +1139,7 @@ task.spawn(function()
     end
 end)
 
--- 14. LIVE OUTLINE CHAMS ESP ENGINES (GHOST & PLAYER)
+-- 14. LIVE OUTLINE CHAMS ESP ENGINES
 local GhostESPActive = false
 local GhostESPStorage = {}
 local ghostFolderConn = nil
@@ -1327,7 +1332,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 15. CONTROLS IN LEFT COLUMN
+-- 15. MAIN TAB (POLISHED & ORGANIZED SECTIONS)
 AddSection(LeftCol, "AUTOMATION", 1)
 
 autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto net handling & harvest loop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
@@ -1455,21 +1460,30 @@ aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with
     end
 end)
 
+-- 3-SPEED CYCLE: NORMAL -> FAST -> SLOW
 catchSpeedCard = CreateActionCard(LeftCol, "CATCH DELAY", "Catch buffer pacing", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
     if catchSpeedMode == "Normal" then
         catchSpeedMode = "Fast"
         catchDelay = 0.04
         bText.Text = "FAST"
         bText.TextColor3 = C.AccentGlow
-        sLbl.Text = "Fast catch (0.04s) • Quick swings"
+        sLbl.Text = "Fast catch (0.04s) • Swift swings"
         setActive(true, C.AccentGlow)
         Notify("Catch Delay", "Pacing: Fast (0.04s)", C.AccentGlow)
+    elseif catchSpeedMode == "Fast" then
+        catchSpeedMode = "Slow"
+        catchDelay = 0.28
+        bText.Text = "SLOW"
+        bText.TextColor3 = C.Purple
+        sLbl.Text = "Safe relaxed buffer (0.28s) • Low latency lag friendly"
+        setActive(true, C.Purple)
+        Notify("Catch Delay", "Pacing: Slow (0.28s)", C.Purple)
     else
         catchSpeedMode = "Normal"
         catchDelay = 0.12
         bText.Text = "NORMAL"
         bText.TextColor3 = C.Cyan
-        sLbl.Text = "Safe catch (0.12s) • Steady registration"
+        sLbl.Text = "Balanced natural delay (0.12s) • Steady registration"
         setActive(true, C.Cyan)
         Notify("Catch Delay", "Pacing: Normal (0.12s)", C.Cyan)
     end
@@ -1539,7 +1553,7 @@ end)
 -- 16. MUTUAL-EXCLUSION DRAWERS
 local MobileToggle
 
--- A. SETTINGS DRAWER
+-- A. SETTINGS DRAWER (POLISHED GRID)
 local Drawer = Instance.new("Frame")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1692,7 +1706,7 @@ hgLayout2.Padding = UDim.new(0, 8)
 hgLayout2.Parent = HudGrid2
 
 createSettingsToggleTile(HudGrid2, "Memory Usage", false, C.Green, function(state) MonitorMem = state end)
-createSettingsToggleTile(HudGrid2, "Session Clock", false, C.Green, function(state) MonitorUptime = state end)
+createSettingsToggleTile(HudGrid2, "Ghost Count", true, C.Green, function(state) MonitorGhostCount = state end)
 
 AddSection(DrawerScroll, "GRAPHICS & INTERFACE", 6)
 local DispGrid = Instance.new("Frame")
@@ -1716,7 +1730,7 @@ createSettingsToggleTile(DispGrid, "Floating Button", true, C.Green, function(st
     Notify("Toggle Button", state and "Floating Icon On" or "Floating Icon Hidden", C.Accent)
 end)
 
--- Performance Potato Mode
+-- Potato Mode System
 local deepPerformanceActive = false
 local originalLighting = {}
 local modifiedParts = {}
@@ -1836,57 +1850,69 @@ createSettingsToggleTile(PerfGrid, "In-UI Alerts", true, C.Green, function(state
     NotificationsEnabled = state
 end)
 
+-- DANGER ZONE CARDS (RESTORED TACTILE SLIDING FILL BARS)
 AddSection(DrawerScroll, "EMERGENCY ACTIONS", 9)
-local DangerGrid = Instance.new("Frame")
-DangerGrid.Size = UDim2.new(1, 0, 0, 38)
-DangerGrid.BackgroundTransparency = 1
-DangerGrid.LayoutOrder = 10
-DangerGrid.ZIndex = 51
-DangerGrid.Parent = DrawerScroll
-local dgActionsLayout = Instance.new("UIListLayout")
-dgActionsLayout.FillDirection = Enum.FillDirection.Horizontal
-dgActionsLayout.Padding = UDim.new(0, 8)
-dgActionsLayout.Parent = DangerGrid
 
-local RespawnBtn = Instance.new("TextButton")
-RespawnBtn.Size = UDim2.new(0.5, -4, 1, 0)
-RespawnBtn.BackgroundColor3 = C.CardBg
-RespawnBtn.AutoButtonColor = false
-RespawnBtn.Text = "Clean Respawn"
-RespawnBtn.TextColor3 = C.Red
-RespawnBtn.Font = Enum.Font.GothamBold
-RespawnBtn.TextSize = 10
-RespawnBtn.ZIndex = 52
-RespawnBtn.Parent = DangerGrid
-Instance.new("UICorner", RespawnBtn).CornerRadius = UDim.new(0, 7)
-local rBtnStroke = Instance.new("UIStroke")
-rBtnStroke.Color = C.Border
-rBtnStroke.Thickness = 1
-rBtnStroke.Parent = RespawnBtn
+local RespawnCard = Instance.new("TextButton")
+RespawnCard.Size = UDim2.new(1, 0, 0, 42)
+RespawnCard.BackgroundColor3 = C.CardBg
+RespawnCard.AutoButtonColor = false
+RespawnCard.Text = ""
+RespawnCard.ClipsDescendants = true
+RespawnCard.ZIndex = 52
+RespawnCard.LayoutOrder = 10
+RespawnCard.Parent = DrawerScroll
+Instance.new("UICorner", RespawnCard).CornerRadius = UDim.new(0, 7)
+local rCardStroke = Instance.new("UIStroke")
+rCardStroke.Color = C.Border
+rCardStroke.Thickness = 1
+rCardStroke.Parent = RespawnCard
 
-local respawnConfirm = false
-local respawnThread = nil
+local RespawnFillBar = Instance.new("Frame")
+RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+RespawnFillBar.BackgroundColor3 = C.RedDark
+RespawnFillBar.BorderSizePixel = 0
+RespawnFillBar.ZIndex = 53
+RespawnFillBar.Parent = RespawnCard
 
-RespawnBtn.MouseButton1Click:Connect(function()
-    if not respawnConfirm then
-        respawnConfirm = true
-        RespawnBtn.Text = "Tap Again to Confirm"
-        RespawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tw(rBtnStroke, {Color = C.Red}, 0.2)
-        respawnThread = task.delay(3, function()
-            if respawnConfirm and ScreenGui.Parent then
-                respawnConfirm = false
-                RespawnBtn.Text = "Clean Respawn"
-                RespawnBtn.TextColor3 = C.Red
-                tw(rBtnStroke, {Color = C.Border}, 0.2)
+local RespawnLbl = Instance.new("TextLabel")
+RespawnLbl.Text = "Clean Character Respawn"
+RespawnLbl.Font = Enum.Font.GothamBold
+RespawnLbl.TextSize = 10.5
+RespawnLbl.TextColor3 = C.Red
+RespawnLbl.Size = UDim2.fromScale(1, 1)
+RespawnLbl.BackgroundTransparency = 1
+RespawnLbl.ZIndex = 54
+RespawnLbl.Parent = RespawnCard
+
+local respawnConfirmState = false
+local respawnTimerThread = nil
+
+RespawnCard.MouseButton1Click:Connect(function()
+    if not respawnConfirmState then
+        respawnConfirmState = true
+        RespawnLbl.Text = "Tap Again to Confirm Respawn"
+        RespawnLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(rCardStroke, {Color = C.Red}, 0.2)
+        RespawnFillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(RespawnFillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        respawnTimerThread = task.delay(3, function()
+            if respawnConfirmState and ScreenGui.Parent then
+                respawnConfirmState = false
+                RespawnLbl.Text = "Clean Character Respawn"
+                RespawnLbl.TextColor3 = C.Red
+                tw(rCardStroke, {Color = C.Border}, 0.2)
+                RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
             end
         end)
     else
-        if respawnThread then task.cancel(respawnThread) end
-        respawnConfirm = false
-        RespawnBtn.Text = "Clean Respawn"
-        RespawnBtn.TextColor3 = C.Red
-        tw(rBtnStroke, {Color = C.Border}, 0.2)
+        if respawnTimerThread then task.cancel(respawnTimerThread) end
+        respawnConfirmState = false
+        RespawnLbl.Text = "Clean Character Respawn"
+        RespawnLbl.TextColor3 = C.Red
+        tw(rCardStroke, {Color = C.Border}, 0.2)
+        RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
 
         resolveRemotes()
         if ResetRequestedRemote then
@@ -1896,10 +1922,11 @@ RespawnBtn.MouseButton1Click:Connect(function()
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum then hum.Health = 0 end
         end
-        Notify("Character", "Respawn Executed", C.Red)
+        Notify("Character", "Clean Respawn Executed", C.Red)
     end
 end)
 
+-- VAPORIZATION PURGE DESTROY FUNCTION
 local function executePurgeDestroy()
     autoCandyFarm = false
     aiChaseActive = false
@@ -1910,9 +1937,14 @@ local function executePurgeDestroy()
     unequipGhostNet()
     if monitorConn then monitorConn:Disconnect() end
 
-    DestroyShield.Visible = true
-    DestroyShield.BackgroundTransparency = 1
-    tw(DestroyShield, {BackgroundTransparency = 0.2}, 0.2)
+    local DissolveVeil = Instance.new("Frame")
+    DissolveVeil.Size = UDim2.fromScale(1, 1)
+    DissolveVeil.BackgroundColor3 = C.RedDark
+    DissolveVeil.BackgroundTransparency = 1
+    DissolveVeil.ZIndex = 1500
+    DissolveVeil.Parent = Card
+
+    tw(DissolveVeil, {BackgroundTransparency = 0.25}, 0.2)
     tw(cStroke, {Color = C.Red, Thickness = 2.5}, 0.2)
     task.wait(0.2)
 
@@ -1928,46 +1960,66 @@ local function executePurgeDestroy()
     end)
 end
 
-local PurgeBtn = Instance.new("TextButton")
-PurgeBtn.Size = UDim2.new(0.5, -4, 1, 0)
-PurgeBtn.BackgroundColor3 = C.CardBg
-PurgeBtn.AutoButtonColor = false
-PurgeBtn.Text = "Purge & Destroy"
-PurgeBtn.TextColor3 = C.Red
-PurgeBtn.Font = Enum.Font.GothamBold
-PurgeBtn.TextSize = 10
-PurgeBtn.ZIndex = 52
-PurgeBtn.Parent = DangerGrid
-Instance.new("UICorner", PurgeBtn).CornerRadius = UDim.new(0, 7)
-local pBtnStroke = Instance.new("UIStroke")
-pBtnStroke.Color = C.Border
-pBtnStroke.Thickness = 1
-pBtnStroke.Parent = PurgeBtn
+local DestroyCard = Instance.new("TextButton")
+DestroyCard.Size = UDim2.new(1, 0, 0, 42)
+DestroyCard.BackgroundColor3 = C.CardBg
+DestroyCard.AutoButtonColor = false
+DestroyCard.Text = ""
+DestroyCard.ClipsDescendants = true
+DestroyCard.ZIndex = 52
+DestroyCard.LayoutOrder = 11
+DestroyCard.Parent = DrawerScroll
+Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 7)
+local dCardStroke = Instance.new("UIStroke")
+dCardStroke.Color = C.Border
+dCardStroke.Thickness = 1
+dCardStroke.Parent = DestroyCard
 
-local purgeConfirm = false
-local purgeThread = nil
+local FillBar = Instance.new("Frame")
+FillBar.Size = UDim2.new(0, 0, 1, 0)
+FillBar.BackgroundColor3 = C.RedDark
+FillBar.BorderSizePixel = 0
+FillBar.ZIndex = 53
+FillBar.Parent = DestroyCard
 
-PurgeBtn.MouseButton1Click:Connect(function()
-    if not purgeConfirm then
-        purgeConfirm = true
-        PurgeBtn.Text = "Tap Again to Purge"
-        PurgeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tw(pBtnStroke, {Color = C.Red}, 0.2)
-        purgeThread = task.delay(3, function()
-            if purgeConfirm and ScreenGui.Parent then
-                purgeConfirm = false
-                PurgeBtn.Text = "Purge & Destroy"
-                PurgeBtn.TextColor3 = C.Red
-                tw(pBtnStroke, {Color = C.Border}, 0.2)
+local DestroyLbl = Instance.new("TextLabel")
+DestroyLbl.Text = "Destroy & Purge Interface"
+DestroyLbl.Font = Enum.Font.GothamBold
+DestroyLbl.TextSize = 10.5
+DestroyLbl.TextColor3 = C.Red
+DestroyLbl.Size = UDim2.fromScale(1, 1)
+DestroyLbl.BackgroundTransparency = 1
+DestroyLbl.ZIndex = 54
+DestroyLbl.Parent = DestroyCard
+
+local confirmState = false
+local timerThread = nil
+
+DestroyCard.MouseButton1Click:Connect(function()
+    if not confirmState then
+        confirmState = true
+        DestroyLbl.Text = "Tap Again to Confirm Purge"
+        DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(dCardStroke, {Color = C.Red}, 0.2)
+        FillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(FillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        timerThread = task.delay(3, function()
+            if confirmState and ScreenGui.Parent then
+                confirmState = false
+                DestroyLbl.Text = "Destroy & Purge Interface"
+                DestroyLbl.TextColor3 = C.Red
+                tw(dCardStroke, {Color = C.Border}, 0.2)
+                FillBar.Size = UDim2.new(0, 0, 1, 0)
             end
         end)
     else
-        if purgeThread then task.cancel(purgeThread) end
+        if timerThread then task.cancel(timerThread) end
         executePurgeDestroy()
     end
 end)
 
--- B. CREDITS DRAWER
+-- B. CREDITS DRAWER (HERO CARD WITH VERSION BADGE + ZERO CLUTTER)
 local CreditsDrawer = Instance.new("Frame")
 CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
 CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1997,6 +2049,7 @@ cList.Padding = UDim.new(0, 8)
 cList.SortOrder = Enum.SortOrder.LayoutOrder
 cList.Parent = CreditsScroll
 
+-- Hero Identity Card with Version Badge
 local HeroCard = Instance.new("Frame")
 HeroCard.Size = UDim2.new(1, 0, 0, 56)
 HeroCard.BackgroundColor3 = C.Surface
@@ -2070,13 +2123,14 @@ hpStroke.Parent = HeroPill
 local HeroPillTxt = Instance.new("TextLabel")
 HeroPillTxt.Size = UDim2.fromScale(1, 1)
 HeroPillTxt.BackgroundTransparency = 1
-HeroPillTxt.Text = "LEAD DEV"
+HeroPillTxt.Text = "v2.7"
 HeroPillTxt.Font = Enum.Font.GothamBold
-HeroPillTxt.TextSize = 8.5
+HeroPillTxt.TextSize = 9
 HeroPillTxt.TextColor3 = C.Green
 HeroPillTxt.ZIndex = 54
 HeroPillTxt.Parent = HeroPill
 
+-- Dual Stat Matrix
 local StatsGrid = Instance.new("Frame")
 StatsGrid.Size = UDim2.new(1, 0, 0, 46)
 StatsGrid.BackgroundTransparency = 1
@@ -2191,10 +2245,10 @@ end
 
 createRevisionTile(CreditsScroll, "MECHANIC", C.Accent, "Reversible Build Sequence", "Symmetrical beam unfolding & reverse assembly on hide", 4)
 createRevisionTile(CreditsScroll, "STABILITY", C.Green, "Hermite Anti-Clip Farm", "Inside-ghost positioning with raycast floor clearance", 5)
-createRevisionTile(CreditsScroll, "ENGINE", C.Cyan, "Noclip Core & Pacing Switch", "Collision bypass with Normal / Fast catch latency", 6)
-createRevisionTile(CreditsScroll, "PURGE", C.Red, "Vaporization UI Destruction", "Red-shift laser compress dissolve effect", 7)
+createRevisionTile(CreditsScroll, "PACING", C.Purple, "Tri-Speed Buffer Switch", "Normal / Fast / Slow (0.28s) lag-tolerant cycle", 6)
+createRevisionTile(CreditsScroll, "PURGE", C.Red, "Tactile Laser Deletion", "Sliding confirmation bars with red-shift collapse", 7)
 
--- ACTIVE DRAWER LOGIC
+-- ACTIVE DRAWER CONTROLLER
 local activeDrawer = nil
 
 closeActiveDrawer = function(onDone)
@@ -2419,7 +2473,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 19. MOBILE TOGGLE
+-- 19. MOBILE FLOATING BUTTON
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
