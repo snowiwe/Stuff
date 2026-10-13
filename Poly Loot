@@ -696,7 +696,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (TRACKED FOR CASCASED LOCK-IN)
+-- 10. REUSABLE ACTION CARD BUILDER (TRACKED FOR CASCADED LOCK-IN)
 local ActionCardRegistry = {}
 
 local function AddSection(parent, text, order)
@@ -1001,9 +1001,14 @@ local isUnderground = false
 local currentTargetGhost = nil
 local waitingForModeChoice = false
 
+-- CATCH SPEED DELAY CONFIG (NORMAL vs FAST)
+local catchSpeedMode = "Normal" -- "Normal" or "Fast"
+local catchDelay = 0.12 -- Seconds to wait after arriving at ghost before swing
+
 local autoCandyCard = nil
 local farmStanceCard = nil
 local aiChaseCard = nil
+local catchSpeedCard = nil
 
 local lastAttackedGhost = nil
 local lastAttackTick = 0
@@ -1121,7 +1126,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- SMOOTH CANDY CORN FARM WORKER THREAD (HERMITE SMOOTHSTEP LERP)
+-- SMOOTH CANDY CORN FARM WORKER THREAD (CONTROLLED PACING + GROUND-SAFE INSIDE TARGETING)
 task.spawn(function()
     while true do
         if autoCandyFarm and not waitingForModeChoice then
@@ -1150,9 +1155,10 @@ task.spawn(function()
                     end
 
                     if dist <= 9.0 then
+                        if catchDelay > 0 then task.wait(catchDelay) end
                         executeGhostSwing(ghost)
                     end
-                    task.wait(0.04)
+                    task.wait(0.05)
                 else
                     local targetGoalCF
                     if farmStance == "Underground" then
@@ -1160,28 +1166,50 @@ task.spawn(function()
                         targetGoalCF = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
                     else
                         if isUnderground then restoreSurface() end
-                        local elevatedPosition = ghostPart.Position + Vector3.new(0, 4.8, 0)
-                        targetGoalCF = CFrame.new(elevatedPosition, ghostPart.Position)
+                        
+                        -- Raycast floor verification to never sink or clip under ground geometry
+                        local ghostPos = ghostPart.Position
+                        local floorRayParams = RaycastParams.new()
+                        floorRayParams.FilterDescendantsInstances = {char, ghost, locateGhostFolder()}
+                        local floorHit = Workspace:Raycast(ghostPos + Vector3.new(0, 4, 0), Vector3.new(0, -18, 0), floorRayParams)
+                        
+                        local safeCenterPos = ghostPos
+                        if floorHit then
+                            local groundMinY = floorHit.Position.Y + 3.0 -- Maintain minimum clearance above surface
+                            if safeCenterPos.Y < groundMinY then
+                                safeCenterPos = Vector3.new(safeCenterPos.X, groundMinY, safeCenterPos.Z)
+                            end
+                        end
+                        
+                        -- Position inside the ghost with its orientation
+                        targetGoalCF = CFrame.new(safeCenterPos) * (ghostPart.CFrame - ghostPart.Position)
                     end
 
                     local startCF = hrp.CFrame
                     local distanceToGoal = (startCF.Position - targetGoalCF.Position).Magnitude
                     
-                    if distanceToGoal > 35 then
+                    if distanceToGoal > 40 then
+                        -- Safe long-range boundary teleport
                         hrp.CFrame = targetGoalCF
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     else
-                        local steps = math.clamp(math.floor(distanceToGoal / 2.5), 4, 10)
+                        -- Smoothed, controlled travel pace
+                        local steps = math.clamp(math.floor(distanceToGoal / 1.4), 8, 22)
                         for i = 1, steps do
                             if not autoCandyFarm or not ghost.Parent then break end
                             local t = i / steps
-                            local smoothAlpha = t * t * (3 - 2 * t)
+                            local smoothAlpha = t * t * (3 - 2 * t) -- Smoothstep curve
                             hrp.CFrame = startCF:Lerp(targetGoalCF, smoothAlpha)
                             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                             hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                             RunService.Heartbeat:Wait()
                         end
+                    end
+
+                    -- Configurable Catch Delay buffer
+                    if catchDelay > 0 then
+                        task.wait(catchDelay)
                     end
 
                     if ghost.Parent then
@@ -1191,11 +1219,11 @@ task.spawn(function()
                 end
             else
                 restoreSurface()
-                task.wait(0.15)
+                task.wait(0.18)
             end
         else
             restoreSurface()
-            task.wait(0.2)
+            task.wait(0.25)
         end
     end
 end)
@@ -1428,7 +1456,7 @@ autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net �
             farmStanceCard.badgeText.Text = farmStance == "Above Ground" and "ABOVE" or "UNDER"
             farmStanceCard.badgeText.TextColor3 = farmStance == "Above Ground" and C.Cyan or C.Muted
             farmStanceCard.badgeStroke.Color = C.Border
-            farmStanceCard.subLabel.Text = "Positioning above or under ghost"
+            farmStanceCard.subLabel.Text = "Positioning inside or under ghost"
             farmStanceCard.setActive(false)
         end
 
@@ -1443,7 +1471,7 @@ autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net �
     end
 end)
 
-farmStanceCard = CreateActionCard(LeftCol, "FARM STANCE", "Positioning above or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+farmStanceCard = CreateActionCard(LeftCol, "FARM STANCE", "Positioning inside or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
     if aiChaseActive then
         Notify("Stance Locked", "Disable AI Chase before changing stance", C.Red)
         return
@@ -1461,7 +1489,7 @@ farmStanceCard = CreateActionCard(LeftCol, "FARM STANCE", "Positioning above or 
         farmStance = "Above Ground"
         bText.Text = "ABOVE"
         bText.TextColor3 = C.Cyan
-        sLbl.Text = "Hovering smoothly over ghosts"
+        sLbl.Text = "Inside ghost with anti-clip ground check"
         setActive(true, C.Cyan)
         restoreSurface()
     else
@@ -1509,7 +1537,7 @@ aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with
         farmStanceCard.badgeText.Text = isAbove and "ABOVE" or "UNDER"
         farmStanceCard.badgeText.TextColor3 = isAbove and C.Cyan or C.Muted
         farmStanceCard.badgeStroke.Color = isAbove and C.Cyan or C.Border
-        farmStanceCard.subLabel.Text = isAbove and "Hovering smoothly over ghosts" or "Positioning beneath ghosts (-6.5s)"
+        farmStanceCard.subLabel.Text = isAbove and "Inside ghost with anti-clip ground check" or "Positioning beneath ghosts (-6.5s)"
         farmStanceCard.setActive(isAbove, isAbove and C.Cyan or nil)
 
         local char = LocalPlayer.Character
@@ -1521,7 +1549,27 @@ aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with
     end
 end)
 
-CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through walls and barriers", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+catchSpeedCard = CreateActionCard(LeftCol, "CATCH DELAY", "Smooth catch buffer timing", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
+    if catchSpeedMode == "Normal" then
+        catchSpeedMode = "Fast"
+        catchDelay = 0.04
+        bText.Text = "FAST"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Low delay (0.04s) • Swift swings"
+        setActive(true, C.AccentGlow)
+        Notify("Catch Delay", "Catch speed set to Fast (0.04s)", C.AccentGlow)
+    else
+        catchSpeedMode = "Normal"
+        catchDelay = 0.12
+        bText.Text = "NORMAL"
+        bText.TextColor3 = C.Cyan
+        sLbl.Text = "Safe natural delay (0.12s) • Smooth registration"
+        setActive(true, C.Cyan)
+        Notify("Catch Delay", "Catch speed set to Normal (0.12s)", C.Cyan)
+    end
+end)
+
+CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through walls and barriers", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
     NoclipActive = not NoclipActive
     bText.Text = NoclipActive and "ACTIVE" or "OFF"
     bText.TextColor3 = NoclipActive and C.Green or C.Muted
@@ -1530,7 +1578,7 @@ CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through walls and barriers", 
     Notify("Noclip", NoclipActive and "Noclip Enabled" or "Noclip Disabled", NoclipActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 6, function()
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 7, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1540,9 +1588,9 @@ CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle st
     end
 end)
 
-AddSection(LeftCol, "EVENT SHOP", 7)
+AddSection(LeftCol, "EVENT SHOP", 8)
 
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 8, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 9, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
@@ -1552,7 +1600,7 @@ CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle sta
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 9, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 10, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
@@ -1562,9 +1610,9 @@ CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle s
     end
 end)
 
-AddSection(LeftCol, "VISUALS", 10)
+AddSection(LeftCol, "VISUALS", 11)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 11, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1573,7 +1621,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "
     Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
