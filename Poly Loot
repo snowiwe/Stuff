@@ -130,7 +130,7 @@ local function resolveRemotes()
 end
 task.spawn(resolveRemotes)
 
--- 5. ANTI-AFK ENGINE
+-- 5. ANTI-AFK & NOCLIP ENGINE
 local AntiAFKActive = true
 task.spawn(function()
     local VirtualUser = nil
@@ -150,6 +150,20 @@ task.spawn(function()
             end)
         end
     end)
+end)
+
+local NoclipActive = false
+RunService.Stepped:Connect(function()
+    if NoclipActive then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
 end)
 
 -- 6. STATS & TELEMETRY MONITORS
@@ -230,7 +244,7 @@ local monitorConn = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- 7. BACKDROP & INTRO ASSEMBLY BEAM
+-- 7. BACKDROP & INTRO WIREFRAME ASSEMBLY
 local Backdrop = Instance.new("TextButton")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -241,17 +255,22 @@ Backdrop.Text = ""
 Backdrop.Visible = false
 Backdrop.Parent = ScreenGui
 
-local AssemblyLine = Instance.new("Frame")
-AssemblyLine.Name = "AssemblyLine"
-AssemblyLine.Size = UDim2.new(0, 0, 0, 2)
-AssemblyLine.Position = UDim2.new(0.5, 0, 0.5, 0)
-AssemblyLine.AnchorPoint = Vector2.new(0.5, 0.5)
-AssemblyLine.BackgroundColor3 = C.AccentGlow
-AssemblyLine.BorderSizePixel = 0
-AssemblyLine.Visible = false
-AssemblyLine.ZIndex = 5000
-AssemblyLine.Parent = ScreenGui
-Instance.new("UICorner", AssemblyLine).CornerRadius = UDim.new(1, 0)
+local WireframeBeam = Instance.new("Frame")
+WireframeBeam.Name = "WireframeBeam"
+WireframeBeam.Size = UDim2.new(0, 0, 0, 2)
+WireframeBeam.Position = UDim2.new(0.5, 0, 0.5, 0)
+WireframeBeam.AnchorPoint = Vector2.new(0.5, 0.5)
+WireframeBeam.BackgroundColor3 = C.Accent
+WireframeBeam.BorderSizePixel = 0
+WireframeBeam.Visible = false
+WireframeBeam.ZIndex = 6000
+WireframeBeam.Parent = ScreenGui
+Instance.new("UICorner", WireframeBeam).CornerRadius = UDim.new(1, 0)
+
+local BeamGlow = Instance.new("UIStroke")
+BeamGlow.Color = C.AccentGlow
+BeamGlow.Thickness = 2
+BeamGlow.Parent = WireframeBeam
 
 -- 8. MAIN CARD
 local Card = Instance.new("Frame")
@@ -272,7 +291,7 @@ cStroke.Color = C.Border
 cStroke.Thickness = 1.3
 cStroke.Parent = Card
 
--- MECHANICAL ASSEMBLY VEIL (COVER SHIELD)
+-- MECHANICAL ASSEMBLY SHIELD
 local AssemblyVeil = Instance.new("Frame")
 AssemblyVeil.Name = "AssemblyVeil"
 AssemblyVeil.Size = UDim2.fromScale(1, 1)
@@ -282,12 +301,12 @@ AssemblyVeil.ZIndex = 800
 AssemblyVeil.Visible = false
 AssemblyVeil.Parent = Card
 
-local veilLine = Instance.new("Frame")
-veilLine.Size = UDim2.new(1, 0, 0, 2)
-veilLine.Position = UDim2.new(0, 0, 1, -2)
-veilLine.BackgroundColor3 = C.Accent
-veilLine.BorderSizePixel = 0
-veilLine.Parent = AssemblyVeil
+local veilLaser = Instance.new("Frame")
+veilLaser.Size = UDim2.new(1, 0, 0, 2)
+veilLaser.Position = UDim2.new(0, 0, 1, -2)
+veilLaser.BackgroundColor3 = C.AccentGlow
+veilLaser.BorderSizePixel = 0
+veilLaser.Parent = AssemblyVeil
 
 -- HEADER BAR
 local Header = Instance.new("TextButton")
@@ -432,7 +451,7 @@ local function Notify(titleText, subText, color)
     end
 end
 
--- HEADER BUTTONS (TRIO: ✦ CREDITS, ⚙ SETTINGS, ✕ CLOSE)
+-- HEADER BUTTONS (TRIO: ★ STAR ICON CREDITS, ⚙ SETTINGS, ✕ CLOSE)
 local HeaderBtns = Instance.new("Frame")
 HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
@@ -445,10 +464,10 @@ CreditsBtn.Name = "CreditsBtn"
 CreditsBtn.Size = UDim2.new(0, 28, 0, 28)
 CreditsBtn.Position = UDim2.new(0, 0, 0, 0)
 CreditsBtn.BackgroundColor3 = C.CardBg
-CreditsBtn.Text = "✦"
-CreditsBtn.TextColor3 = C.Muted
+CreditsBtn.Text = "★"
+CreditsBtn.TextColor3 = C.AccentGlow
 CreditsBtn.Font = Enum.Font.GothamBold
-CreditsBtn.TextSize = 13
+CreditsBtn.TextSize = 15
 CreditsBtn.AutoButtonColor = false
 CreditsBtn.ZIndex = 70
 CreditsBtn.Parent = HeaderBtns
@@ -491,11 +510,11 @@ CloseBtn.Parent = HeaderBtns
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
 
 CreditsBtn.MouseEnter:Connect(function()
-    tw(CreditsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
-    tw(crBtnStroke, {Color = C.Accent}, 0.15)
+    tw(CreditsBtn, {BackgroundColor3 = C.Hover, TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
+    tw(crBtnStroke, {Color = C.AccentGlow}, 0.15)
 end)
 CreditsBtn.MouseLeave:Connect(function()
-    tw(CreditsBtn, {BackgroundColor3 = C.CardBg, TextColor3 = C.Muted}, 0.15)
+    tw(CreditsBtn, {BackgroundColor3 = C.CardBg, TextColor3 = C.AccentGlow}, 0.15)
     tw(crBtnStroke, {Color = C.Border}, 0.15)
 end)
 
@@ -677,7 +696,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (TRACKED FOR ASSEMBLY CASCADE)
+-- 10. REUSABLE ACTION CARD BUILDER (TRACKED FOR CASCASED LOCK-IN)
 local ActionCardRegistry = {}
 
 local function AddSection(parent, text, order)
@@ -815,6 +834,75 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     end)
 
     return controller
+end
+
+-- STATIC INFO CARD FACTORY (NO BUTTON / PURE CARD DISPLAY)
+local function CreateStaticInfoCard(parent, title, subtitle, badgeText, badgeColor, order)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, 0, 0, 48)
+    card.BackgroundColor3 = C.CardBg
+    card.LayoutOrder = order or 0
+    card.ZIndex = parent.ZIndex
+    card.ClipsDescendants = true
+    card.Parent = parent
+
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke")
+    s.Color = C.Border
+    s.Thickness = 1
+    s.Parent = card
+
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Text = title
+    tLbl.Font = Enum.Font.GothamBold
+    tLbl.TextSize = 11
+    tLbl.TextColor3 = C.Text
+    tLbl.Position = UDim2.new(0, 10, 0, 8)
+    tLbl.Size = UDim2.new(1, -110, 0, 14)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    tLbl.BackgroundTransparency = 1
+    tLbl.ZIndex = card.ZIndex + 1
+    tLbl.Parent = card
+
+    local sLbl = Instance.new("TextLabel")
+    sLbl.Text = subtitle
+    sLbl.Font = Enum.Font.Gotham
+    sLbl.TextSize = 9
+    sLbl.TextColor3 = C.Dim
+    sLbl.Position = UDim2.new(0, 10, 0, 24)
+    sLbl.Size = UDim2.new(1, -110, 0, 14)
+    sLbl.TextXAlignment = Enum.TextXAlignment.Left
+    sLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    sLbl.BackgroundTransparency = 1
+    sLbl.ZIndex = card.ZIndex + 1
+    sLbl.Parent = card
+
+    local badge = Instance.new("Frame")
+    badge.Size = UDim2.new(0, 88, 0, 24)
+    badge.Position = UDim2.new(1, -10, 0.5, 0)
+    badge.AnchorPoint = Vector2.new(1, 0.5)
+    badge.BackgroundColor3 = C.Surface
+    badge.ZIndex = card.ZIndex + 1
+    badge.Parent = card
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+
+    local bStroke = Instance.new("UIStroke")
+    bStroke.Color = badgeColor or C.Accent
+    bStroke.Thickness = 1
+    bStroke.Parent = badge
+
+    local bText = Instance.new("TextLabel")
+    bText.Size = UDim2.fromScale(1, 1)
+    bText.BackgroundTransparency = 1
+    bText.Text = badgeText
+    bText.Font = Enum.Font.GothamBold
+    bText.TextSize = 9
+    bText.TextColor3 = badgeColor or C.Accent
+    bText.ZIndex = card.ZIndex + 2
+    bText.Parent = badge
+
+    return card
 end
 
 -- 11. GHOST DISCOVERY ENGINE
@@ -1033,7 +1121,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- SMOOTH CANDY CORN FARM WORKER THREAD
+-- SMOOTH CANDY CORN FARM WORKER THREAD (HERMITE SMOOTHSTEP LERP)
 task.spawn(function()
     while true do
         if autoCandyFarm and not waitingForModeChoice then
@@ -1064,7 +1152,7 @@ task.spawn(function()
                     if dist <= 9.0 then
                         executeGhostSwing(ghost)
                     end
-                    task.wait(0.05)
+                    task.wait(0.04)
                 else
                     local targetGoalCF
                     if farmStance == "Underground" then
@@ -1079,18 +1167,17 @@ task.spawn(function()
                     local startCF = hrp.CFrame
                     local distanceToGoal = (startCF.Position - targetGoalCF.Position).Magnitude
                     
-                    if distanceToGoal > 30 then
-                        -- Safe reposition boundary for long-distance ghost respawns
+                    if distanceToGoal > 35 then
                         hrp.CFrame = targetGoalCF
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     else
-                        -- Micro-interpolated smooth drift glide
-                        local steps = math.clamp(math.floor(distanceToGoal / 3), 3, 7)
+                        local steps = math.clamp(math.floor(distanceToGoal / 2.5), 4, 10)
                         for i = 1, steps do
                             if not autoCandyFarm or not ghost.Parent then break end
-                            local alpha = i / steps
-                            hrp.CFrame = startCF:Lerp(targetGoalCF, alpha)
+                            local t = i / steps
+                            local smoothAlpha = t * t * (3 - 2 * t)
+                            hrp.CFrame = startCF:Lerp(targetGoalCF, smoothAlpha)
                             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                             hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                             RunService.Heartbeat:Wait()
@@ -1100,7 +1187,7 @@ task.spawn(function()
                     if ghost.Parent then
                         executeGhostSwing(ghost)
                     end
-                    task.wait(0.07)
+                    task.wait(0.06)
                 end
             else
                 restoreSurface()
@@ -1434,7 +1521,16 @@ aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with
     end
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 5, function()
+CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through walls and barriers", "OFF", false, 5, function(bText, bStroke, sLbl, setActive)
+    NoclipActive = not NoclipActive
+    bText.Text = NoclipActive and "ACTIVE" or "OFF"
+    bText.TextColor3 = NoclipActive and C.Green or C.Muted
+    sLbl.Text = NoclipActive and "Collision disabled on all character parts" or "Passes through walls and barriers"
+    setActive(NoclipActive)
+    Notify("Noclip", NoclipActive and "Noclip Enabled" or "Noclip Disabled", NoclipActive and C.Green or C.Red)
+end)
+
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 6, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1444,9 +1540,9 @@ CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle st
     end
 end)
 
-AddSection(LeftCol, "EVENT SHOP", 6)
+AddSection(LeftCol, "EVENT SHOP", 7)
 
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 7, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 8, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
@@ -1456,7 +1552,7 @@ CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle sta
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 8, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 9, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
@@ -1466,9 +1562,9 @@ CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle s
     end
 end)
 
-AddSection(LeftCol, "VISUALS", 9)
+AddSection(LeftCol, "VISUALS", 10)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 10, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 11, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1477,7 +1573,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "
     Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 11, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1846,6 +1942,7 @@ DestroyCard.MouseButton1Click:Connect(function()
         if timerThread then task.cancel(timerThread) end
         autoCandyFarm = false
         aiChaseActive = false
+        NoclipActive = false
         toggleESP(false)
         toggleGhostESP(false)
         restoreSurface()
@@ -1855,7 +1952,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     end
 end)
 
--- B. CREDITS & CHANGELOG DRAWER (✦)
+-- B. CREDITS & REVISION DRAWER (★ PURE INFO / NO BUTTONS)
 local CreditsDrawer = Instance.new("TextButton")
 CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
 CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1886,35 +1983,15 @@ cList.Padding = UDim.new(0, 6)
 cList.SortOrder = Enum.SortOrder.LayoutOrder
 cList.Parent = CreditsScroll
 
-AddSection(CreditsScroll, "DEVELOPER & SUITE", 1)
-CreateActionCard(CreditsScroll, "LUMACORE ARCHITECTURE", "Engine & Frameless Interface Lead", "DEVELOPER", true, 2, function()
-    local ok = pcall(function() setclipboard("https://discord.gg/lumacore") end)
-    Notify("Developer", ok and "Invite copied to clipboard!" or "Developed by Lumacore", C.AccentGlow)
-end)
+AddSection(CreditsScroll, "DEVELOPER CREDITS", 1)
+CreateStaticInfoCard(CreditsScroll, "LUMACORE ARCHITECTURE", "Frameless Card Suite & Motion Engine", "LEAD DEV", C.AccentGlow, 2)
+CreateStaticInfoCard(CreditsScroll, "BUILD VERSION", "Poly Loot Definitive Edition", "v2.6 STABLE", C.Cyan, 3)
 
-CreateActionCard(CreditsScroll, "BUILD VERSION", "Poly Loot Definitive Edition", "v2.5 STABLE", false, 3, function()
-    Notify("Build Info", "Lumacore Poly Loot Suite • v2.5 Stable", C.Cyan)
-end)
-
-AddSection(CreditsScroll, "SUPPORT & DONATIONS", 4)
-CreateActionCard(CreditsScroll, "KO-FI DONATION", "Tap to copy donation / tip link", "COPY LINK", false, 5, function()
-    local ok = pcall(function() setclipboard("https://ko-fi.com/lumacore") end)
-    Notify("Support", ok and "Donation link copied to clipboard!" or "Failed to access clipboard", C.Green)
-end)
-
-CreateActionCard(CreditsScroll, "CRYPTO TIP (LTC)", "Tap to copy Litecoin wallet address", "COPY LTC", false, 6, function()
-    local ok = pcall(function() setclipboard("ltc1qplaceholderwalletaddresslumacore") end)
-    Notify("Crypto Tip", ok and "LTC address copied to clipboard!" or "Failed to access clipboard", C.Green)
-end)
-
-AddSection(CreditsScroll, "CHANGELOG & REVISION", 7)
-CreateActionCard(CreditsScroll, "MECHANICAL BOOT SEQUENCE", "4-stage frame assembly & wireframe build", "NEW", true, 8, function()
-    Notify("Changelog", "Added 4-stage mechanical frame build animation", C.Accent)
-end)
-
-CreateActionCard(CreditsScroll, "SMOOTH CANDY CORN FARM", "Lerp glide pathing & anti-clip protection", "IMPROVED", true, 9, function()
-    Notify("Changelog", "Micro-interpolated smooth drift ghost farming", C.Green)
-end)
+AddSection(CreditsScroll, "FIXES & CHANGELOG", 4)
+CreateStaticInfoCard(CreditsScroll, "MECHANICAL ASSEMBLE ANIM", "Layered extrusion, core beam & staggered lock-in", "BUILT", C.Green, 5)
+CreateStaticInfoCard(CreditsScroll, "SMOOTH CANDY FARM", "Hermite smoothstep trajectory interpolation", "IMPROVED", C.Green, 6)
+CreateStaticInfoCard(CreditsScroll, "NOCLIP ENGINE", "Real-time collision nullification module", "NEW", C.Cyan, 7)
+CreateStaticInfoCard(CreditsScroll, "ESP SCRIPTING STABILIZATION", "Removed out-of-bounds percentage & bad offsets", "FIXED", C.Purple, 8)
 
 -- MUTUAL DRAWER CONTROLLER
 local activeDrawer = nil -- nil, "Settings", or "Credits"
@@ -1965,7 +2042,7 @@ local function toggleCreditsDrawer()
             tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
         end
         activeDrawer = "Credits"
-        tw(CreditsBtn, {Rotation = 45}, 0.25, Enum.EasingStyle.Back)
+        tw(CreditsBtn, {Rotation = 72}, 0.25, Enum.EasingStyle.Back)
         tw(CreditsDrawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
     end
 end
@@ -2023,21 +2100,23 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. ENTRANCE & MECHANICAL ASSEMBLY BOOT SEQUENCE
+-- 18. DELIBERATE MECHANICAL ASSEMBLY BOOT SEQUENCE
 local isTransitioning = false
 local isOpen = false
 
 local function playMechanicalBuildSequence()
-    AssemblyLine.Visible = true
-    AssemblyLine.Position = UDim2.new(0.5, 0, 0.5, 0)
-    AssemblyLine.Size = UDim2.new(0, 0, 0, 2)
-    AssemblyLine.BackgroundTransparency = 0
+    WireframeBeam.Visible = true
+    WireframeBeam.Position = UDim2.new(0.5, 0, 0.5, 0)
+    WireframeBeam.Size = UDim2.new(0, 0, 0, 2)
+    WireframeBeam.BackgroundTransparency = 0
+    BeamGlow.Transparency = 0
 
-    -- Stage 1: Core Snap - Wireframe Line Snaps Across
-    local snapTween = tw(AssemblyLine, {Size = UDim2.new(0, 580, 0, 2)}, 0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-    snapTween.Completed:Wait()
+    -- Stage 1: Calibration Laser Sweep (Sharp horizontal lock-in)
+    local laserSweep = tw(WireframeBeam, {Size = UDim2.new(0, 580, 0, 2)}, 0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    laserSweep.Completed:Wait()
+    task.wait(0.04)
 
-    -- Stage 2: Extrusion - Card Mounts and Expands Vertically
+    -- Stage 2: Structural Extrusion (Vertical chassis unfolding)
     Card.Position = UDim2.new(0.5, 0, 0.5, 0)
     Card.Size = UDim2.new(0, 580, 0, 4)
     Card.Rotation = 0
@@ -2048,22 +2127,25 @@ local function playMechanicalBuildSequence()
     AssemblyVeil.Position = UDim2.new(0, 0, 0, 0)
     AssemblyVeil.BackgroundTransparency = 0
 
-    AssemblyLine.Visible = false
+    tw(WireframeBeam, {BackgroundTransparency = 1}, 0.12)
+    tw(BeamGlow, {Transparency = 1}, 0.12)
+    task.delay(0.12, function() WireframeBeam.Visible = false end)
 
-    local cardExtrude = tw(Card, {Size = UDim2.new(0, 580, 0, 345)}, 0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local cardExtrude = tw(Card, {Size = UDim2.new(0, 580, 0, 345)}, 0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     cardExtrude.Completed:Wait()
+    task.wait(0.06)
 
-    -- Stage 3: Shield Drop - Construction Veil Slides Down
-    local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    -- Stage 3: Shutter Deconstruction (Shield slides off bottom)
+    local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
     veilDrop.Completed:Wait()
     AssemblyVeil.Visible = false
 
-    -- Stage 4: Component Lock-In - Staggered Action Card Cascade
-    for index, row in ipairs(ActionCardRegistry) do
-        row.Position = UDim2.new(0, -18, 0, 0)
-        row.BackgroundTransparency = 0.6
-        tw(row, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, 0.14, Enum.EasingStyle.Back)
-        task.wait(0.025)
+    -- Stage 4: Cascading Action Matrix Lock-In
+    for _, row in ipairs(ActionCardRegistry) do
+        row.Position = UDim2.new(0, -22, 0, 0)
+        row.BackgroundTransparency = 0.7
+        tw(row, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        task.wait(0.035)
     end
 end
 
@@ -2080,7 +2162,7 @@ local function openMenu()
 
     Backdrop.Visible = true
     Backdrop.BackgroundTransparency = 1
-    tw(Backdrop, {BackgroundTransparency = 0.5}, 0.2)
+    tw(Backdrop, {BackgroundTransparency = 0.5}, 0.25)
 
     isOpen = true
 
