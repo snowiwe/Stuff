@@ -537,7 +537,7 @@ LeftCol.CanvasSize = UDim2.new(0, 0, 0, 0)
 LeftCol.Parent = Body
 
 local leftLayout = Instance.new("UIListLayout")
-leftLayout.Padding = UDim.new(0, 6)
+leftLayout.Padding = UDim.new(0, 5)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
@@ -682,11 +682,11 @@ local ActionCardRegistry = {}
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
-    lbl.Size = UDim2.new(1, 0, 0, 16)
+    lbl.Size = UDim2.new(1, 0, 0, 14)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Accent
     lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 10
+    lbl.TextSize = 9
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.LayoutOrder = order or 0
     lbl.ZIndex = parent.ZIndex + 1
@@ -696,7 +696,7 @@ end
 
 local function CreateActionCard(parent, title, defaultSub, initialBadgeText, initialActive, order, callback)
     local row = Instance.new("TextButton")
-    row.Size = UDim2.new(1, 0, 0, 48)
+    row.Size = UDim2.new(1, 0, 0, 42)
     row.BackgroundColor3 = initialActive and C.Hover or C.CardBg
     row.AutoButtonColor = false
     row.Text = ""
@@ -705,7 +705,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     row.ClipsDescendants = true
     row.Parent = parent
 
-    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 7)
     local s = Instance.new("UIStroke")
     s.Color = initialActive and C.Accent or C.Border
     s.Thickness = initialActive and 1.4 or 1
@@ -714,9 +714,9 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     local tLbl = Instance.new("TextLabel")
     tLbl.Text = title
     tLbl.Font = Enum.Font.GothamBold
-    tLbl.TextSize = 11
+    tLbl.TextSize = 10.5
     tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 10, 0, 8)
+    tLbl.Position = UDim2.new(0, 10, 0, 6)
     tLbl.Size = UDim2.new(1, -94, 0, 14)
     tLbl.TextXAlignment = Enum.TextXAlignment.Left
     tLbl.TextTruncate = Enum.TextTruncate.AtEnd
@@ -727,10 +727,10 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     local sLbl = Instance.new("TextLabel")
     sLbl.Text = defaultSub
     sLbl.Font = Enum.Font.Gotham
-    sLbl.TextSize = 9
+    sLbl.TextSize = 8.5
     sLbl.TextColor3 = C.Dim
-    sLbl.Position = UDim2.new(0, 10, 0, 24)
-    sLbl.Size = UDim2.new(1, -94, 0, 14)
+    sLbl.Position = UDim2.new(0, 10, 0, 21)
+    sLbl.Size = UDim2.new(1, -94, 0, 13)
     sLbl.TextXAlignment = Enum.TextXAlignment.Left
     sLbl.TextTruncate = Enum.TextTruncate.AtEnd
     sLbl.BackgroundTransparency = 1
@@ -738,13 +738,13 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     sLbl.Parent = row
 
     local badge = Instance.new("Frame")
-    badge.Size = UDim2.new(0, 74, 0, 24)
-    badge.Position = UDim2.new(1, -10, 0.5, 0)
+    badge.Size = UDim2.new(0, 70, 0, 22)
+    badge.Position = UDim2.new(1, -8, 0.5, 0)
     badge.AnchorPoint = Vector2.new(1, 0.5)
     badge.BackgroundColor3 = C.Surface
     badge.ZIndex = row.ZIndex + 1
     badge.Parent = row
-    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 5)
 
     local bStroke = Instance.new("UIStroke")
     bStroke.Color = initialActive and C.Green or C.Border
@@ -756,7 +756,7 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     bText.BackgroundTransparency = 1
     bText.Text = initialBadgeText
     bText.Font = Enum.Font.GothamBold
-    bText.TextSize = 10
+    bText.TextSize = 9.5
     bText.TextColor3 = initialActive and C.Green or C.Muted
     bText.ZIndex = row.ZIndex + 2
     bText.Parent = badge
@@ -805,9 +805,9 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
 
     row.MouseButton1Click:Connect(function()
         if AnimationsEnabled then
-            tw(row, {Size = UDim2.new(1, -4, 0, 46)}, 0.06)
+            tw(row, {Size = UDim2.new(1, -4, 0, 40)}, 0.06)
             task.delay(0.06, function()
-                tw(row, {Size = UDim2.new(1, 0, 0, 48)}, 0.12, Enum.EasingStyle.Back)
+                tw(row, {Size = UDim2.new(1, 0, 0, 42)}, 0.12, Enum.EasingStyle.Back)
             end)
         end
         callback(bText, bStroke, sLbl, setCardActiveState, controller)
@@ -1324,10 +1324,10 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 15. POPULATE CONTROLS IN LEFT COLUMN
+-- 15. POPULATE CONTROLS IN LEFT COLUMN (STREAMLINED)
 AddSection(LeftCol, "AUTOMATION", 1)
 
-autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net • Auto-unequips on stop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto net handling & harvest loop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     if not autoCandyFarm then
         autoCandyFarm = true
         waitingForModeChoice = true
@@ -1335,16 +1335,16 @@ autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto-equips net �
         ensureGhostNetEquipped()
         bText.Text = "SELECT"
         bText.TextColor3 = C.AccentGlow
-        sLbl.Text = "Choose Stance or AI Chase below to start"
+        sLbl.Text = "Select Stance or AI Chase to begin"
         setActive(true, C.AccentGlow)
-        Notify("Farm Setup", "Select Farm Stance or AI Chase below", C.AccentGlow)
+        Notify("Farm Setup", "Select Farm Stance or AI Chase", C.AccentGlow)
     else
         autoCandyFarm = false
         waitingForModeChoice = false
         aiChaseActive = false
         bText.Text = "OFF"
         bText.TextColor3 = C.Muted
-        sLbl.Text = "Auto-equips net • Auto-unequips on stop"
+        sLbl.Text = "Auto net handling & harvest loop"
         setActive(false)
 
         if aiChaseCard then
@@ -1452,40 +1452,40 @@ aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with
     end
 end)
 
-catchSpeedCard = CreateActionCard(LeftCol, "CATCH DELAY", "Smooth catch buffer timing", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
+catchSpeedCard = CreateActionCard(LeftCol, "CATCH DELAY", "Catch buffer pacing", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
     if catchSpeedMode == "Normal" then
         catchSpeedMode = "Fast"
         catchDelay = 0.04
         bText.Text = "FAST"
         bText.TextColor3 = C.AccentGlow
-        sLbl.Text = "Low delay (0.04s) • Swift swings"
+        sLbl.Text = "Fast catch (0.04s) • Quick swings"
         setActive(true, C.AccentGlow)
-        Notify("Catch Delay", "Catch speed set to Fast (0.04s)", C.AccentGlow)
+        Notify("Catch Delay", "Pacing: Fast (0.04s)", C.AccentGlow)
     else
         catchSpeedMode = "Normal"
         catchDelay = 0.12
         bText.Text = "NORMAL"
         bText.TextColor3 = C.Cyan
-        sLbl.Text = "Safe natural delay (0.12s) • Smooth registration"
+        sLbl.Text = "Safe catch (0.12s) • Steady registration"
         setActive(true, C.Cyan)
-        Notify("Catch Delay", "Catch speed set to Normal (0.12s)", C.Cyan)
+        Notify("Catch Delay", "Pacing: Normal (0.12s)", C.Cyan)
     end
 end)
 
-CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through walls and barriers", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through barriers & geometry", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
     NoclipActive = not NoclipActive
     bText.Text = NoclipActive and "ACTIVE" or "OFF"
     bText.TextColor3 = NoclipActive and C.Green or C.Muted
-    sLbl.Text = NoclipActive and "Collision disabled on all character parts" or "Passes through walls and barriers"
+    sLbl.Text = NoclipActive and "Collision disabled on character parts" or "Passes through barriers & geometry"
     setActive(NoclipActive)
     Notify("Noclip", NoclipActive and "Noclip Enabled" or "Noclip Disabled", NoclipActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Must be in Halloween middle stall", "CLAIM", false, 7, function()
+CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claim Halloween daily reward", "CLAIM", false, 7, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
-        Notify("Daily Check-In", "Attempted to light daily flame", C.Green)
+        Notify("Daily Check-In", "Triggered daily flame check-in", C.Green)
     else
         Notify("Daily Check-In", "Daily remote not found", C.Red)
     end
@@ -1493,21 +1493,21 @@ end)
 
 AddSection(LeftCol, "EVENT SHOP", 8)
 
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Be in middle stall", "BUY", false, 9, function()
+CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Event chest purchase", "BUY", false, 9, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
-        Notify("Event Shop", "Attempted purchase: Pumpkin Chest (5K)", C.Accent)
+        Notify("Event Shop", "Purchase sent: Pumpkin Chest (5K)", C.Accent)
     else
         Notify("Event Shop", "Shop remote unavailable", C.Red)
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Be in middle stall", "BUY", false, 10, function()
+CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Dungeon ticket purchase", "BUY", false, 10, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
-        Notify("Event Shop", "Attempted purchase: Halloween Dungeon (500)", C.Accent)
+        Notify("Event Shop", "Purchase sent: Halloween Dungeon (500)", C.Accent)
     else
         Notify("Event Shop", "Shop remote unavailable", C.Red)
     end
@@ -1515,30 +1515,30 @@ end)
 
 AddSection(LeftCol, "VISUALS", 11)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, live distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
-    sLbl.Text = ESPActive and "Tracking active players live" or "Outline chams, live distance & HP %"
+    sLbl.Text = ESPActive and "Tracking active players" or "Outline chams, distance & HP %"
     setActive(ESPActive)
     Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & distance tags", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
-    sLbl.Text = GhostESPActive and "Tracking spawned ghosts live" or "Outline chams & live distance tags"
+    sLbl.Text = GhostESPActive and "Tracking spawned ghosts" or "Outline chams & distance tags"
     setActive(GhostESPActive, C.Purple)
     Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 16. MUTUAL-EXCLUSION DRAWERS: SETTINGS & REDESIGNED HUD CREDITS
+-- 16. MUTUAL-EXCLUSION DRAWERS: CONSOLE SETTINGS & HUD CREDITS
 local MobileToggle
 local setFloatingIconVisible
 local closeActiveDrawer
 
--- A. SETTINGS DRAWER (DISTINCT CLEANED DESIGN)
+-- A. SETTINGS DRAWER (CYBER CONSOLE TWO-COLUMN TILE LAYOUT)
 local Drawer = Instance.new("Frame")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1548,44 +1548,8 @@ Drawer.BorderSizePixel = 0
 Drawer.ClipsDescendants = true
 Drawer.Parent = Card
 
-local DrawerHeader = Instance.new("Frame")
-DrawerHeader.Size = UDim2.new(1, 0, 0, 32)
-DrawerHeader.BackgroundTransparency = 1
-DrawerHeader.ZIndex = 51
-DrawerHeader.Parent = Drawer
-
-local dTitle = Instance.new("TextLabel")
-dTitle.Text = "SYSTEM CONFIGURATION"
-dTitle.Font = Enum.Font.GothamBold
-dTitle.TextSize = 10
-dTitle.TextColor3 = C.Accent
-dTitle.Position = UDim2.new(0, 16, 0, 8)
-dTitle.Size = UDim2.new(0, 200, 0, 16)
-dTitle.TextXAlignment = Enum.TextXAlignment.Left
-dTitle.BackgroundTransparency = 1
-dTitle.ZIndex = 52
-dTitle.Parent = DrawerHeader
-
-local DrawerClose = Instance.new("TextButton")
-DrawerClose.Size = UDim2.new(0, 22, 0, 22)
-DrawerClose.Position = UDim2.new(1, -38, 0, 5)
-DrawerClose.BackgroundColor3 = C.Surface
-DrawerClose.Text = "✕"
-DrawerClose.TextColor3 = C.Muted
-DrawerClose.Font = Enum.Font.GothamBold
-DrawerClose.TextSize = 10
-DrawerClose.AutoButtonColor = false
-DrawerClose.ZIndex = 52
-DrawerClose.Parent = DrawerHeader
-Instance.new("UICorner", DrawerClose).CornerRadius = UDim.new(0, 6)
-
-DrawerClose.MouseButton1Click:Connect(function()
-    closeActiveDrawer()
-end)
-
 local DrawerScroll = Instance.new("ScrollingFrame")
-DrawerScroll.Size = UDim2.new(1, 0, 1, -34)
-DrawerScroll.Position = UDim2.new(0, 0, 0, 34)
+DrawerScroll.Size = UDim2.fromScale(1, 1)
 DrawerScroll.BackgroundTransparency = 1
 DrawerScroll.BorderSizePixel = 0
 DrawerScroll.ScrollBarThickness = 2
@@ -1596,87 +1560,166 @@ DrawerScroll.ZIndex = 51
 DrawerScroll.Parent = Drawer
 
 local dPad = Instance.new("UIPadding")
-dPad.PaddingTop = UDim.new(0, 4); dPad.PaddingLeft = UDim.new(0, 14); dPad.PaddingRight = UDim.new(0, 14); dPad.PaddingBottom = UDim.new(0, 14)
+dPad.PaddingTop = UDim.new(0, 10); dPad.PaddingLeft = UDim.new(0, 14); dPad.PaddingRight = UDim.new(0, 14); dPad.PaddingBottom = UDim.new(0, 14)
 dPad.Parent = DrawerScroll
 
 local dList = Instance.new("UIListLayout")
-dList.Padding = UDim.new(0, 6)
+dList.Padding = UDim.new(0, 8)
 dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
-AddSection(DrawerScroll, "IDLE & AFK", 1)
-CreateActionCard(DrawerScroll, "ANTI-AFK SYSTEM", "Prevents 20-minute idle disconnect", "ON", true, 2, function(bText, bStroke, _, setActive)
-    AntiAFKActive = not AntiAFKActive
-    bText.Text = AntiAFKActive and "ON" or "OFF"
-    bText.TextColor3 = AntiAFKActive and C.Green or C.Muted
-    setActive(AntiAFKActive)
-    Notify("Anti-AFK", AntiAFKActive and "Anti-AFK Protected" or "Anti-AFK Disabled", C.Accent)
+-- Compact Toggle Tile Factory for Settings Grid
+local function createSettingsToggleTile(parent, title, initialVal, activeColor, onToggle)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.5, -4, 0, 36)
+    btn.BackgroundColor3 = initialVal and C.Hover or C.CardBg
+    btn.AutoButtonColor = false
+    btn.Text = ""
+    btn.ZIndex = 52
+    btn.Parent = parent
+
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
+    local s = Instance.new("UIStroke")
+    s.Color = initialVal and (activeColor or C.Accent) or C.Border
+    s.Thickness = 1
+    s.Parent = btn
+
+    local t = Instance.new("TextLabel")
+    t.Text = title
+    t.Font = Enum.Font.GothamBold
+    t.TextSize = 9.5
+    t.TextColor3 = C.Text
+    t.Position = UDim2.new(0, 10, 0, 0)
+    t.Size = UDim2.new(1, -56, 1, 0)
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.BackgroundTransparency = 1
+    t.ZIndex = 53
+    t.Parent = btn
+
+    local badge = Instance.new("Frame")
+    badge.Size = UDim2.new(0, 38, 0, 20)
+    badge.Position = UDim2.new(1, -8, 0.5, 0)
+    badge.AnchorPoint = Vector2.new(1, 0.5)
+    badge.BackgroundColor3 = C.Surface
+    badge.ZIndex = 53
+    badge.Parent = btn
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 5)
+
+    local bs = Instance.new("UIStroke")
+    bs.Color = initialVal and (activeColor or C.Accent) or C.Border
+    bs.Thickness = 1
+    bs.Parent = badge
+
+    local bt = Instance.new("TextLabel")
+    bt.Size = UDim2.fromScale(1, 1)
+    bt.BackgroundTransparency = 1
+    bt.Text = initialVal and "ON" or "OFF"
+    bt.Font = Enum.Font.GothamBold
+    bt.TextSize = 8.5
+    bt.TextColor3 = initialVal and (activeColor or C.Accent) or C.Muted
+    bt.ZIndex = 54
+    bt.Parent = badge
+
+    local isToggled = initialVal
+    btn.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        local color = activeColor or C.Accent
+        if isToggled then
+            tw(btn, {BackgroundColor3 = C.Hover}, 0.15)
+            tw(s, {Color = color}, 0.15)
+            tw(bs, {Color = color}, 0.15)
+            bt.Text = "ON"
+            bt.TextColor3 = color
+        else
+            tw(btn, {BackgroundColor3 = C.CardBg}, 0.15)
+            tw(s, {Color = C.Border}, 0.15)
+            tw(bs, {Color = C.Border}, 0.15)
+            bt.Text = "OFF"
+            bt.TextColor3 = C.Muted
+        end
+        onToggle(isToggled)
+    end)
+
+    return btn
+end
+
+-- Settings Grid 1: System & Privacy
+AddSection(DrawerScroll, "SYSTEM CONTROLS", 1)
+local SysGrid = Instance.new("Frame")
+SysGrid.Size = UDim2.new(1, 0, 0, 36)
+SysGrid.BackgroundTransparency = 1
+SysGrid.LayoutOrder = 2
+SysGrid.ZIndex = 51
+SysGrid.Parent = DrawerScroll
+local sgLayout = Instance.new("UIListLayout")
+sgLayout.FillDirection = Enum.FillDirection.Horizontal
+sgLayout.Padding = UDim.new(0, 8)
+sgLayout.Parent = SysGrid
+
+createSettingsToggleTile(SysGrid, "Anti-AFK Shield", true, C.Green, function(state)
+    AntiAFKActive = state
+    Notify("Anti-AFK", state and "Idle Protection Active" or "Idle Protection Disabled", C.Accent)
 end)
 
-AddSection(DrawerScroll, "PRIVACY & SENSORS", 3)
-CreateActionCard(DrawerScroll, "SENSOR TELEMETRY", "Blurs avatar & censors account IDs", "OFF", false, 4, function(bText, bStroke, _, setActive)
-    setCensorState(not SensorInfoActive)
-    bText.Text = SensorInfoActive and "ON" or "OFF"
-    bText.TextColor3 = SensorInfoActive and C.Green or C.Muted
-    setActive(SensorInfoActive)
-    Notify("Privacy Mode", SensorInfoActive and "Avatar Blurred & IDs Censored" or "Censorship Removed", C.Accent)
+createSettingsToggleTile(SysGrid, "Sensor Privacy", false, C.Green, function(state)
+    setCensorState(state)
+    Notify("Privacy Mode", state and "Avatar & IDs Hidden" or "Censorship Off", C.Accent)
 end)
 
-AddSection(DrawerScroll, "MONITORING OVERLAYS", 5)
-CreateActionCard(DrawerScroll, "SHOW FPS", "Displays FPS overlay", "OFF", false, 6, function(bText, bStroke, _, setActive)
-    MonitorFPS = not MonitorFPS
-    bText.Text = MonitorFPS and "ON" or "OFF"
-    bText.TextColor3 = MonitorFPS and C.Green or C.Muted
-    setActive(MonitorFPS)
+-- Settings Grid 2: Overlays
+AddSection(DrawerScroll, "HUD STAT OVERLAYS", 3)
+local HudGrid1 = Instance.new("Frame")
+HudGrid1.Size = UDim2.new(1, 0, 0, 36)
+HudGrid1.BackgroundTransparency = 1
+HudGrid1.LayoutOrder = 4
+HudGrid1.ZIndex = 51
+HudGrid1.Parent = DrawerScroll
+local hgLayout1 = Instance.new("UIListLayout")
+hgLayout1.FillDirection = Enum.FillDirection.Horizontal
+hgLayout1.Padding = UDim.new(0, 8)
+hgLayout1.Parent = HudGrid1
+
+createSettingsToggleTile(HudGrid1, "FPS Counter", false, C.Green, function(state) MonitorFPS = state end)
+createSettingsToggleTile(HudGrid1, "Ping Monitor", false, C.Green, function(state) MonitorPing = state end)
+
+local HudGrid2 = Instance.new("Frame")
+HudGrid2.Size = UDim2.new(1, 0, 0, 36)
+HudGrid2.BackgroundTransparency = 1
+HudGrid2.LayoutOrder = 5
+HudGrid2.ZIndex = 51
+HudGrid2.Parent = DrawerScroll
+local hgLayout2 = Instance.new("UIListLayout")
+hgLayout2.FillDirection = Enum.FillDirection.Horizontal
+hgLayout2.Padding = UDim.new(0, 8)
+hgLayout2.Parent = HudGrid2
+
+createSettingsToggleTile(HudGrid2, "Memory Usage", false, C.Green, function(state) MonitorMem = state end)
+createSettingsToggleTile(HudGrid2, "Session Clock", false, C.Green, function(state) MonitorUptime = state end)
+
+-- Settings Grid 3: Display & Visuals
+AddSection(DrawerScroll, "GRAPHICS & INTERFACE", 6)
+local DispGrid = Instance.new("Frame")
+DispGrid.Size = UDim2.new(1, 0, 0, 36)
+DispGrid.BackgroundTransparency = 1
+DispGrid.LayoutOrder = 7
+DispGrid.ZIndex = 51
+DispGrid.Parent = DrawerScroll
+local dgLayout = Instance.new("UIListLayout")
+dgLayout.FillDirection = Enum.FillDirection.Horizontal
+dgLayout.Padding = UDim.new(0, 8)
+dgLayout.Parent = DispGrid
+
+createSettingsToggleTile(DispGrid, "Spring Motion", true, C.Green, function(state)
+    AnimationsEnabled = state
+    Notify("Animations", state and "Easing Active" or "Snapping Active", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW PING", "Displays latency overlay", "OFF", false, 7, function(bText, bStroke, _, setActive)
-    MonitorPing = not MonitorPing
-    bText.Text = MonitorPing and "ON" or "OFF"
-    bText.TextColor3 = MonitorPing and C.Green or C.Muted
-    setActive(MonitorPing)
+createSettingsToggleTile(DispGrid, "Floating Button", true, C.Green, function(state)
+    if setFloatingIconVisible then setFloatingIconVisible(state) end
+    Notify("Toggle Button", state and "Floating Icon On" or "Floating Icon Hidden", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "SHOW MEMORY", "Displays client MB usage", "OFF", false, 8, function(bText, bStroke, _, setActive)
-    MonitorMem = not MonitorMem
-    bText.Text = MonitorMem and "ON" or "OFF"
-    bText.TextColor3 = MonitorMem and C.Green or C.Muted
-    setActive(MonitorMem)
-end)
-
-CreateActionCard(DrawerScroll, "SHOW UPTIME", "Displays session time counter", "OFF", false, 9, function(bText, bStroke, _, setActive)
-    MonitorUptime = not MonitorUptime
-    bText.Text = MonitorUptime and "ON" or "OFF"
-    bText.TextColor3 = MonitorUptime and C.Green or C.Muted
-    setActive(MonitorUptime)
-end)
-
-CreateActionCard(DrawerScroll, "SHOW GHOST CAPTURES", "Displays captured ghost count", "OFF", false, 10, function(bText, bStroke, _, setActive)
-    MonitorGhostCount = not MonitorGhostCount
-    bText.Text = MonitorGhostCount and "ON" or "OFF"
-    bText.TextColor3 = MonitorGhostCount and C.Green or C.Muted
-    setActive(MonitorGhostCount)
-end)
-
-AddSection(DrawerScroll, "INTERFACE & VISUALS", 11)
-CreateActionCard(DrawerScroll, "UI ANIMATIONS", "Toggle menu glide & easing animations", "ON", true, 12, function(bText, bStroke, _, setActive)
-    AnimationsEnabled = not AnimationsEnabled
-    bText.Text = AnimationsEnabled and "ON" or "OFF"
-    bText.TextColor3 = AnimationsEnabled and C.Green or C.Muted
-    setActive(AnimationsEnabled)
-    Notify("Animations", AnimationsEnabled and "Spring Easing Enabled" or "Instant Snapping Enabled", C.Accent)
-end)
-
-CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (use RightCtrl on PC)", "ON", true, 13, function(bText, bStroke, _, setActive)
-    local nextState = not (MobileToggle and MobileToggle.Visible)
-    if setFloatingIconVisible then setFloatingIconVisible(nextState) end
-    bText.Text = nextState and "ON" or "OFF"
-    bText.TextColor3 = nextState and C.Green or C.Muted
-    setActive(nextState)
-    Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
-end)
-
--- POTATO MODE
+-- Performance Potato Mode Engine
 local deepPerformanceActive = false
 local originalLighting = {}
 local modifiedParts = {}
@@ -1698,7 +1741,6 @@ end
 
 local function applyAggressiveOptimization(enable)
     local Terrain = Workspace:FindFirstChildOfClass("Terrain")
-    
     if enable then
         originalLighting.GlobalShadows = Lighting.GlobalShadows
         originalLighting.FogEnd = Lighting.FogEnd
@@ -1710,9 +1752,7 @@ local function applyAggressiveOptimization(enable)
 
         for _, item in ipairs(Lighting:GetChildren()) do
             if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") or item:IsA("Sky") then
-                if not culledEffects[item] then
-                    culledEffects[item] = item.Enabled
-                end
+                if not culledEffects[item] then culledEffects[item] = item.Enabled end
                 item.Enabled = false
             end
         end
@@ -1778,86 +1818,79 @@ local function applyAggressiveOptimization(enable)
     end
 end
 
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Potato mode • Strips textures & VFX", "OFF", false, 14, function(bText, bStroke, _, setActive)
-    deepPerformanceActive = not deepPerformanceActive
-    bText.Text = deepPerformanceActive and "ON" or "OFF"
-    bText.TextColor3 = deepPerformanceActive and C.AccentGlow or C.Muted
-    setActive(deepPerformanceActive)
+local PerfGrid = Instance.new("Frame")
+PerfGrid.Size = UDim2.new(1, 0, 0, 36)
+PerfGrid.BackgroundTransparency = 1
+PerfGrid.LayoutOrder = 8
+PerfGrid.ZIndex = 51
+PerfGrid.Parent = DrawerScroll
+local pgLayout = Instance.new("UIListLayout")
+pgLayout.FillDirection = Enum.FillDirection.Horizontal
+pgLayout.Padding = UDim.new(0, 8)
+pgLayout.Parent = PerfGrid
 
-    applyAggressiveOptimization(deepPerformanceActive)
-    Notify("Performance", deepPerformanceActive and "Potato Mode Active" or "Full Visuals Restored", C.Accent)
+createSettingsToggleTile(PerfGrid, "Potato Visuals", false, C.AccentGlow, function(state)
+    deepPerformanceActive = state
+    applyAggressiveOptimization(state)
+    Notify("Performance", state and "Potato Mode Active" or "Visuals Restored", C.Accent)
 end)
 
-CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner notifications", "ON", true, 15, function(bText, bStroke, _, setActive)
-    NotificationsEnabled = not NotificationsEnabled
-    bText.Text = NotificationsEnabled and "ON" or "OFF"
-    bText.TextColor3 = NotificationsEnabled and C.Green or C.Muted
-    setActive(NotificationsEnabled)
+createSettingsToggleTile(PerfGrid, "In-UI Alerts", true, C.Green, function(state)
+    NotificationsEnabled = state
 end)
 
-AddSection(DrawerScroll, "DANGER ZONE", 16)
+-- Danger Zone Section (Streamlined Dual Buttons)
+AddSection(DrawerScroll, "EMERGENCY ACTIONS", 9)
+local DangerGrid = Instance.new("Frame")
+DangerGrid.Size = UDim2.new(1, 0, 0, 38)
+DangerGrid.BackgroundTransparency = 1
+DangerGrid.LayoutOrder = 10
+DangerGrid.ZIndex = 51
+DangerGrid.Parent = DrawerScroll
+local dgActionsLayout = Instance.new("UIListLayout")
+dgActionsLayout.FillDirection = Enum.FillDirection.Horizontal
+dgActionsLayout.Padding = UDim.new(0, 8)
+dgActionsLayout.Parent = DangerGrid
 
-local RespawnCard = Instance.new("TextButton")
-RespawnCard.Size = UDim2.new(1, 0, 0, 48)
-RespawnCard.BackgroundColor3 = C.CardBg
-RespawnCard.AutoButtonColor = false
-RespawnCard.Text = ""
-RespawnCard.ClipsDescendants = true
-RespawnCard.ZIndex = 52
-RespawnCard.LayoutOrder = 17
-RespawnCard.Parent = DrawerScroll
+local RespawnBtn = Instance.new("TextButton")
+RespawnBtn.Size = UDim2.new(0.5, -4, 1, 0)
+RespawnBtn.BackgroundColor3 = C.CardBg
+RespawnBtn.AutoButtonColor = false
+RespawnBtn.Text = "Clean Respawn"
+RespawnBtn.TextColor3 = C.Red
+RespawnBtn.Font = Enum.Font.GothamBold
+RespawnBtn.TextSize = 10
+RespawnBtn.ZIndex = 52
+RespawnBtn.Parent = DangerGrid
+Instance.new("UICorner", RespawnBtn).CornerRadius = UDim.new(0, 7)
+local rBtnStroke = Instance.new("UIStroke")
+rBtnStroke.Color = C.Border
+rBtnStroke.Thickness = 1
+rBtnStroke.Parent = RespawnBtn
 
-Instance.new("UICorner", RespawnCard).CornerRadius = UDim.new(0, 8)
-local rCardStroke = Instance.new("UIStroke")
-rCardStroke.Color = C.Border
-rCardStroke.Thickness = 1
-rCardStroke.Parent = RespawnCard
+local respawnConfirm = false
+local respawnThread = nil
 
-local RespawnFillBar = Instance.new("Frame")
-RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
-RespawnFillBar.BackgroundColor3 = C.RedDark
-RespawnFillBar.BorderSizePixel = 0
-RespawnFillBar.ZIndex = 53
-RespawnFillBar.Parent = RespawnCard
-
-local RespawnLbl = Instance.new("TextLabel")
-RespawnLbl.Text = "Fast Respawn"
-RespawnLbl.Font = Enum.Font.GothamBold
-RespawnLbl.TextSize = 12
-RespawnLbl.TextColor3 = C.Red
-RespawnLbl.Size = UDim2.fromScale(1, 1)
-RespawnLbl.BackgroundTransparency = 1
-RespawnLbl.ZIndex = 54
-RespawnLbl.Parent = RespawnCard
-
-local respawnConfirmState = false
-local respawnTimerThread = nil
-
-RespawnCard.MouseButton1Click:Connect(function()
-    if not respawnConfirmState then
-        respawnConfirmState = true
-        RespawnLbl.Text = "Tap Again to Confirm Respawn"
-        RespawnLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tw(rCardStroke, {Color = C.Red}, 0.2)
-        RespawnFillBar.Size = UDim2.new(1, 0, 1, 0)
-        tw(RespawnFillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
-
-        respawnTimerThread = task.delay(3, function()
-            if respawnConfirmState and ScreenGui.Parent then
-                respawnConfirmState = false
-                RespawnLbl.Text = "Fast Respawn"
-                RespawnLbl.TextColor3 = C.Red
-                tw(rCardStroke, {Color = C.Border}, 0.2)
-                RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+RespawnBtn.MouseButton1Click:Connect(function()
+    if not respawnConfirm then
+        respawnConfirm = true
+        RespawnBtn.Text = "Tap Again to Confirm"
+        RespawnBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(rBtnStroke, {Color = C.Red}, 0.2)
+        respawnThread = task.delay(3, function()
+            if respawnConfirm and ScreenGui.Parent then
+                respawnConfirm = false
+                RespawnBtn.Text = "Clean Respawn"
+                RespawnBtn.TextColor3 = C.Red
+                tw(rBtnStroke, {Color = C.Border}, 0.2)
             end
         end)
     else
-        if respawnTimerThread then task.cancel(respawnTimerThread) end
-        respawnConfirmState = false
-        RespawnLbl.Text = "Fast Respawn"
-        RespawnLbl.TextColor3 = C.Red
-        tw(rCardStroke, {Color = C.Border}, 0.2)
-        RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+        if respawnThread then task.cancel(respawnThread) end
+        respawnConfirm = false
+        RespawnBtn.Text = "Clean Respawn"
+        RespawnBtn.TextColor3 = C.Red
+        tw(rBtnStroke, {Color = C.Border}, 0.2)
 
         resolveRemotes()
         if ResetRequestedRemote then
@@ -1867,11 +1900,11 @@ RespawnCard.MouseButton1Click:Connect(function()
             local hum = char and char:FindFirstChildOfClass("Humanoid")
             if hum then hum.Health = 0 end
         end
-        Notify("Character", "Clean Respawn Executed", C.Red)
+        Notify("Character", "Respawn Executed", C.Red)
     end
 end)
 
--- VAPORIZATION PURGE DESTROY FUNCTION
+-- Vaporization Purge Destroy Execution
 local function executePurgeDestroy()
     autoCandyFarm = false
     aiChaseActive = false
@@ -1900,67 +1933,46 @@ local function executePurgeDestroy()
     end)
 end
 
-local DestroyCard = Instance.new("TextButton")
-DestroyCard.Size = UDim2.new(1, 0, 0, 48)
-DestroyCard.BackgroundColor3 = C.CardBg
-DestroyCard.AutoButtonColor = false
-DestroyCard.Text = ""
-DestroyCard.ClipsDescendants = true
-DestroyCard.ZIndex = 52
-DestroyCard.LayoutOrder = 18
-DestroyCard.Parent = DrawerScroll
+local PurgeBtn = Instance.new("TextButton")
+PurgeBtn.Size = UDim2.new(0.5, -4, 1, 0)
+PurgeBtn.BackgroundColor3 = C.CardBg
+PurgeBtn.AutoButtonColor = false
+PurgeBtn.Text = "Purge & Destroy"
+PurgeBtn.TextColor3 = C.Red
+PurgeBtn.Font = Enum.Font.GothamBold
+PurgeBtn.TextSize = 10
+PurgeBtn.ZIndex = 52
+PurgeBtn.Parent = DangerGrid
+Instance.new("UICorner", PurgeBtn).CornerRadius = UDim.new(0, 7)
+local pBtnStroke = Instance.new("UIStroke")
+pBtnStroke.Color = C.Border
+pBtnStroke.Thickness = 1
+pBtnStroke.Parent = PurgeBtn
 
-Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
-local dCardStroke = Instance.new("UIStroke")
-dCardStroke.Color = C.Border
-dCardStroke.Thickness = 1
-dCardStroke.Parent = DestroyCard
+local purgeConfirm = false
+local purgeThread = nil
 
-local FillBar = Instance.new("Frame")
-FillBar.Size = UDim2.new(0, 0, 1, 0)
-FillBar.BackgroundColor3 = C.RedDark
-FillBar.BorderSizePixel = 0
-FillBar.ZIndex = 53
-FillBar.Parent = DestroyCard
-
-local DestroyLbl = Instance.new("TextLabel")
-DestroyLbl.Text = "Destroy Interface"
-DestroyLbl.Font = Enum.Font.GothamBold
-DestroyLbl.TextSize = 12
-DestroyLbl.TextColor3 = C.Red
-DestroyLbl.Size = UDim2.fromScale(1, 1)
-DestroyLbl.BackgroundTransparency = 1
-DestroyLbl.ZIndex = 54
-DestroyLbl.Parent = DestroyCard
-
-local confirmState = false
-local timerThread = nil
-
-DestroyCard.MouseButton1Click:Connect(function()
-    if not confirmState then
-        confirmState = true
-        DestroyLbl.Text = "Tap Again to Confirm Purge"
-        DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tw(dCardStroke, {Color = C.Red}, 0.2)
-        FillBar.Size = UDim2.new(1, 0, 1, 0)
-        tw(FillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
-
-        timerThread = task.delay(3, function()
-            if confirmState and ScreenGui.Parent then
-                confirmState = false
-                DestroyLbl.Text = "Destroy Interface"
-                DestroyLbl.TextColor3 = C.Red
-                tw(dCardStroke, {Color = C.Border}, 0.2)
-                FillBar.Size = UDim2.new(0, 0, 1, 0)
+PurgeBtn.MouseButton1Click:Connect(function()
+    if not purgeConfirm then
+        purgeConfirm = true
+        PurgeBtn.Text = "Tap Again to Purge"
+        PurgeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(pBtnStroke, {Color = C.Red}, 0.2)
+        purgeThread = task.delay(3, function()
+            if purgeConfirm and ScreenGui.Parent then
+                purgeConfirm = false
+                PurgeBtn.Text = "Purge & Destroy"
+                PurgeBtn.TextColor3 = C.Red
+                tw(pBtnStroke, {Color = C.Border}, 0.2)
             end
         end)
     else
-        if timerThread then task.cancel(timerThread) end
+        if purgeThread then task.cancel(purgeThread) end
         executePurgeDestroy()
     end
 end)
 
--- B. CREDITS DRAWER (REDESIGNED: HYBRID STATS MATRIX + NO BUTTONS + CLOSE ICON)
+-- B. CREDITS DRAWER (HYBRID STATS MATRIX + NO BUTTONS)
 local CreditsDrawer = Instance.new("Frame")
 CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
 CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1970,44 +1982,8 @@ CreditsDrawer.BorderSizePixel = 0
 CreditsDrawer.ClipsDescendants = true
 CreditsDrawer.Parent = Card
 
-local CreditsHeader = Instance.new("Frame")
-CreditsHeader.Size = UDim2.new(1, 0, 0, 32)
-CreditsHeader.BackgroundTransparency = 1
-CreditsHeader.ZIndex = 51
-CreditsHeader.Parent = CreditsDrawer
-
-local crTitle = Instance.new("TextLabel")
-crTitle.Text = "CORE METRICS & REVISION"
-crTitle.Font = Enum.Font.GothamBold
-crTitle.TextSize = 10
-crTitle.TextColor3 = C.AccentGlow
-crTitle.Position = UDim2.new(0, 16, 0, 8)
-crTitle.Size = UDim2.new(0, 200, 0, 16)
-crTitle.TextXAlignment = Enum.TextXAlignment.Left
-crTitle.BackgroundTransparency = 1
-crTitle.ZIndex = 52
-crTitle.Parent = CreditsHeader
-
-local CreditsClose = Instance.new("TextButton")
-CreditsClose.Size = UDim2.new(0, 22, 0, 22)
-CreditsClose.Position = UDim2.new(1, -38, 0, 5)
-CreditsClose.BackgroundColor3 = C.Surface
-CreditsClose.Text = "✕"
-CreditsClose.TextColor3 = C.Muted
-CreditsClose.Font = Enum.Font.GothamBold
-CreditsClose.TextSize = 10
-CreditsClose.AutoButtonColor = false
-CreditsClose.ZIndex = 52
-CreditsClose.Parent = CreditsHeader
-Instance.new("UICorner", CreditsClose).CornerRadius = UDim.new(0, 6)
-
-CreditsClose.MouseButton1Click:Connect(function()
-    closeActiveDrawer()
-end)
-
 local CreditsScroll = Instance.new("ScrollingFrame")
-CreditsScroll.Size = UDim2.new(1, 0, 1, -34)
-CreditsScroll.Position = UDim2.new(0, 0, 0, 34)
+CreditsScroll.Size = UDim2.fromScale(1, 1)
 CreditsScroll.BackgroundTransparency = 1
 CreditsScroll.BorderSizePixel = 0
 CreditsScroll.ScrollBarThickness = 2
@@ -2018,7 +1994,7 @@ CreditsScroll.ZIndex = 51
 CreditsScroll.Parent = CreditsDrawer
 
 local cPad = Instance.new("UIPadding")
-cPad.PaddingTop = UDim.new(0, 4); cPad.PaddingLeft = UDim.new(0, 14); cPad.PaddingRight = UDim.new(0, 14); cPad.PaddingBottom = UDim.new(0, 14)
+cPad.PaddingTop = UDim.new(0, 10); cPad.PaddingLeft = UDim.new(0, 14); cPad.PaddingRight = UDim.new(0, 14); cPad.PaddingBottom = UDim.new(0, 14)
 cPad.Parent = CreditsScroll
 
 local cList = Instance.new("UIListLayout")
@@ -2026,27 +2002,27 @@ cList.Padding = UDim.new(0, 8)
 cList.SortOrder = Enum.SortOrder.LayoutOrder
 cList.Parent = CreditsScroll
 
--- 1. DEV IDENTITY HERO CARD (HYBRID PROFILE LOOK)
+-- 1. Dev Identity Hero Card
 local HeroCard = Instance.new("Frame")
-HeroCard.Size = UDim2.new(1, 0, 0, 62)
+HeroCard.Size = UDim2.new(1, 0, 0, 56)
 HeroCard.BackgroundColor3 = C.Surface
 HeroCard.LayoutOrder = 1
 HeroCard.ZIndex = 52
 HeroCard.Parent = CreditsScroll
-Instance.new("UICorner", HeroCard).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", HeroCard).CornerRadius = UDim.new(0, 9)
 local heroStroke = Instance.new("UIStroke")
 heroStroke.Color = C.Accent
 heroStroke.Thickness = 1.2
 heroStroke.Parent = HeroCard
 
 local HeroBadge = Instance.new("Frame")
-HeroBadge.Size = UDim2.new(0, 42, 0, 42)
+HeroBadge.Size = UDim2.new(0, 38, 0, 38)
 HeroBadge.Position = UDim2.new(0, 10, 0.5, 0)
 HeroBadge.AnchorPoint = Vector2.new(0, 0.5)
 HeroBadge.BackgroundColor3 = C.CardBg
 HeroBadge.ZIndex = 53
 HeroBadge.Parent = HeroCard
-Instance.new("UICorner", HeroBadge).CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", HeroBadge).CornerRadius = UDim.new(0, 7)
 local hbStroke = Instance.new("UIStroke")
 hbStroke.Color = C.Border
 hbStroke.Thickness = 1
@@ -2056,16 +2032,16 @@ local HeroIcon = Instance.new("TextLabel")
 HeroIcon.Size = UDim2.fromScale(1, 1)
 HeroIcon.BackgroundTransparency = 1
 HeroIcon.Text = "🍁"
-HeroIcon.TextSize = 20
+HeroIcon.TextSize = 18
 HeroIcon.ZIndex = 54
 HeroIcon.Parent = HeroBadge
 
 local HeroName = Instance.new("TextLabel")
 HeroName.Text = "LUMACORE"
 HeroName.Font = Enum.Font.GothamBold
-HeroName.TextSize = 13
+HeroName.TextSize = 12
 HeroName.TextColor3 = C.Text
-HeroName.Position = UDim2.new(0, 60, 0, 12)
+HeroName.Position = UDim2.new(0, 56, 0, 10)
 HeroName.Size = UDim2.new(1, -160, 0, 16)
 HeroName.TextXAlignment = Enum.TextXAlignment.Left
 HeroName.BackgroundTransparency = 1
@@ -2075,9 +2051,9 @@ HeroName.Parent = HeroCard
 local HeroSub = Instance.new("TextLabel")
 HeroSub.Text = "Interface Framework & Core Modules"
 HeroSub.Font = Enum.Font.Gotham
-HeroSub.TextSize = 9
+HeroSub.TextSize = 8.5
 HeroSub.TextColor3 = C.Dim
-HeroSub.Position = UDim2.new(0, 60, 0, 30)
+HeroSub.Position = UDim2.new(0, 56, 0, 28)
 HeroSub.Size = UDim2.new(1, -160, 0, 14)
 HeroSub.TextXAlignment = Enum.TextXAlignment.Left
 HeroSub.BackgroundTransparency = 1
@@ -2085,13 +2061,13 @@ HeroSub.ZIndex = 53
 HeroSub.Parent = HeroCard
 
 local HeroPill = Instance.new("Frame")
-HeroPill.Size = UDim2.new(0, 84, 0, 24)
+HeroPill.Size = UDim2.new(0, 76, 0, 22)
 HeroPill.Position = UDim2.new(1, -10, 0.5, 0)
 HeroPill.AnchorPoint = Vector2.new(1, 0.5)
 HeroPill.BackgroundColor3 = C.CardBg
 HeroPill.ZIndex = 53
 HeroPill.Parent = HeroCard
-Instance.new("UICorner", HeroPill).CornerRadius = UDim.new(0, 6)
+Instance.new("UICorner", HeroPill).CornerRadius = UDim.new(0, 5)
 local hpStroke = Instance.new("UIStroke")
 hpStroke.Color = C.Green
 hpStroke.Thickness = 1
@@ -2102,14 +2078,14 @@ HeroPillTxt.Size = UDim2.fromScale(1, 1)
 HeroPillTxt.BackgroundTransparency = 1
 HeroPillTxt.Text = "LEAD DEV"
 HeroPillTxt.Font = Enum.Font.GothamBold
-HeroPillTxt.TextSize = 9
+HeroPillTxt.TextSize = 8.5
 HeroPillTxt.TextColor3 = C.Green
 HeroPillTxt.ZIndex = 54
 HeroPillTxt.Parent = HeroPill
 
--- 2. DUAL TELEMETRY STATS BAY
+-- 2. Dual Telemetry Stats Bay
 local StatsGrid = Instance.new("Frame")
-StatsGrid.Size = UDim2.new(1, 0, 0, 52)
+StatsGrid.Size = UDim2.new(1, 0, 0, 46)
 StatsGrid.BackgroundTransparency = 1
 StatsGrid.LayoutOrder = 2
 StatsGrid.ZIndex = 52
@@ -2122,7 +2098,7 @@ local function createStatBox(parent, posX, widthScale, label, val, valColor)
     box.BackgroundColor3 = C.CardBg
     box.ZIndex = 53
     box.Parent = parent
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 7)
     local bs = Instance.new("UIStroke")
     bs.Color = C.Border
     bs.Thickness = 1
@@ -2131,9 +2107,9 @@ local function createStatBox(parent, posX, widthScale, label, val, valColor)
     local l = Instance.new("TextLabel")
     l.Text = label
     l.Font = Enum.Font.GothamMedium
-    l.TextSize = 9
+    l.TextSize = 8.5
     l.TextColor3 = C.Dim
-    l.Position = UDim2.new(0, 10, 0, 8)
+    l.Position = UDim2.new(0, 10, 0, 6)
     l.Size = UDim2.new(1, -20, 0, 12)
     l.TextXAlignment = Enum.TextXAlignment.Left
     l.BackgroundTransparency = 1
@@ -2143,44 +2119,44 @@ local function createStatBox(parent, posX, widthScale, label, val, valColor)
     local v = Instance.new("TextLabel")
     v.Text = val
     v.Font = Enum.Font.GothamBold
-    v.TextSize = 13
+    v.TextSize = 12
     v.TextColor3 = valColor or C.Text
-    v.Position = UDim2.new(0, 10, 0, 22)
-    v.Size = UDim2.new(1, -20, 0, 20)
+    v.Position = UDim2.new(0, 10, 0, 20)
+    v.Size = UDim2.new(1, -20, 0, 18)
     v.TextXAlignment = Enum.TextXAlignment.Left
     v.BackgroundTransparency = 1
     v.ZIndex = 54
     v.Parent = box
-    return box, v
+    return box
 end
 
 createStatBox(StatsGrid, 0, 0.5, "ACTIVE SCRIPT", "POLY LOOT", C.AccentGlow)
-createStatBox(StatsGrid, 0.5, 0.5, "CORE ENGINE", "VERIFIED", C.Cyan)
+createStatBox(StatsGrid, 0.5, 0.5, "CORE PIPELINE", "VERIFIED", C.Cyan)
 
--- 3. REVISION LOG BAY
-AddSection(CreditsScroll, "REVISION & REFINEMENTS", 3)
+-- 3. Streamlined Revision Tiles
+AddSection(CreditsScroll, "REVISION LOG", 3)
 
 local function createRevisionTile(parent, tag, tagColor, title, desc, order)
     local tile = Instance.new("Frame")
-    tile.Size = UDim2.new(1, 0, 0, 44)
+    tile.Size = UDim2.new(1, 0, 0, 38)
     tile.BackgroundColor3 = C.CardBg
     tile.LayoutOrder = order
     tile.ZIndex = 52
     tile.Parent = parent
-    Instance.new("UICorner", tile).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", tile).CornerRadius = UDim.new(0, 7)
     local ts = Instance.new("UIStroke")
     ts.Color = C.Border
     ts.Thickness = 1
     ts.Parent = tile
 
     local pill = Instance.new("Frame")
-    pill.Size = UDim2.new(0, 68, 0, 20)
+    pill.Size = UDim2.new(0, 62, 0, 18)
     pill.Position = UDim2.new(0, 8, 0.5, 0)
     pill.AnchorPoint = Vector2.new(0, 0.5)
     pill.BackgroundColor3 = C.Surface
     pill.ZIndex = 53
     pill.Parent = tile
-    Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 5)
+    Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 4)
     local ps = Instance.new("UIStroke")
     ps.Color = tagColor
     ps.Thickness = 1
@@ -2191,7 +2167,7 @@ local function createRevisionTile(parent, tag, tagColor, title, desc, order)
     pt.BackgroundTransparency = 1
     pt.Text = tag
     pt.Font = Enum.Font.GothamBold
-    pt.TextSize = 8
+    pt.TextSize = 7.5
     pt.TextColor3 = tagColor
     pt.ZIndex = 54
     pt.Parent = pill
@@ -2199,10 +2175,10 @@ local function createRevisionTile(parent, tag, tagColor, title, desc, order)
     local t = Instance.new("TextLabel")
     t.Text = title
     t.Font = Enum.Font.GothamBold
-    t.TextSize = 10
+    t.TextSize = 9.5
     t.TextColor3 = C.Text
-    t.Position = UDim2.new(0, 84, 0, 7)
-    t.Size = UDim2.new(1, -92, 0, 14)
+    t.Position = UDim2.new(0, 78, 0, 5)
+    t.Size = UDim2.new(1, -86, 0, 13)
     t.TextXAlignment = Enum.TextXAlignment.Left
     t.BackgroundTransparency = 1
     t.ZIndex = 53
@@ -2211,10 +2187,10 @@ local function createRevisionTile(parent, tag, tagColor, title, desc, order)
     local d = Instance.new("TextLabel")
     d.Text = desc
     d.Font = Enum.Font.Gotham
-    d.TextSize = 8.5
+    d.TextSize = 8
     d.TextColor3 = C.Dim
-    d.Position = UDim2.new(0, 84, 0, 22)
-    d.Size = UDim2.new(1, -92, 0, 14)
+    d.Position = UDim2.new(0, 78, 0, 19)
+    d.Size = UDim2.new(1, -86, 0, 13)
     d.TextXAlignment = Enum.TextXAlignment.Left
     d.BackgroundTransparency = 1
     d.ZIndex = 53
@@ -2222,7 +2198,7 @@ local function createRevisionTile(parent, tag, tagColor, title, desc, order)
 end
 
 createRevisionTile(CreditsScroll, "MECHANIC", C.Accent, "Reversible Build Sequence", "Symmetrical beam unfolding & reverse assembly on hide", 4)
-createRevisionTile(CreditsScroll, "STABILITY", C.Green, "Hermite Anti-Clip Farm", "Inside-ghost positioning with raycast floor floor-clamping", 5)
+createRevisionTile(CreditsScroll, "STABILITY", C.Green, "Hermite Anti-Clip Farm", "Inside-ghost positioning with raycast floor clearance", 5)
 createRevisionTile(CreditsScroll, "ENGINE", C.Cyan, "Noclip Core & Pacing Switch", "Collision bypass with Normal / Fast catch latency", 6)
 createRevisionTile(CreditsScroll, "PURGE", C.Red, "Vaporization UI Destruction", "Red-shift laser compress dissolve effect", 7)
 
