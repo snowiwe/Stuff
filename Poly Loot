@@ -1,5 +1,5 @@
 -- // LUMACORE - POLY LOOT //
--- Developed by Lumacore 
+-- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -307,7 +307,7 @@ veilLaser.BackgroundColor3 = C.AccentGlow
 veilLaser.BorderSizePixel = 0
 veilLaser.Parent = AssemblyVeil
 
--- DESTRUCTION OVERLAY (VAPORIZATION SHUTTER)
+-- DESTRUCTION OVERLAY
 local DestroyShield = Instance.new("Frame")
 DestroyShield.Size = UDim2.fromScale(1, 1)
 DestroyShield.BackgroundColor3 = C.RedDark
@@ -593,16 +593,6 @@ blurTint.ZIndex = 6
 blurTint.Parent = BlurStack
 Instance.new("UICorner", blurTint).CornerRadius = UDim.new(1, 0)
 
-local blurNoise = Instance.new("ImageLabel")
-blurNoise.Size = UDim2.fromScale(1.4, 1.4)
-blurNoise.Position = UDim2.new(-0.2, 0, -0.2, 0)
-blurNoise.BackgroundTransparency = 1
-blurNoise.Image = "rbxassetid://8992230677"
-blurNoise.ImageTransparency = 0.35
-blurNoise.ImageColor3 = Color3.fromRGB(220, 210, 200)
-blurNoise.ZIndex = 7
-blurNoise.Parent = BlurStack
-
 local function updateProfilePicture()
     local ok, content = pcall(function()
         return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
@@ -686,7 +676,7 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER (TRACKED FOR CASCADED LOCK-IN)
+-- 10. REUSABLE ACTION CARD BUILDER
 local ActionCardRegistry = {}
 
 local function AddSection(parent, text, order)
@@ -916,14 +906,13 @@ end
 
 -- 13. AUTOMATION STATE & LOGIC
 local autoCandyFarm = false
-local farmStance = "Underground" -- "Underground" or "Above Ground"
+local farmStance = "Underground"
 local aiChaseActive = false
 local isUnderground = false
 local currentTargetGhost = nil
 local waitingForModeChoice = false
 
--- CATCH SPEED DELAY CONFIG
-local catchSpeedMode = "Normal" -- "Normal" or "Fast"
+local catchSpeedMode = "Normal"
 local catchDelay = 0.12
 
 local autoCandyCard = nil
@@ -934,7 +923,6 @@ local catchSpeedCard = nil
 local lastAttackedGhost = nil
 local lastAttackTick = 0
 
--- DUAL METHOD GHOST CAPTURE TRACKING
 local function hookGhostDestruction(ghost)
     if not ghost or ghost:GetAttribute("Lumacore_Hooked") then return end
     ghost:SetAttribute("Lumacore_Hooked", true)
@@ -1017,7 +1005,6 @@ local function executeGhostSwing(ghost)
     end
 end
 
--- Collision & Anti-Clip Controller
 RunService.Stepped:Connect(function()
     local char = LocalPlayer.Character
     if not char or not autoCandyFarm then return end
@@ -1088,7 +1075,6 @@ task.spawn(function()
                     else
                         if isUnderground then restoreSurface() end
                         
-                        -- Anti-clip floor raycast check
                         local ghostPos = ghostPart.Position
                         local floorRayParams = RaycastParams.new()
                         floorRayParams.FilterDescendantsInstances = {char, ghost, locateGhostFolder()}
@@ -2168,10 +2154,10 @@ local function createStatBox(parent, posX, widthScale, label, val, valColor)
     return box, v
 end
 
-local _, statVer = createStatBox(StatsGrid, 0, 0.5, "ACTIVE BUILD", "POLY LOOT", C.AccentGlow)
-local _, statCore = createStatBox(StatsGrid, 0.5, 0.5, "CORE PIPELINE", "VERIFIED", C.Cyan)
+createStatBox(StatsGrid, 0, 0.5, "ACTIVE SCRIPT", "POLY LOOT", C.AccentGlow)
+createStatBox(StatsGrid, 0.5, 0.5, "CORE ENGINE", "VERIFIED", C.Cyan)
 
--- 3. NEATENED REVISION LOG BAY (CLEAN STATIC TILES)
+-- 3. REVISION LOG BAY
 AddSection(CreditsScroll, "REVISION & REFINEMENTS", 3)
 
 local function createRevisionTile(parent, tag, tagColor, title, desc, order)
@@ -2241,7 +2227,7 @@ createRevisionTile(CreditsScroll, "ENGINE", C.Cyan, "Noclip Core & Pacing Switch
 createRevisionTile(CreditsScroll, "PURGE", C.Red, "Vaporization UI Destruction", "Red-shift laser compress dissolve effect", 7)
 
 -- MUTUAL DRAWER CONTROLLER
-local activeDrawer = nil -- nil, "Settings", or "Credits"
+local activeDrawer = nil
 
 closeActiveDrawer = function(onDone)
     if activeDrawer == "Settings" then
@@ -2358,12 +2344,10 @@ local function playMechanicalBuildSequence()
     WireframeBeam.BackgroundTransparency = 0
     BeamGlow.Transparency = 0
 
-    -- Stage 1: Calibration Laser Sweep (Sharp horizontal lock-in)
     local laserSweep = tw(WireframeBeam, {Size = UDim2.new(0, 580, 0, 2)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
     laserSweep.Completed:Wait()
     task.wait(0.04)
 
-    -- Stage 2: Structural Extrusion (Vertical chassis unfolding)
     Card.Position = UDim2.new(0.5, 0, 0.5, 0)
     Card.Size = UDim2.new(0, 580, 0, 4)
     Card.Rotation = 0
@@ -2382,12 +2366,10 @@ local function playMechanicalBuildSequence()
     cardExtrude.Completed:Wait()
     task.wait(0.05)
 
-    -- Stage 3: Shutter Deconstruction (Shield slides off bottom)
     local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
     veilDrop.Completed:Wait()
     AssemblyVeil.Visible = false
 
-    -- Stage 4: Cascading Action Matrix Lock-In
     for _, row in ipairs(ActionCardRegistry) do
         row.Position = UDim2.new(0, -22, 0, 0)
         row.BackgroundTransparency = 0.7
@@ -2397,17 +2379,14 @@ local function playMechanicalBuildSequence()
 end
 
 local function playMechanicalDeconstructSequence()
-    -- Stage 1: Blast Shield Pull-Up
     AssemblyVeil.Visible = true
     AssemblyVeil.Position = UDim2.new(0, 0, 1, 0)
     local shieldUp = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 0, 0)}, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
     shieldUp.Completed:Wait()
 
-    -- Stage 2: Vertical Chassis Retraction
     local cardCompress = tw(Card, {Size = UDim2.new(0, 580, 0, 2)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
     cardCompress.Completed:Wait()
 
-    -- Stage 3: Wireframe Beam Snap Retract
     WireframeBeam.Size = UDim2.new(0, 580, 0, 2)
     WireframeBeam.BackgroundTransparency = 0
     BeamGlow.Transparency = 0
