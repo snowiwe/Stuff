@@ -13,6 +13,13 @@ local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
 local ScreenName = "Lumacore_PolyLoot"
 
+-- PRE-DECLARE ALL FORWARD-REFERENCED CONTROLLERS
+local closeActiveDrawer = function() end
+local closeMenu = function() end
+local openMenu = function() end
+local toggleMenu = function() end
+local setFloatingIconVisible = function() end
+
 -- 1. CONTAINER MOUNTING
 local function resolveContainer()
     local okHui, h = pcall(function()
@@ -290,7 +297,6 @@ cStroke.Color = C.Border
 cStroke.Thickness = 1.3
 cStroke.Parent = Card
 
--- MECHANICAL ASSEMBLY SHIELD
 local AssemblyVeil = Instance.new("Frame")
 AssemblyVeil.Name = "AssemblyVeil"
 AssemblyVeil.Size = UDim2.fromScale(1, 1)
@@ -307,7 +313,6 @@ veilLaser.BackgroundColor3 = C.AccentGlow
 veilLaser.BorderSizePixel = 0
 veilLaser.Parent = AssemblyVeil
 
--- DESTRUCTION OVERLAY
 local DestroyShield = Instance.new("Frame")
 DestroyShield.Size = UDim2.fromScale(1, 1)
 DestroyShield.BackgroundColor3 = C.RedDark
@@ -459,7 +464,7 @@ local function Notify(titleText, subText, color)
     end
 end
 
--- HEADER BUTTONS (TRIO: ★ CREDITS, ⚙ SETTINGS, ✕ CLOSE)
+-- HEADER BUTTONS
 local HeaderBtns = Instance.new("Frame")
 HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
@@ -524,7 +529,6 @@ Body.Position = UDim2.new(0, 16, 0, 48)
 Body.BackgroundTransparency = 1
 Body.Parent = Card
 
--- LEFT COLUMN
 local LeftCol = Instance.new("ScrollingFrame")
 LeftCol.Size = UDim2.new(0.58, -6, 1, 0)
 LeftCol.Position = UDim2.new(0, 0, 0, 0)
@@ -541,7 +545,6 @@ leftLayout.Padding = UDim.new(0, 5)
 leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
 leftLayout.Parent = LeftCol
 
--- RIGHT COLUMN (PROFILE & TELEMETRY)
 local RightCol = Instance.new("Frame")
 RightCol.Size = UDim2.new(0.42, -6, 1, 0)
 RightCol.Position = UDim2.new(0.58, 6, 0, 0)
@@ -594,14 +597,14 @@ blurTint.Parent = BlurStack
 Instance.new("UICorner", blurTint).CornerRadius = UDim.new(1, 0)
 
 local function updateProfilePicture()
-    local ok, content = pcall(function()
-        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
+    pcall(function()
+        local content = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size420x420)
+        if content and content ~= "" then
+            AvatarImage.Image = content
+        else
+            AvatarImage.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
+        end
     end)
-    if ok and content and content ~= "" then
-        AvatarImage.Image = content
-    else
-        AvatarImage.Image = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=420&height=420&format=png"
-    end
 end
 task.spawn(updateProfilePicture)
 
@@ -1324,7 +1327,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 15. POPULATE CONTROLS IN LEFT COLUMN (STREAMLINED)
+-- 15. CONTROLS IN LEFT COLUMN
 AddSection(LeftCol, "AUTOMATION", 1)
 
 autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto net handling & harvest loop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
@@ -1533,12 +1536,10 @@ CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & distance tags", "OFF", f
     Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 16. MUTUAL-EXCLUSION DRAWERS: CONSOLE SETTINGS & HUD CREDITS
+-- 16. MUTUAL-EXCLUSION DRAWERS
 local MobileToggle
-local setFloatingIconVisible
-local closeActiveDrawer
 
--- A. SETTINGS DRAWER (CYBER CONSOLE TWO-COLUMN TILE LAYOUT)
+-- A. SETTINGS DRAWER
 local Drawer = Instance.new("Frame")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1568,7 +1569,6 @@ dList.Padding = UDim.new(0, 8)
 dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
--- Compact Toggle Tile Factory for Settings Grid
 local function createSettingsToggleTile(parent, title, initialVal, activeColor, onToggle)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.5, -4, 0, 36)
@@ -1643,7 +1643,6 @@ local function createSettingsToggleTile(parent, title, initialVal, activeColor, 
     return btn
 end
 
--- Settings Grid 1: System & Privacy
 AddSection(DrawerScroll, "SYSTEM CONTROLS", 1)
 local SysGrid = Instance.new("Frame")
 SysGrid.Size = UDim2.new(1, 0, 0, 36)
@@ -1666,7 +1665,6 @@ createSettingsToggleTile(SysGrid, "Sensor Privacy", false, C.Green, function(sta
     Notify("Privacy Mode", state and "Avatar & IDs Hidden" or "Censorship Off", C.Accent)
 end)
 
--- Settings Grid 2: Overlays
 AddSection(DrawerScroll, "HUD STAT OVERLAYS", 3)
 local HudGrid1 = Instance.new("Frame")
 HudGrid1.Size = UDim2.new(1, 0, 0, 36)
@@ -1696,7 +1694,6 @@ hgLayout2.Parent = HudGrid2
 createSettingsToggleTile(HudGrid2, "Memory Usage", false, C.Green, function(state) MonitorMem = state end)
 createSettingsToggleTile(HudGrid2, "Session Clock", false, C.Green, function(state) MonitorUptime = state end)
 
--- Settings Grid 3: Display & Visuals
 AddSection(DrawerScroll, "GRAPHICS & INTERFACE", 6)
 local DispGrid = Instance.new("Frame")
 DispGrid.Size = UDim2.new(1, 0, 0, 36)
@@ -1719,7 +1716,7 @@ createSettingsToggleTile(DispGrid, "Floating Button", true, C.Green, function(st
     Notify("Toggle Button", state and "Floating Icon On" or "Floating Icon Hidden", C.Accent)
 end)
 
--- Performance Potato Mode Engine
+-- Performance Potato Mode
 local deepPerformanceActive = false
 local originalLighting = {}
 local modifiedParts = {}
@@ -1839,7 +1836,6 @@ createSettingsToggleTile(PerfGrid, "In-UI Alerts", true, C.Green, function(state
     NotificationsEnabled = state
 end)
 
--- Danger Zone Section (Streamlined Dual Buttons)
 AddSection(DrawerScroll, "EMERGENCY ACTIONS", 9)
 local DangerGrid = Instance.new("Frame")
 DangerGrid.Size = UDim2.new(1, 0, 0, 38)
@@ -1904,7 +1900,6 @@ RespawnBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Vaporization Purge Destroy Execution
 local function executePurgeDestroy()
     autoCandyFarm = false
     aiChaseActive = false
@@ -1972,7 +1967,7 @@ PurgeBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- B. CREDITS DRAWER (HYBRID STATS MATRIX + NO BUTTONS)
+-- B. CREDITS DRAWER
 local CreditsDrawer = Instance.new("Frame")
 CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
 CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
@@ -2002,7 +1997,6 @@ cList.Padding = UDim.new(0, 8)
 cList.SortOrder = Enum.SortOrder.LayoutOrder
 cList.Parent = CreditsScroll
 
--- 1. Dev Identity Hero Card
 local HeroCard = Instance.new("Frame")
 HeroCard.Size = UDim2.new(1, 0, 0, 56)
 HeroCard.BackgroundColor3 = C.Surface
@@ -2083,7 +2077,6 @@ HeroPillTxt.TextColor3 = C.Green
 HeroPillTxt.ZIndex = 54
 HeroPillTxt.Parent = HeroPill
 
--- 2. Dual Telemetry Stats Bay
 local StatsGrid = Instance.new("Frame")
 StatsGrid.Size = UDim2.new(1, 0, 0, 46)
 StatsGrid.BackgroundTransparency = 1
@@ -2133,7 +2126,6 @@ end
 createStatBox(StatsGrid, 0, 0.5, "ACTIVE SCRIPT", "POLY LOOT", C.AccentGlow)
 createStatBox(StatsGrid, 0.5, 0.5, "CORE PIPELINE", "VERIFIED", C.Cyan)
 
--- 3. Streamlined Revision Tiles
 AddSection(CreditsScroll, "REVISION LOG", 3)
 
 local function createRevisionTile(parent, tag, tagColor, title, desc, order)
@@ -2202,7 +2194,7 @@ createRevisionTile(CreditsScroll, "STABILITY", C.Green, "Hermite Anti-Clip Farm"
 createRevisionTile(CreditsScroll, "ENGINE", C.Cyan, "Noclip Core & Pacing Switch", "Collision bypass with Normal / Fast catch latency", 6)
 createRevisionTile(CreditsScroll, "PURGE", C.Red, "Vaporization UI Destruction", "Red-shift laser compress dissolve effect", 7)
 
--- MUTUAL DRAWER CONTROLLER
+-- ACTIVE DRAWER LOGIC
 local activeDrawer = nil
 
 closeActiveDrawer = function(onDone)
@@ -2309,7 +2301,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. SYMMETRICAL MECHANICAL ASSEMBLY SEQUENCE (BUILD & DECONSTRUCT)
+-- 18. SYMMETRICAL MECHANICAL ASSEMBLY SEQUENCE
 local isTransitioning = false
 local isOpen = false
 
@@ -2375,7 +2367,7 @@ local function playMechanicalDeconstructSequence()
     WireframeBeam.Visible = false
 end
 
-local function openMenu()
+openMenu = function()
     if isTransitioning or isOpen then return end
     isTransitioning = true
 
@@ -2405,7 +2397,7 @@ local function openMenu()
     isTransitioning = false
 end
 
-local function closeMenu()
+closeMenu = function()
     if isTransitioning or not isOpen then return end
     isTransitioning = true
     isOpen = false
@@ -2427,7 +2419,7 @@ end
 CloseBtn.MouseButton1Click:Connect(closeMenu)
 Backdrop.MouseButton1Click:Connect(closeMenu)
 
--- 19. MOBILE FLOATING BUTTON (🍁)
+-- 19. MOBILE TOGGLE
 MobileToggle = Instance.new("TextButton")
 MobileToggle.Name = "Lumacore_MobileToggle"
 MobileToggle.Size = UDim2.new(0, 38, 0, 38)
@@ -2471,7 +2463,7 @@ setFloatingIconVisible = function(visible)
     end
 end
 
-local function toggleMenu()
+toggleMenu = function()
     if isOpen then closeMenu() else openMenu() end
 end
 
@@ -2509,7 +2501,6 @@ MobileToggle.InputBegan:Connect(function(input)
     end
 end)
 
--- PC KEYBOARD BIND (RightControl)
 UserInputService.InputBegan:Connect(function(inp, gpe)
     if not gpe and inp.KeyCode == Enum.KeyCode.RightControl then
         toggleMenu()
