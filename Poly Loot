@@ -230,7 +230,7 @@ local monitorConn = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- 7. BACKDROP & INTRO LOADER
+-- 7. BACKDROP & INTRO ASSEMBLY BEAM
 local Backdrop = Instance.new("TextButton")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -241,43 +241,17 @@ Backdrop.Text = ""
 Backdrop.Visible = false
 Backdrop.Parent = ScreenGui
 
-local LoaderPill = Instance.new("Frame")
-LoaderPill.Size = UDim2.new(0, 170, 0, 44)
-LoaderPill.Position = UDim2.new(0.5, 0, 0.5, 0)
-LoaderPill.AnchorPoint = Vector2.new(0.5, 0.5)
-LoaderPill.BackgroundColor3 = C.CardBg
-LoaderPill.BorderSizePixel = 0
-LoaderPill.Visible = false
-LoaderPill.ZIndex = 4000
-LoaderPill.Parent = ScreenGui
-
-Instance.new("UICorner", LoaderPill).CornerRadius = UDim.new(0, 10)
-local lStroke = Instance.new("UIStroke")
-lStroke.Color = C.Accent
-lStroke.Thickness = 1.2
-lStroke.Parent = LoaderPill
-
-local Spinner = Instance.new("TextLabel")
-Spinner.Size = UDim2.new(0, 24, 0, 24)
-Spinner.Position = UDim2.new(0, 14, 0.5, 0)
-Spinner.AnchorPoint = Vector2.new(0, 0.5)
-Spinner.BackgroundTransparency = 1
-Spinner.Text = "🍁"
-Spinner.TextSize = 16
-Spinner.ZIndex = 4001
-Spinner.Parent = LoaderPill
-
-local LoadingText = Instance.new("TextLabel")
-LoadingText.Size = UDim2.new(1, -48, 1, 0)
-LoadingText.Position = UDim2.new(0, 44, 0, 0)
-LoadingText.BackgroundTransparency = 1
-LoadingText.Text = "LUMACORE INIT..."
-LoadingText.Font = Enum.Font.GothamBold
-LoadingText.TextSize = 10
-LoadingText.TextColor3 = C.Text
-LoadingText.TextXAlignment = Enum.TextXAlignment.Left
-LoadingText.ZIndex = 4001
-LoadingText.Parent = LoaderPill
+local AssemblyLine = Instance.new("Frame")
+AssemblyLine.Name = "AssemblyLine"
+AssemblyLine.Size = UDim2.new(0, 0, 0, 2)
+AssemblyLine.Position = UDim2.new(0.5, 0, 0.5, 0)
+AssemblyLine.AnchorPoint = Vector2.new(0.5, 0.5)
+AssemblyLine.BackgroundColor3 = C.AccentGlow
+AssemblyLine.BorderSizePixel = 0
+AssemblyLine.Visible = false
+AssemblyLine.ZIndex = 5000
+AssemblyLine.Parent = ScreenGui
+Instance.new("UICorner", AssemblyLine).CornerRadius = UDim.new(1, 0)
 
 -- 8. MAIN CARD
 local Card = Instance.new("Frame")
@@ -297,6 +271,23 @@ local cStroke = Instance.new("UIStroke")
 cStroke.Color = C.Border
 cStroke.Thickness = 1.3
 cStroke.Parent = Card
+
+-- MECHANICAL ASSEMBLY VEIL (COVER SHIELD)
+local AssemblyVeil = Instance.new("Frame")
+AssemblyVeil.Name = "AssemblyVeil"
+AssemblyVeil.Size = UDim2.fromScale(1, 1)
+AssemblyVeil.BackgroundColor3 = C.Bg
+AssemblyVeil.BorderSizePixel = 0
+AssemblyVeil.ZIndex = 800
+AssemblyVeil.Visible = false
+AssemblyVeil.Parent = Card
+
+local veilLine = Instance.new("Frame")
+veilLine.Size = UDim2.new(1, 0, 0, 2)
+veilLine.Position = UDim2.new(0, 0, 1, -2)
+veilLine.BackgroundColor3 = C.Accent
+veilLine.BorderSizePixel = 0
+veilLine.Parent = AssemblyVeil
 
 -- HEADER BAR
 local Header = Instance.new("TextButton")
@@ -441,18 +432,36 @@ local function Notify(titleText, subText, color)
     end
 end
 
--- HEADER BUTTONS
+-- HEADER BUTTONS (TRIO: ✦ CREDITS, ⚙ SETTINGS, ✕ CLOSE)
 local HeaderBtns = Instance.new("Frame")
-HeaderBtns.Size = UDim2.new(0, 68, 0, 28)
+HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
 HeaderBtns.AnchorPoint = Vector2.new(1, 0.5)
 HeaderBtns.BackgroundTransparency = 1
 HeaderBtns.Parent = Header
 
+local CreditsBtn = Instance.new("TextButton")
+CreditsBtn.Name = "CreditsBtn"
+CreditsBtn.Size = UDim2.new(0, 28, 0, 28)
+CreditsBtn.Position = UDim2.new(0, 0, 0, 0)
+CreditsBtn.BackgroundColor3 = C.CardBg
+CreditsBtn.Text = "✦"
+CreditsBtn.TextColor3 = C.Muted
+CreditsBtn.Font = Enum.Font.GothamBold
+CreditsBtn.TextSize = 13
+CreditsBtn.AutoButtonColor = false
+CreditsBtn.ZIndex = 70
+CreditsBtn.Parent = HeaderBtns
+Instance.new("UICorner", CreditsBtn).CornerRadius = UDim.new(0, 7)
+local crBtnStroke = Instance.new("UIStroke")
+crBtnStroke.Color = C.Border
+crBtnStroke.Thickness = 1
+crBtnStroke.Parent = CreditsBtn
+
 local SettingsBtn = Instance.new("TextButton")
 SettingsBtn.Name = "SettingsBtn"
 SettingsBtn.Size = UDim2.new(0, 28, 0, 28)
-SettingsBtn.Position = UDim2.new(0, 0, 0, 0)
+SettingsBtn.Position = UDim2.new(0, 36, 0, 0)
 SettingsBtn.BackgroundColor3 = C.CardBg
 SettingsBtn.Text = "⚙"
 SettingsBtn.TextColor3 = C.Muted
@@ -470,7 +479,7 @@ sBtnStroke.Parent = SettingsBtn
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Name = "CloseBtn"
 CloseBtn.Size = UDim2.new(0, 28, 0, 28)
-CloseBtn.Position = UDim2.new(1, -28, 0, 0)
+CloseBtn.Position = UDim2.new(0, 72, 0, 0)
 CloseBtn.BackgroundColor3 = C.RedDark
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -480,6 +489,15 @@ CloseBtn.AutoButtonColor = false
 CloseBtn.ZIndex = 70
 CloseBtn.Parent = HeaderBtns
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
+
+CreditsBtn.MouseEnter:Connect(function()
+    tw(CreditsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
+    tw(crBtnStroke, {Color = C.Accent}, 0.15)
+end)
+CreditsBtn.MouseLeave:Connect(function()
+    tw(CreditsBtn, {BackgroundColor3 = C.CardBg, TextColor3 = C.Muted}, 0.15)
+    tw(crBtnStroke, {Color = C.Border}, 0.15)
+end)
 
 SettingsBtn.MouseEnter:Connect(function()
     tw(SettingsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
@@ -659,7 +677,9 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. REUSABLE ACTION CARD BUILDER
+-- 10. REUSABLE ACTION CARD BUILDER (TRACKED FOR ASSEMBLY CASCADE)
+local ActionCardRegistry = {}
+
 local function AddSection(parent, text, order)
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
@@ -766,6 +786,10 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
         badgeStroke = bStroke,
         setActive = setCardActiveState
     }
+
+    if parent == LeftCol then
+        table.insert(ActionCardRegistry, row)
+    end
 
     row.MouseEnter:Connect(function()
         if not isCardActive then
@@ -1009,7 +1033,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- Main Farm Worker Thread
+-- SMOOTH CANDY CORN FARM WORKER THREAD
 task.spawn(function()
     while true do
         if autoCandyFarm and not waitingForModeChoice then
@@ -1040,27 +1064,48 @@ task.spawn(function()
                     if dist <= 9.0 then
                         executeGhostSwing(ghost)
                     end
+                    task.wait(0.05)
                 else
+                    local targetGoalCF
                     if farmStance == "Underground" then
                         isUnderground = true
-                        hrp.CFrame = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
+                        targetGoalCF = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
                     else
-                        -- Smoothed +4.8 Stud Elevated Hover (No ground clipping)
                         if isUnderground then restoreSurface() end
                         local elevatedPosition = ghostPart.Position + Vector3.new(0, 4.8, 0)
-                        hrp.CFrame = CFrame.new(elevatedPosition, ghostPart.Position)
+                        targetGoalCF = CFrame.new(elevatedPosition, ghostPart.Position)
+                    end
+
+                    local startCF = hrp.CFrame
+                    local distanceToGoal = (startCF.Position - targetGoalCF.Position).Magnitude
+                    
+                    if distanceToGoal > 30 then
+                        -- Safe reposition boundary for long-distance ghost respawns
+                        hrp.CFrame = targetGoalCF
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    else
+                        -- Micro-interpolated smooth drift glide
+                        local steps = math.clamp(math.floor(distanceToGoal / 3), 3, 7)
+                        for i = 1, steps do
+                            if not autoCandyFarm or not ghost.Parent then break end
+                            local alpha = i / steps
+                            hrp.CFrame = startCF:Lerp(targetGoalCF, alpha)
+                            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                            RunService.Heartbeat:Wait()
+                        end
                     end
-                    task.wait(0.04)
+
                     if ghost.Parent then
                         executeGhostSwing(ghost)
                     end
+                    task.wait(0.07)
                 end
             else
                 restoreSurface()
+                task.wait(0.15)
             end
-            task.wait(aiChaseActive and 0.05 or 0.08)
         else
             restoreSurface()
             task.wait(0.2)
@@ -1441,10 +1486,11 @@ CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OF
     Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 16. OPTIMIZED SETTINGS DRAWER OVERLAY
+-- 16. MUTUAL-EXCLUSION DRAWERS: SETTINGS & CREDITS
 local MobileToggle
 local setFloatingIconVisible
 
+-- A. SETTINGS DRAWER
 local Drawer = Instance.new("TextButton")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1809,22 +1855,123 @@ DestroyCard.MouseButton1Click:Connect(function()
     end
 end)
 
-local drawerOpen = false
-local function toggleDrawer()
-    drawerOpen = not drawerOpen
-    tw(SettingsBtn, {Rotation = drawerOpen and 90 or 0}, 0.25, Enum.EasingStyle.Back)
-    if drawerOpen then
-        Body.Visible = false
-        tw(Drawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
-    else
-        local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.25, Enum.EasingStyle.Quart)
+-- B. CREDITS & CHANGELOG DRAWER (✦)
+local CreditsDrawer = Instance.new("TextButton")
+CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
+CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
+CreditsDrawer.BackgroundColor3 = C.Bg
+CreditsDrawer.AutoButtonColor = false
+CreditsDrawer.Text = ""
+CreditsDrawer.ZIndex = 50
+CreditsDrawer.BorderSizePixel = 0
+CreditsDrawer.Parent = Card
+
+local CreditsScroll = Instance.new("ScrollingFrame")
+CreditsScroll.Size = UDim2.fromScale(1, 1)
+CreditsScroll.BackgroundTransparency = 1
+CreditsScroll.BorderSizePixel = 0
+CreditsScroll.ScrollBarThickness = 2
+CreditsScroll.ScrollBarImageColor3 = C.Border
+CreditsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+CreditsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+CreditsScroll.ZIndex = 51
+CreditsScroll.Parent = CreditsDrawer
+
+local cPad = Instance.new("UIPadding")
+cPad.PaddingTop = UDim.new(0, 12); cPad.PaddingLeft = UDim.new(0, 14); cPad.PaddingRight = UDim.new(0, 14); cPad.PaddingBottom = UDim.new(0, 14)
+cPad.Parent = CreditsScroll
+
+local cList = Instance.new("UIListLayout")
+cList.Padding = UDim.new(0, 6)
+cList.SortOrder = Enum.SortOrder.LayoutOrder
+cList.Parent = CreditsScroll
+
+AddSection(CreditsScroll, "DEVELOPER & SUITE", 1)
+CreateActionCard(CreditsScroll, "LUMACORE ARCHITECTURE", "Engine & Frameless Interface Lead", "DEVELOPER", true, 2, function()
+    local ok = pcall(function() setclipboard("https://discord.gg/lumacore") end)
+    Notify("Developer", ok and "Invite copied to clipboard!" or "Developed by Lumacore", C.AccentGlow)
+end)
+
+CreateActionCard(CreditsScroll, "BUILD VERSION", "Poly Loot Definitive Edition", "v2.5 STABLE", false, 3, function()
+    Notify("Build Info", "Lumacore Poly Loot Suite • v2.5 Stable", C.Cyan)
+end)
+
+AddSection(CreditsScroll, "SUPPORT & DONATIONS", 4)
+CreateActionCard(CreditsScroll, "KO-FI DONATION", "Tap to copy donation / tip link", "COPY LINK", false, 5, function()
+    local ok = pcall(function() setclipboard("https://ko-fi.com/lumacore") end)
+    Notify("Support", ok and "Donation link copied to clipboard!" or "Failed to access clipboard", C.Green)
+end)
+
+CreateActionCard(CreditsScroll, "CRYPTO TIP (LTC)", "Tap to copy Litecoin wallet address", "COPY LTC", false, 6, function()
+    local ok = pcall(function() setclipboard("ltc1qplaceholderwalletaddresslumacore") end)
+    Notify("Crypto Tip", ok and "LTC address copied to clipboard!" or "Failed to access clipboard", C.Green)
+end)
+
+AddSection(CreditsScroll, "CHANGELOG & REVISION", 7)
+CreateActionCard(CreditsScroll, "MECHANICAL BOOT SEQUENCE", "4-stage frame assembly & wireframe build", "NEW", true, 8, function()
+    Notify("Changelog", "Added 4-stage mechanical frame build animation", C.Accent)
+end)
+
+CreateActionCard(CreditsScroll, "SMOOTH CANDY CORN FARM", "Lerp glide pathing & anti-clip protection", "IMPROVED", true, 9, function()
+    Notify("Changelog", "Micro-interpolated smooth drift ghost farming", C.Green)
+end)
+
+-- MUTUAL DRAWER CONTROLLER
+local activeDrawer = nil -- nil, "Settings", or "Credits"
+
+local function closeActiveDrawer(onDone)
+    if activeDrawer == "Settings" then
+        tw(SettingsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
+        local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
         anim.Completed:Connect(function()
-            if not drawerOpen then Body.Visible = true end
+            if activeDrawer == nil then Body.Visible = true end
+            if onDone then onDone() end
         end)
+    elseif activeDrawer == "Credits" then
+        tw(CreditsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
+        local anim = tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
+        anim.Completed:Connect(function()
+            if activeDrawer == nil then Body.Visible = true end
+            if onDone then onDone() end
+        end)
+    else
+        if onDone then onDone() end
+    end
+    activeDrawer = nil
+end
+
+local function toggleSettingsDrawer()
+    if activeDrawer == "Settings" then
+        closeActiveDrawer()
+    else
+        Body.Visible = false
+        if activeDrawer == "Credits" then
+            tw(CreditsBtn, {Rotation = 0}, 0.15)
+            tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+        end
+        activeDrawer = "Settings"
+        tw(SettingsBtn, {Rotation = 90}, 0.25, Enum.EasingStyle.Back)
+        tw(Drawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
     end
 end
 
-SettingsBtn.MouseButton1Click:Connect(toggleDrawer)
+local function toggleCreditsDrawer()
+    if activeDrawer == "Credits" then
+        closeActiveDrawer()
+    else
+        Body.Visible = false
+        if activeDrawer == "Settings" then
+            tw(SettingsBtn, {Rotation = 0}, 0.15)
+            tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+        end
+        activeDrawer = "Credits"
+        tw(CreditsBtn, {Rotation = 45}, 0.25, Enum.EasingStyle.Back)
+        tw(CreditsDrawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+    end
+end
+
+SettingsBtn.MouseButton1Click:Connect(toggleSettingsDrawer)
+CreditsBtn.MouseButton1Click:Connect(toggleCreditsDrawer)
 
 -- 17. SAFE CLAMPING & DRAGGING
 local function clampPosition(rawPos, obj)
@@ -1876,9 +2023,49 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. ENTRANCE & INTRO LOADER
+-- 18. ENTRANCE & MECHANICAL ASSEMBLY BOOT SEQUENCE
 local isTransitioning = false
 local isOpen = false
+
+local function playMechanicalBuildSequence()
+    AssemblyLine.Visible = true
+    AssemblyLine.Position = UDim2.new(0.5, 0, 0.5, 0)
+    AssemblyLine.Size = UDim2.new(0, 0, 0, 2)
+    AssemblyLine.BackgroundTransparency = 0
+
+    -- Stage 1: Core Snap - Wireframe Line Snaps Across
+    local snapTween = tw(AssemblyLine, {Size = UDim2.new(0, 580, 0, 2)}, 0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    snapTween.Completed:Wait()
+
+    -- Stage 2: Extrusion - Card Mounts and Expands Vertically
+    Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Card.Size = UDim2.new(0, 580, 0, 4)
+    Card.Rotation = 0
+    Card.BackgroundTransparency = 0
+    Card.Visible = true
+
+    AssemblyVeil.Visible = true
+    AssemblyVeil.Position = UDim2.new(0, 0, 0, 0)
+    AssemblyVeil.BackgroundTransparency = 0
+
+    AssemblyLine.Visible = false
+
+    local cardExtrude = tw(Card, {Size = UDim2.new(0, 580, 0, 345)}, 0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    cardExtrude.Completed:Wait()
+
+    -- Stage 3: Shield Drop - Construction Veil Slides Down
+    local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    veilDrop.Completed:Wait()
+    AssemblyVeil.Visible = false
+
+    -- Stage 4: Component Lock-In - Staggered Action Card Cascade
+    for index, row in ipairs(ActionCardRegistry) do
+        row.Position = UDim2.new(0, -18, 0, 0)
+        row.BackgroundTransparency = 0.6
+        tw(row, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, 0.14, Enum.EasingStyle.Back)
+        task.wait(0.025)
+    end
+end
 
 local function openMenu()
     if isTransitioning or isOpen then return end
@@ -1895,49 +2082,27 @@ local function openMenu()
     Backdrop.BackgroundTransparency = 1
     tw(Backdrop, {BackgroundTransparency = 0.5}, 0.2)
 
-    if AnimationsEnabled then
-        LoaderPill.Visible = true
-        LoaderPill.BackgroundTransparency = 0.4
-        Spinner.Rotation = 0
-        local spinTween = TweenService:Create(Spinner, TweenInfo.new(0.6, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Rotation = 360})
-        spinTween:Play()
-        task.wait(0.2)
-        spinTween:Cancel()
-        LoaderPill.Visible = false
-    end
-
     isOpen = true
-    Card.Visible = true
 
     if AnimationsEnabled then
-        Card.Position = UDim2.new(0.5, 0, 0.54, 0)
-        Card.Size = UDim2.new(0, 520, 0, 290)
-        Card.Rotation = -8
-        Card.BackgroundTransparency = 0.4
-
-        local openAnim = tw(Card, {
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 580, 0, 345),
-            Rotation = 0,
-            BackgroundTransparency = 0
-        }, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-        openAnim.Completed:Connect(function()
-            isTransitioning = false
-        end)
+        playMechanicalBuildSequence()
     else
         Card.Position = UDim2.new(0.5, 0, 0.5, 0)
         Card.Size = UDim2.new(0, 580, 0, 345)
         Card.Rotation = 0
         Card.BackgroundTransparency = 0
-        isTransitioning = false
+        Card.Visible = true
     end
+
+    isTransitioning = false
 end
 
 local function closeMenu()
     if isTransitioning or not isOpen then return end
     isTransitioning = true
     isOpen = false
+
+    closeActiveDrawer()
 
     if AnimationsEnabled then
         tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
@@ -2053,4 +2218,6 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
-print("[Lumacore] Poly Loot Definitive Suite loaded.")
+openMenu()
+Notify("Lumacore", "Poly Loot Definitive Suite Loaded", C.Accent)
+print("[Lumacore] Poly Loot loaded.")
