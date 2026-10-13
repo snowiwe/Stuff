@@ -1,4 +1,4 @@
--- // LUMACORE - POLY LOOT DEFINITIVE SUITE //
+-- // LUMACORE - POLY LOOT //
 -- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,7 +11,6 @@ local Stats = game:GetService("Stats")
 
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
-local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera", 3)
 local ScreenName = "Lumacore_PolyLoot"
 
 -- 1. CONTAINER MOUNTING
@@ -244,7 +243,7 @@ local monitorConn = RunService.RenderStepped:Connect(function(dt)
     end
 end)
 
--- 7. BACKDROP & INTRO WIREFRAME ASSEMBLY
+-- 7. BACKDROP & INTRO WIREFRAME BEAMS
 local Backdrop = Instance.new("TextButton")
 Backdrop.Name = "Backdrop"
 Backdrop.Size = UDim2.fromScale(1, 1)
@@ -272,7 +271,7 @@ BeamGlow.Color = C.AccentGlow
 BeamGlow.Thickness = 2
 BeamGlow.Parent = WireframeBeam
 
--- 8. MAIN CARD
+-- 8. MAIN CHASSIS CARD
 local Card = Instance.new("Frame")
 Card.Name = "ProfileCard"
 Card.Size = UDim2.new(0, 580, 0, 345)
@@ -307,6 +306,15 @@ veilLaser.Position = UDim2.new(0, 0, 1, -2)
 veilLaser.BackgroundColor3 = C.AccentGlow
 veilLaser.BorderSizePixel = 0
 veilLaser.Parent = AssemblyVeil
+
+-- DESTRUCTION OVERLAY (VAPORIZATION SHUTTER)
+local DestroyShield = Instance.new("Frame")
+DestroyShield.Size = UDim2.fromScale(1, 1)
+DestroyShield.BackgroundColor3 = C.RedDark
+DestroyShield.BackgroundTransparency = 1
+DestroyShield.ZIndex = 1200
+DestroyShield.Visible = false
+DestroyShield.Parent = Card
 
 -- HEADER BAR
 local Header = Instance.new("TextButton")
@@ -451,7 +459,7 @@ local function Notify(titleText, subText, color)
     end
 end
 
--- HEADER BUTTONS (TRIO: ★ STAR ICON CREDITS, ⚙ SETTINGS, ✕ CLOSE)
+-- HEADER BUTTONS (TRIO: ★ CREDITS, ⚙ SETTINGS, ✕ CLOSE)
 local HeaderBtns = Instance.new("Frame")
 HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
@@ -508,24 +516,6 @@ CloseBtn.AutoButtonColor = false
 CloseBtn.ZIndex = 70
 CloseBtn.Parent = HeaderBtns
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
-
-CreditsBtn.MouseEnter:Connect(function()
-    tw(CreditsBtn, {BackgroundColor3 = C.Hover, TextColor3 = Color3.fromRGB(255, 255, 255)}, 0.15)
-    tw(crBtnStroke, {Color = C.AccentGlow}, 0.15)
-end)
-CreditsBtn.MouseLeave:Connect(function()
-    tw(CreditsBtn, {BackgroundColor3 = C.CardBg, TextColor3 = C.AccentGlow}, 0.15)
-    tw(crBtnStroke, {Color = C.Border}, 0.15)
-end)
-
-SettingsBtn.MouseEnter:Connect(function()
-    tw(SettingsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
-    tw(sBtnStroke, {Color = C.Accent}, 0.15)
-end)
-SettingsBtn.MouseLeave:Connect(function()
-    tw(SettingsBtn, {BackgroundColor3 = C.CardBg, TextColor3 = C.Muted}, 0.15)
-    tw(sBtnStroke, {Color = C.Border}, 0.15)
-end)
 
 -- 9. BODY CONTAINER
 local Body = Instance.new("Frame")
@@ -836,75 +826,6 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     return controller
 end
 
--- STATIC INFO CARD FACTORY (NO BUTTON / PURE CARD DISPLAY)
-local function CreateStaticInfoCard(parent, title, subtitle, badgeText, badgeColor, order)
-    local card = Instance.new("Frame")
-    card.Size = UDim2.new(1, 0, 0, 48)
-    card.BackgroundColor3 = C.CardBg
-    card.LayoutOrder = order or 0
-    card.ZIndex = parent.ZIndex
-    card.ClipsDescendants = true
-    card.Parent = parent
-
-    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
-    local s = Instance.new("UIStroke")
-    s.Color = C.Border
-    s.Thickness = 1
-    s.Parent = card
-
-    local tLbl = Instance.new("TextLabel")
-    tLbl.Text = title
-    tLbl.Font = Enum.Font.GothamBold
-    tLbl.TextSize = 11
-    tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 10, 0, 8)
-    tLbl.Size = UDim2.new(1, -110, 0, 14)
-    tLbl.TextXAlignment = Enum.TextXAlignment.Left
-    tLbl.TextTruncate = Enum.TextTruncate.AtEnd
-    tLbl.BackgroundTransparency = 1
-    tLbl.ZIndex = card.ZIndex + 1
-    tLbl.Parent = card
-
-    local sLbl = Instance.new("TextLabel")
-    sLbl.Text = subtitle
-    sLbl.Font = Enum.Font.Gotham
-    sLbl.TextSize = 9
-    sLbl.TextColor3 = C.Dim
-    sLbl.Position = UDim2.new(0, 10, 0, 24)
-    sLbl.Size = UDim2.new(1, -110, 0, 14)
-    sLbl.TextXAlignment = Enum.TextXAlignment.Left
-    sLbl.TextTruncate = Enum.TextTruncate.AtEnd
-    sLbl.BackgroundTransparency = 1
-    sLbl.ZIndex = card.ZIndex + 1
-    sLbl.Parent = card
-
-    local badge = Instance.new("Frame")
-    badge.Size = UDim2.new(0, 88, 0, 24)
-    badge.Position = UDim2.new(1, -10, 0.5, 0)
-    badge.AnchorPoint = Vector2.new(1, 0.5)
-    badge.BackgroundColor3 = C.Surface
-    badge.ZIndex = card.ZIndex + 1
-    badge.Parent = card
-    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
-
-    local bStroke = Instance.new("UIStroke")
-    bStroke.Color = badgeColor or C.Accent
-    bStroke.Thickness = 1
-    bStroke.Parent = badge
-
-    local bText = Instance.new("TextLabel")
-    bText.Size = UDim2.fromScale(1, 1)
-    bText.BackgroundTransparency = 1
-    bText.Text = badgeText
-    bText.Font = Enum.Font.GothamBold
-    bText.TextSize = 9
-    bText.TextColor3 = badgeColor or C.Accent
-    bText.ZIndex = card.ZIndex + 2
-    bText.Parent = badge
-
-    return card
-end
-
 -- 11. GHOST DISCOVERY ENGINE
 local function locateGhostFolder()
     local folder = Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
@@ -1001,9 +922,9 @@ local isUnderground = false
 local currentTargetGhost = nil
 local waitingForModeChoice = false
 
--- CATCH SPEED DELAY CONFIG (NORMAL vs FAST)
+-- CATCH SPEED DELAY CONFIG
 local catchSpeedMode = "Normal" -- "Normal" or "Fast"
-local catchDelay = 0.12 -- Seconds to wait after arriving at ghost before swing
+local catchDelay = 0.12
 
 local autoCandyCard = nil
 local farmStanceCard = nil
@@ -1126,7 +1047,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- SMOOTH CANDY CORN FARM WORKER THREAD (CONTROLLED PACING + GROUND-SAFE INSIDE TARGETING)
+-- SMOOTH CANDY CORN FARM WORKER THREAD
 task.spawn(function()
     while true do
         if autoCandyFarm and not waitingForModeChoice then
@@ -1167,7 +1088,7 @@ task.spawn(function()
                     else
                         if isUnderground then restoreSurface() end
                         
-                        -- Raycast floor verification to never sink or clip under ground geometry
+                        -- Anti-clip floor raycast check
                         local ghostPos = ghostPart.Position
                         local floorRayParams = RaycastParams.new()
                         floorRayParams.FilterDescendantsInstances = {char, ghost, locateGhostFolder()}
@@ -1175,13 +1096,12 @@ task.spawn(function()
                         
                         local safeCenterPos = ghostPos
                         if floorHit then
-                            local groundMinY = floorHit.Position.Y + 3.0 -- Maintain minimum clearance above surface
+                            local groundMinY = floorHit.Position.Y + 3.0
                             if safeCenterPos.Y < groundMinY then
                                 safeCenterPos = Vector3.new(safeCenterPos.X, groundMinY, safeCenterPos.Z)
                             end
                         end
                         
-                        -- Position inside the ghost with its orientation
                         targetGoalCF = CFrame.new(safeCenterPos) * (ghostPart.CFrame - ghostPart.Position)
                     end
 
@@ -1189,17 +1109,15 @@ task.spawn(function()
                     local distanceToGoal = (startCF.Position - targetGoalCF.Position).Magnitude
                     
                     if distanceToGoal > 40 then
-                        -- Safe long-range boundary teleport
                         hrp.CFrame = targetGoalCF
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     else
-                        -- Smoothed, controlled travel pace
                         local steps = math.clamp(math.floor(distanceToGoal / 1.4), 8, 22)
                         for i = 1, steps do
                             if not autoCandyFarm or not ghost.Parent then break end
                             local t = i / steps
-                            local smoothAlpha = t * t * (3 - 2 * t) -- Smoothstep curve
+                            local smoothAlpha = t * t * (3 - 2 * t)
                             hrp.CFrame = startCF:Lerp(targetGoalCF, smoothAlpha)
                             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                             hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -1207,7 +1125,6 @@ task.spawn(function()
                         end
                     end
 
-                    -- Configurable Catch Delay buffer
                     if catchDelay > 0 then
                         task.wait(catchDelay)
                     end
@@ -1630,23 +1547,59 @@ CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & live distance tags", "OF
     Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
 end)
 
--- 16. MUTUAL-EXCLUSION DRAWERS: SETTINGS & CREDITS
+-- 16. MUTUAL-EXCLUSION DRAWERS: SETTINGS & REDESIGNED HUD CREDITS
 local MobileToggle
 local setFloatingIconVisible
+local closeActiveDrawer
 
--- A. SETTINGS DRAWER
-local Drawer = Instance.new("TextButton")
+-- A. SETTINGS DRAWER (DISTINCT CLEANED DESIGN)
+local Drawer = Instance.new("Frame")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
 Drawer.BackgroundColor3 = C.Bg
-Drawer.AutoButtonColor = false
-Drawer.Text = ""
 Drawer.ZIndex = 50
 Drawer.BorderSizePixel = 0
+Drawer.ClipsDescendants = true
 Drawer.Parent = Card
 
+local DrawerHeader = Instance.new("Frame")
+DrawerHeader.Size = UDim2.new(1, 0, 0, 32)
+DrawerHeader.BackgroundTransparency = 1
+DrawerHeader.ZIndex = 51
+DrawerHeader.Parent = Drawer
+
+local dTitle = Instance.new("TextLabel")
+dTitle.Text = "SYSTEM CONFIGURATION"
+dTitle.Font = Enum.Font.GothamBold
+dTitle.TextSize = 10
+dTitle.TextColor3 = C.Accent
+dTitle.Position = UDim2.new(0, 16, 0, 8)
+dTitle.Size = UDim2.new(0, 200, 0, 16)
+dTitle.TextXAlignment = Enum.TextXAlignment.Left
+dTitle.BackgroundTransparency = 1
+dTitle.ZIndex = 52
+dTitle.Parent = DrawerHeader
+
+local DrawerClose = Instance.new("TextButton")
+DrawerClose.Size = UDim2.new(0, 22, 0, 22)
+DrawerClose.Position = UDim2.new(1, -38, 0, 5)
+DrawerClose.BackgroundColor3 = C.Surface
+DrawerClose.Text = "✕"
+DrawerClose.TextColor3 = C.Muted
+DrawerClose.Font = Enum.Font.GothamBold
+DrawerClose.TextSize = 10
+DrawerClose.AutoButtonColor = false
+DrawerClose.ZIndex = 52
+DrawerClose.Parent = DrawerHeader
+Instance.new("UICorner", DrawerClose).CornerRadius = UDim.new(0, 6)
+
+DrawerClose.MouseButton1Click:Connect(function()
+    closeActiveDrawer()
+end)
+
 local DrawerScroll = Instance.new("ScrollingFrame")
-DrawerScroll.Size = UDim2.fromScale(1, 1)
+DrawerScroll.Size = UDim2.new(1, 0, 1, -34)
+DrawerScroll.Position = UDim2.new(0, 0, 0, 34)
 DrawerScroll.BackgroundTransparency = 1
 DrawerScroll.BorderSizePixel = 0
 DrawerScroll.ScrollBarThickness = 2
@@ -1657,7 +1610,7 @@ DrawerScroll.ZIndex = 51
 DrawerScroll.Parent = Drawer
 
 local dPad = Instance.new("UIPadding")
-dPad.PaddingTop = UDim.new(0, 12); dPad.PaddingLeft = UDim.new(0, 14); dPad.PaddingRight = UDim.new(0, 14); dPad.PaddingBottom = UDim.new(0, 14)
+dPad.PaddingTop = UDim.new(0, 4); dPad.PaddingLeft = UDim.new(0, 14); dPad.PaddingRight = UDim.new(0, 14); dPad.PaddingBottom = UDim.new(0, 14)
 dPad.Parent = DrawerScroll
 
 local dList = Instance.new("UIListLayout")
@@ -1737,7 +1690,7 @@ CreateActionCard(DrawerScroll, "FLOATING BUTTON", "Toggle mobile 🍁 button (us
     Notify("Toggle Button", nextState and "Button Shown" or "Button Hidden (RightCtrl to toggle)", C.Accent)
 end)
 
--- AGGRESSIVE LOW PERFORMANCE / POTATO MODE
+-- POTATO MODE
 local deepPerformanceActive = false
 local originalLighting = {}
 local modifiedParts = {}
@@ -1839,14 +1792,14 @@ local function applyAggressiveOptimization(enable)
     end
 end
 
-CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Aggressive potato mode • Strips textures & VFX", "OFF", false, 14, function(bText, bStroke, _, setActive)
+CreateActionCard(DrawerScroll, "LOW PERFORMANCE", "Potato mode • Strips textures & VFX", "OFF", false, 14, function(bText, bStroke, _, setActive)
     deepPerformanceActive = not deepPerformanceActive
     bText.Text = deepPerformanceActive and "ON" or "OFF"
     bText.TextColor3 = deepPerformanceActive and C.AccentGlow or C.Muted
     setActive(deepPerformanceActive)
 
     applyAggressiveOptimization(deepPerformanceActive)
-    Notify("Performance", deepPerformanceActive and "Aggressive Potato Mode Active" or "Full Visuals Restored", C.Accent)
+    Notify("Performance", deepPerformanceActive and "Potato Mode Active" or "Full Visuals Restored", C.Accent)
 end)
 
 CreateActionCard(DrawerScroll, "NOTIFICATIONS", "Shows banner notifications", "ON", true, 15, function(bText, bStroke, _, setActive)
@@ -1932,6 +1885,35 @@ RespawnCard.MouseButton1Click:Connect(function()
     end
 end)
 
+-- VAPORIZATION PURGE DESTROY FUNCTION
+local function executePurgeDestroy()
+    autoCandyFarm = false
+    aiChaseActive = false
+    NoclipActive = false
+    toggleESP(false)
+    toggleGhostESP(false)
+    restoreSurface()
+    unequipGhostNet()
+    if monitorConn then monitorConn:Disconnect() end
+
+    DestroyShield.Visible = true
+    DestroyShield.BackgroundTransparency = 1
+    tw(DestroyShield, {BackgroundTransparency = 0.2}, 0.2)
+    tw(cStroke, {Color = C.Red, Thickness = 2.5}, 0.2)
+    task.wait(0.2)
+
+    local dissolve = tw(Card, {
+        Size = UDim2.new(0, 580, 0, 2),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    }, 0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    tw(Backdrop, {BackgroundTransparency = 1}, 0.3)
+
+    dissolve.Completed:Connect(function()
+        ScreenGui:Destroy()
+    end)
+end
+
 local DestroyCard = Instance.new("TextButton")
 DestroyCard.Size = UDim2.new(1, 0, 0, 48)
 DestroyCard.BackgroundColor3 = C.CardBg
@@ -1971,7 +1953,7 @@ local timerThread = nil
 DestroyCard.MouseButton1Click:Connect(function()
     if not confirmState then
         confirmState = true
-        DestroyLbl.Text = "Tap Again to Confirm"
+        DestroyLbl.Text = "Tap Again to Confirm Purge"
         DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
         tw(dCardStroke, {Color = C.Red}, 0.2)
         FillBar.Size = UDim2.new(1, 0, 1, 0)
@@ -1988,31 +1970,58 @@ DestroyCard.MouseButton1Click:Connect(function()
         end)
     else
         if timerThread then task.cancel(timerThread) end
-        autoCandyFarm = false
-        aiChaseActive = false
-        NoclipActive = false
-        toggleESP(false)
-        toggleGhostESP(false)
-        restoreSurface()
-        unequipGhostNet()
-        if monitorConn then monitorConn:Disconnect() end
-        ScreenGui:Destroy()
+        executePurgeDestroy()
     end
 end)
 
--- B. CREDITS & REVISION DRAWER (★ PURE INFO / NO BUTTONS)
-local CreditsDrawer = Instance.new("TextButton")
+-- B. CREDITS DRAWER (REDESIGNED: HYBRID STATS MATRIX + NO BUTTONS + CLOSE ICON)
+local CreditsDrawer = Instance.new("Frame")
 CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
 CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
 CreditsDrawer.BackgroundColor3 = C.Bg
-CreditsDrawer.AutoButtonColor = false
-CreditsDrawer.Text = ""
 CreditsDrawer.ZIndex = 50
 CreditsDrawer.BorderSizePixel = 0
+CreditsDrawer.ClipsDescendants = true
 CreditsDrawer.Parent = Card
 
+local CreditsHeader = Instance.new("Frame")
+CreditsHeader.Size = UDim2.new(1, 0, 0, 32)
+CreditsHeader.BackgroundTransparency = 1
+CreditsHeader.ZIndex = 51
+CreditsHeader.Parent = CreditsDrawer
+
+local crTitle = Instance.new("TextLabel")
+crTitle.Text = "CORE METRICS & REVISION"
+crTitle.Font = Enum.Font.GothamBold
+crTitle.TextSize = 10
+crTitle.TextColor3 = C.AccentGlow
+crTitle.Position = UDim2.new(0, 16, 0, 8)
+crTitle.Size = UDim2.new(0, 200, 0, 16)
+crTitle.TextXAlignment = Enum.TextXAlignment.Left
+crTitle.BackgroundTransparency = 1
+crTitle.ZIndex = 52
+crTitle.Parent = CreditsHeader
+
+local CreditsClose = Instance.new("TextButton")
+CreditsClose.Size = UDim2.new(0, 22, 0, 22)
+CreditsClose.Position = UDim2.new(1, -38, 0, 5)
+CreditsClose.BackgroundColor3 = C.Surface
+CreditsClose.Text = "✕"
+CreditsClose.TextColor3 = C.Muted
+CreditsClose.Font = Enum.Font.GothamBold
+CreditsClose.TextSize = 10
+CreditsClose.AutoButtonColor = false
+CreditsClose.ZIndex = 52
+CreditsClose.Parent = CreditsHeader
+Instance.new("UICorner", CreditsClose).CornerRadius = UDim.new(0, 6)
+
+CreditsClose.MouseButton1Click:Connect(function()
+    closeActiveDrawer()
+end)
+
 local CreditsScroll = Instance.new("ScrollingFrame")
-CreditsScroll.Size = UDim2.fromScale(1, 1)
+CreditsScroll.Size = UDim2.new(1, 0, 1, -34)
+CreditsScroll.Position = UDim2.new(0, 0, 0, 34)
 CreditsScroll.BackgroundTransparency = 1
 CreditsScroll.BorderSizePixel = 0
 CreditsScroll.ScrollBarThickness = 2
@@ -2023,28 +2032,218 @@ CreditsScroll.ZIndex = 51
 CreditsScroll.Parent = CreditsDrawer
 
 local cPad = Instance.new("UIPadding")
-cPad.PaddingTop = UDim.new(0, 12); cPad.PaddingLeft = UDim.new(0, 14); cPad.PaddingRight = UDim.new(0, 14); cPad.PaddingBottom = UDim.new(0, 14)
+cPad.PaddingTop = UDim.new(0, 4); cPad.PaddingLeft = UDim.new(0, 14); cPad.PaddingRight = UDim.new(0, 14); cPad.PaddingBottom = UDim.new(0, 14)
 cPad.Parent = CreditsScroll
 
 local cList = Instance.new("UIListLayout")
-cList.Padding = UDim.new(0, 6)
+cList.Padding = UDim.new(0, 8)
 cList.SortOrder = Enum.SortOrder.LayoutOrder
 cList.Parent = CreditsScroll
 
-AddSection(CreditsScroll, "DEVELOPER CREDITS", 1)
-CreateStaticInfoCard(CreditsScroll, "LUMACORE ARCHITECTURE", "Frameless Card Suite & Motion Engine", "LEAD DEV", C.AccentGlow, 2)
-CreateStaticInfoCard(CreditsScroll, "BUILD VERSION", "Poly Loot Definitive Edition", "v2.6 STABLE", C.Cyan, 3)
+-- 1. DEV IDENTITY HERO CARD (HYBRID PROFILE LOOK)
+local HeroCard = Instance.new("Frame")
+HeroCard.Size = UDim2.new(1, 0, 0, 62)
+HeroCard.BackgroundColor3 = C.Surface
+HeroCard.LayoutOrder = 1
+HeroCard.ZIndex = 52
+HeroCard.Parent = CreditsScroll
+Instance.new("UICorner", HeroCard).CornerRadius = UDim.new(0, 10)
+local heroStroke = Instance.new("UIStroke")
+heroStroke.Color = C.Accent
+heroStroke.Thickness = 1.2
+heroStroke.Parent = HeroCard
 
-AddSection(CreditsScroll, "FIXES & CHANGELOG", 4)
-CreateStaticInfoCard(CreditsScroll, "MECHANICAL ASSEMBLE ANIM", "Layered extrusion, core beam & staggered lock-in", "BUILT", C.Green, 5)
-CreateStaticInfoCard(CreditsScroll, "SMOOTH CANDY FARM", "Hermite smoothstep trajectory interpolation", "IMPROVED", C.Green, 6)
-CreateStaticInfoCard(CreditsScroll, "NOCLIP ENGINE", "Real-time collision nullification module", "NEW", C.Cyan, 7)
-CreateStaticInfoCard(CreditsScroll, "ESP SCRIPTING STABILIZATION", "Removed out-of-bounds percentage & bad offsets", "FIXED", C.Purple, 8)
+local HeroBadge = Instance.new("Frame")
+HeroBadge.Size = UDim2.new(0, 42, 0, 42)
+HeroBadge.Position = UDim2.new(0, 10, 0.5, 0)
+HeroBadge.AnchorPoint = Vector2.new(0, 0.5)
+HeroBadge.BackgroundColor3 = C.CardBg
+HeroBadge.ZIndex = 53
+HeroBadge.Parent = HeroCard
+Instance.new("UICorner", HeroBadge).CornerRadius = UDim.new(0, 8)
+local hbStroke = Instance.new("UIStroke")
+hbStroke.Color = C.Border
+hbStroke.Thickness = 1
+hbStroke.Parent = HeroBadge
+
+local HeroIcon = Instance.new("TextLabel")
+HeroIcon.Size = UDim2.fromScale(1, 1)
+HeroIcon.BackgroundTransparency = 1
+HeroIcon.Text = "🍁"
+HeroIcon.TextSize = 20
+HeroIcon.ZIndex = 54
+HeroIcon.Parent = HeroBadge
+
+local HeroName = Instance.new("TextLabel")
+HeroName.Text = "LUMACORE"
+HeroName.Font = Enum.Font.GothamBold
+HeroName.TextSize = 13
+HeroName.TextColor3 = C.Text
+HeroName.Position = UDim2.new(0, 60, 0, 12)
+HeroName.Size = UDim2.new(1, -160, 0, 16)
+HeroName.TextXAlignment = Enum.TextXAlignment.Left
+HeroName.BackgroundTransparency = 1
+HeroName.ZIndex = 53
+HeroName.Parent = HeroCard
+
+local HeroSub = Instance.new("TextLabel")
+HeroSub.Text = "Interface Framework & Core Modules"
+HeroSub.Font = Enum.Font.Gotham
+HeroSub.TextSize = 9
+HeroSub.TextColor3 = C.Dim
+HeroSub.Position = UDim2.new(0, 60, 0, 30)
+HeroSub.Size = UDim2.new(1, -160, 0, 14)
+HeroSub.TextXAlignment = Enum.TextXAlignment.Left
+HeroSub.BackgroundTransparency = 1
+HeroSub.ZIndex = 53
+HeroSub.Parent = HeroCard
+
+local HeroPill = Instance.new("Frame")
+HeroPill.Size = UDim2.new(0, 84, 0, 24)
+HeroPill.Position = UDim2.new(1, -10, 0.5, 0)
+HeroPill.AnchorPoint = Vector2.new(1, 0.5)
+HeroPill.BackgroundColor3 = C.CardBg
+HeroPill.ZIndex = 53
+HeroPill.Parent = HeroCard
+Instance.new("UICorner", HeroPill).CornerRadius = UDim.new(0, 6)
+local hpStroke = Instance.new("UIStroke")
+hpStroke.Color = C.Green
+hpStroke.Thickness = 1
+hpStroke.Parent = HeroPill
+
+local HeroPillTxt = Instance.new("TextLabel")
+HeroPillTxt.Size = UDim2.fromScale(1, 1)
+HeroPillTxt.BackgroundTransparency = 1
+HeroPillTxt.Text = "LEAD DEV"
+HeroPillTxt.Font = Enum.Font.GothamBold
+HeroPillTxt.TextSize = 9
+HeroPillTxt.TextColor3 = C.Green
+HeroPillTxt.ZIndex = 54
+HeroPillTxt.Parent = HeroPill
+
+-- 2. DUAL TELEMETRY STATS BAY
+local StatsGrid = Instance.new("Frame")
+StatsGrid.Size = UDim2.new(1, 0, 0, 52)
+StatsGrid.BackgroundTransparency = 1
+StatsGrid.LayoutOrder = 2
+StatsGrid.ZIndex = 52
+StatsGrid.Parent = CreditsScroll
+
+local function createStatBox(parent, posX, widthScale, label, val, valColor)
+    local box = Instance.new("Frame")
+    box.Size = UDim2.new(widthScale, -3, 1, 0)
+    box.Position = UDim2.new(posX, 0, 0, 0)
+    box.BackgroundColor3 = C.CardBg
+    box.ZIndex = 53
+    box.Parent = parent
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    local bs = Instance.new("UIStroke")
+    bs.Color = C.Border
+    bs.Thickness = 1
+    bs.Parent = box
+
+    local l = Instance.new("TextLabel")
+    l.Text = label
+    l.Font = Enum.Font.GothamMedium
+    l.TextSize = 9
+    l.TextColor3 = C.Dim
+    l.Position = UDim2.new(0, 10, 0, 8)
+    l.Size = UDim2.new(1, -20, 0, 12)
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.BackgroundTransparency = 1
+    l.ZIndex = 54
+    l.Parent = box
+
+    local v = Instance.new("TextLabel")
+    v.Text = val
+    v.Font = Enum.Font.GothamBold
+    v.TextSize = 13
+    v.TextColor3 = valColor or C.Text
+    v.Position = UDim2.new(0, 10, 0, 22)
+    v.Size = UDim2.new(1, -20, 0, 20)
+    v.TextXAlignment = Enum.TextXAlignment.Left
+    v.BackgroundTransparency = 1
+    v.ZIndex = 54
+    v.Parent = box
+    return box, v
+end
+
+local _, statVer = createStatBox(StatsGrid, 0, 0.5, "ACTIVE BUILD", "POLY LOOT", C.AccentGlow)
+local _, statCore = createStatBox(StatsGrid, 0.5, 0.5, "CORE PIPELINE", "VERIFIED", C.Cyan)
+
+-- 3. NEATENED REVISION LOG BAY (CLEAN STATIC TILES)
+AddSection(CreditsScroll, "REVISION & REFINEMENTS", 3)
+
+local function createRevisionTile(parent, tag, tagColor, title, desc, order)
+    local tile = Instance.new("Frame")
+    tile.Size = UDim2.new(1, 0, 0, 44)
+    tile.BackgroundColor3 = C.CardBg
+    tile.LayoutOrder = order
+    tile.ZIndex = 52
+    tile.Parent = parent
+    Instance.new("UICorner", tile).CornerRadius = UDim.new(0, 8)
+    local ts = Instance.new("UIStroke")
+    ts.Color = C.Border
+    ts.Thickness = 1
+    ts.Parent = tile
+
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.new(0, 68, 0, 20)
+    pill.Position = UDim2.new(0, 8, 0.5, 0)
+    pill.AnchorPoint = Vector2.new(0, 0.5)
+    pill.BackgroundColor3 = C.Surface
+    pill.ZIndex = 53
+    pill.Parent = tile
+    Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 5)
+    local ps = Instance.new("UIStroke")
+    ps.Color = tagColor
+    ps.Thickness = 1
+    ps.Parent = pill
+
+    local pt = Instance.new("TextLabel")
+    pt.Size = UDim2.fromScale(1, 1)
+    pt.BackgroundTransparency = 1
+    pt.Text = tag
+    pt.Font = Enum.Font.GothamBold
+    pt.TextSize = 8
+    pt.TextColor3 = tagColor
+    pt.ZIndex = 54
+    pt.Parent = pill
+
+    local t = Instance.new("TextLabel")
+    t.Text = title
+    t.Font = Enum.Font.GothamBold
+    t.TextSize = 10
+    t.TextColor3 = C.Text
+    t.Position = UDim2.new(0, 84, 0, 7)
+    t.Size = UDim2.new(1, -92, 0, 14)
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.BackgroundTransparency = 1
+    t.ZIndex = 53
+    t.Parent = tile
+
+    local d = Instance.new("TextLabel")
+    d.Text = desc
+    d.Font = Enum.Font.Gotham
+    d.TextSize = 8.5
+    d.TextColor3 = C.Dim
+    d.Position = UDim2.new(0, 84, 0, 22)
+    d.Size = UDim2.new(1, -92, 0, 14)
+    d.TextXAlignment = Enum.TextXAlignment.Left
+    d.BackgroundTransparency = 1
+    d.ZIndex = 53
+    d.Parent = tile
+end
+
+createRevisionTile(CreditsScroll, "MECHANIC", C.Accent, "Reversible Build Sequence", "Symmetrical beam unfolding & reverse assembly on hide", 4)
+createRevisionTile(CreditsScroll, "STABILITY", C.Green, "Hermite Anti-Clip Farm", "Inside-ghost positioning with raycast floor floor-clamping", 5)
+createRevisionTile(CreditsScroll, "ENGINE", C.Cyan, "Noclip Core & Pacing Switch", "Collision bypass with Normal / Fast catch latency", 6)
+createRevisionTile(CreditsScroll, "PURGE", C.Red, "Vaporization UI Destruction", "Red-shift laser compress dissolve effect", 7)
 
 -- MUTUAL DRAWER CONTROLLER
 local activeDrawer = nil -- nil, "Settings", or "Credits"
 
-local function closeActiveDrawer(onDone)
+closeActiveDrawer = function(onDone)
     if activeDrawer == "Settings" then
         tw(SettingsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
         local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
@@ -2148,7 +2347,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. DELIBERATE MECHANICAL ASSEMBLY BOOT SEQUENCE
+-- 18. SYMMETRICAL MECHANICAL ASSEMBLY SEQUENCE (BUILD & DECONSTRUCT)
 local isTransitioning = false
 local isOpen = false
 
@@ -2160,7 +2359,7 @@ local function playMechanicalBuildSequence()
     BeamGlow.Transparency = 0
 
     -- Stage 1: Calibration Laser Sweep (Sharp horizontal lock-in)
-    local laserSweep = tw(WireframeBeam, {Size = UDim2.new(0, 580, 0, 2)}, 0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    local laserSweep = tw(WireframeBeam, {Size = UDim2.new(0, 580, 0, 2)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
     laserSweep.Completed:Wait()
     task.wait(0.04)
 
@@ -2179,12 +2378,12 @@ local function playMechanicalBuildSequence()
     tw(BeamGlow, {Transparency = 1}, 0.12)
     task.delay(0.12, function() WireframeBeam.Visible = false end)
 
-    local cardExtrude = tw(Card, {Size = UDim2.new(0, 580, 0, 345)}, 0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    local cardExtrude = tw(Card, {Size = UDim2.new(0, 580, 0, 345)}, 0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     cardExtrude.Completed:Wait()
-    task.wait(0.06)
+    task.wait(0.05)
 
     -- Stage 3: Shutter Deconstruction (Shield slides off bottom)
-    local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
     veilDrop.Completed:Wait()
     AssemblyVeil.Visible = false
 
@@ -2192,9 +2391,33 @@ local function playMechanicalBuildSequence()
     for _, row in ipairs(ActionCardRegistry) do
         row.Position = UDim2.new(0, -22, 0, 0)
         row.BackgroundTransparency = 0.7
-        tw(row, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, 0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-        task.wait(0.035)
+        tw(row, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        task.wait(0.03)
     end
+end
+
+local function playMechanicalDeconstructSequence()
+    -- Stage 1: Blast Shield Pull-Up
+    AssemblyVeil.Visible = true
+    AssemblyVeil.Position = UDim2.new(0, 0, 1, 0)
+    local shieldUp = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 0, 0)}, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    shieldUp.Completed:Wait()
+
+    -- Stage 2: Vertical Chassis Retraction
+    local cardCompress = tw(Card, {Size = UDim2.new(0, 580, 0, 2)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    cardCompress.Completed:Wait()
+
+    -- Stage 3: Wireframe Beam Snap Retract
+    WireframeBeam.Size = UDim2.new(0, 580, 0, 2)
+    WireframeBeam.BackgroundTransparency = 0
+    BeamGlow.Transparency = 0
+    WireframeBeam.Visible = true
+    Card.Visible = false
+
+    local beamRetract = tw(WireframeBeam, {Size = UDim2.new(0, 0, 0, 2), BackgroundTransparency = 1}, 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    tw(BeamGlow, {Transparency = 1}, 0.2)
+    beamRetract.Completed:Wait()
+    WireframeBeam.Visible = false
 end
 
 local function openMenu()
@@ -2235,25 +2458,15 @@ local function closeMenu()
     closeActiveDrawer()
 
     if AnimationsEnabled then
-        tw(Backdrop, {BackgroundTransparency = 1}, 0.2)
-        local closeAnim = tw(Card, {
-            Position = UDim2.new(0.5, 0, 0.53, 0),
-            Size = UDim2.new(0, 500, 0, 280),
-            Rotation = 6,
-            BackgroundTransparency = 1
-        }, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-
-        closeAnim.Completed:Connect(function()
-            Backdrop.Visible = false
-            Card.Visible = false
-            Card.Rotation = 0
-            isTransitioning = false
-        end)
+        tw(Backdrop, {BackgroundTransparency = 1}, 0.3)
+        playMechanicalDeconstructSequence()
+        Backdrop.Visible = false
     else
         Backdrop.Visible = false
         Card.Visible = false
-        isTransitioning = false
     end
+
+    isTransitioning = false
 end
 
 CloseBtn.MouseButton1Click:Connect(closeMenu)
@@ -2349,5 +2562,5 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
 end)
 
 openMenu()
-Notify("Lumacore", "Poly Loot Definitive Suite Loaded", C.Accent)
+Notify("Lumacore", "Poly Loot Initialized", C.Accent)
 print("[Lumacore] Poly Loot loaded.")
