@@ -1,8 +1,5 @@
---[[ 
-    LOOT HERO [AUTUMN EDITION - COMPLETE SUITE]
-    Compact frame, boundary clamped, full original settings restored (no theme selector)
-]]
-
+-- // LUMACORE - POLY LOOT //
+-- Developed by Lumacore
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -10,157 +7,209 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
-local Stats = game:GetService("Stats")
 
-local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    repeat task.wait() LocalPlayer = Players.LocalPlayer until LocalPlayer
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+local ScreenName = "Lumacore_PolyLoot"
+
+-- PRE-DECLARE ROUTINES
+local closeActiveDrawer = function() end
+local closeMenu = function() end
+local openMenu = function() end
+local toggleMenu = function() end
+local setFloatingIconVisible = function() end
+
+-- 1. CONTAINER MOUNTING
+local function resolveContainer()
+    local okHui, h = pcall(function()
+        if typeof(gethui) == "function" then return gethui() end
+    end)
+    if okHui and h then return h end
+    return PlayerGui
 end
 
-local Camera = Workspace.CurrentCamera or Workspace:WaitForChild("Camera", 2)
-local ScreenName = "LootHero_Autumn"
-
--- // 1. SAFE CONTAINER RESOLUTION //
-local function getContainer()
-    if typeof(gethui) == "function" then
-        local h = gethui()
-        if h then return h end
-    end
-    local ok, cg = pcall(function() return CoreGui end)
-    if ok and cg then return cg end
-    return LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
-end
-
-local TargetParent = getContainer()
+local TargetParent = resolveContainer()
 if not TargetParent then return end
 
-local old = TargetParent:FindFirstChild(ScreenName)
-if old then old:Destroy() end
+local oldUI = TargetParent:FindFirstChild(ScreenName)
+if oldUI then oldUI:Destroy() end
 
--- // 2. AUTUMN PALETTE //
+-- 2. PALETTE SYSTEM
 local C = {
-    Bg         = Color3.fromRGB(22, 18, 16),
-    Surface    = Color3.fromRGB(32, 26, 23),
-    Hover      = Color3.fromRGB(44, 35, 30),
-    Border     = Color3.fromRGB(60, 48, 40),
+    Bg         = Color3.fromRGB(16, 14, 13),
+    CardBg     = Color3.fromRGB(24, 21, 19),
+    Surface    = Color3.fromRGB(32, 28, 25),
+    Hover      = Color3.fromRGB(44, 38, 34),
+    Border     = Color3.fromRGB(56, 48, 44),
+    BorderHot  = Color3.fromRGB(80, 68, 62),
     Accent     = Color3.fromRGB(224, 112, 43),
     AccentGlow = Color3.fromRGB(245, 148, 68),
-    PillActive = Color3.fromRGB(48, 38, 32),
     Text       = Color3.fromRGB(250, 244, 238),
     Muted      = Color3.fromRGB(186, 172, 162),
-    Dim        = Color3.fromRGB(128, 114, 104),
-    Red        = Color3.fromRGB(217, 68, 54),
+    Dim        = Color3.fromRGB(130, 118, 110),
+    Red        = Color3.fromRGB(224, 64, 78),
     RedDark    = Color3.fromRGB(138, 32, 25),
     Green      = Color3.fromRGB(64, 192, 110),
+    Purple     = Color3.fromRGB(175, 95, 245),
+    Cyan       = Color3.fromRGB(60, 200, 240),
 }
 
+local AnimationsEnabled = true
+
 local function tw(obj, props, dur, style, dir)
-    local t = TweenService:Create(obj, TweenInfo.new(dur or 0.18, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out), props)
+    if not AnimationsEnabled then
+        for prop, val in pairs(props) do
+            pcall(function() obj[prop] = val end)
+        end
+        return {
+            Completed = {
+                Wait = function() end,
+                Connect = function(_, fn)
+                    task.spawn(fn)
+                    return {Disconnect = function() end}
+                end
+            }
+        }
+    end
+    local t = TweenService:Create(
+        obj,
+        TweenInfo.new(dur or 0.22, style or Enum.EasingStyle.Quart, dir or Enum.EasingDirection.Out),
+        props
+    )
     t:Play()
     return t
 end
 
--- // 3. LOOT HERO GAME STATE & REMOTES //
-local GodModeEnabled = false
-local AutoCollectEnabled = false
-local AutoPickEnabled = false
-local InfDamageEnabled = false
-local InfRangeEnabled = false
-local InfSpeedEnabled = false
-local MaxHpEnabled = false
-
-local SelectedPlayer = nil
-local SelectedChest = "BasicChest"
-local EspEnabled = false
-local EspHighlights = {}
-local EspConnection = nil
-
--- Settings Flags
-local NotificationsEnabled = true
-local MonitorFPS = false
-local MonitorPing = false
-local MonitorMem = false
-local MonitorRemotes = false
-local RemotesActive = false
-
-local Remotes, HealRemote, ChoiceRemote, MoneyRemote, StartRemote, PurchaseRemote, JoinRemote
-task.spawn(function()
-    pcall(function()
-        Remotes = ReplicatedStorage:WaitForChild("Remotes", 5)
-        if Remotes then
-            HealRemote = Remotes:WaitForChild("Heal", 3)
-            ChoiceRemote = Remotes:WaitForChild("Choice", 3)
-            MoneyRemote = Remotes:WaitForChild("Money", 3)
-            StartRemote = Remotes:WaitForChild("Start", 3)
-            PurchaseRemote = Remotes:WaitForChild("Purchase", 3)
-            JoinRemote = Remotes:WaitForChild("Join", 3)
-            RemotesActive = true
-        end
-    end)
-end)
-
-local godConnection
-godConnection = RunService.RenderStepped:Connect(function()
-    if GodModeEnabled and HealRemote then
-        HealRemote:FireServer()
-    end
-end)
-
--- // 4. ROOT GUI //
+-- 3. ROOT GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = ScreenName
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.DisplayOrder = 9999
+ScreenGui.DisplayOrder = 999999
 ScreenGui.Enabled = true
 ScreenGui.Parent = TargetParent
 
-local function Notify(text, color)
-    if not NotificationsEnabled then return end
-    task.spawn(function()
-        local toast = Instance.new("Frame")
-        toast.Size = UDim2.new(0, 190, 0, 30)
-        toast.Position = UDim2.new(0.5, -95, 0.9, 0)
-        toast.BackgroundColor3 = C.Surface
-        toast.BorderSizePixel = 0
-        toast.ZIndex = 1000
-        toast.Parent = ScreenGui
+-- 4. DYNAMIC REMOTES RESOLVER
+local GhostSwingRemote = nil
+local ResetRequestedRemote = nil
+local DailyCheckInRemote = nil
+local ShopBuyRemote = nil
+local EquipRequestRemote = nil
 
-        Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 6)
-        local s = Instance.new("UIStroke"); s.Color = color or C.Accent; s.Thickness = 1; s.Parent = toast
+local function resolveRemotes()
+    pcall(function()
+        local hEngine = ReplicatedStorage:FindFirstChild("Halloween_Engine")
+        if hEngine then
+            local remotes = hEngine:FindFirstChild("Remotes")
+            if remotes then
+                GhostSwingRemote = remotes:FindFirstChild("GhostSwing")
+                DailyCheckInRemote = remotes:FindFirstChild("DailyCheckIn")
+                ShopBuyRemote = remotes:FindFirstChild("Buy") 
+                    or remotes:FindFirstChild("AttemptBuy") 
+                    or remotes:FindFirstChild("Purchase") 
+                    or remotes:FindFirstChild("ShopBuy")
+            end
+        end
+        if not GhostSwingRemote then GhostSwingRemote = ReplicatedStorage:FindFirstChild("GhostSwing", true) end
+        if not DailyCheckInRemote then DailyCheckInRemote = ReplicatedStorage:FindFirstChild("DailyCheckIn", true) end
+        if not ShopBuyRemote then 
+            ShopBuyRemote = ReplicatedStorage:FindFirstChild("Buy", true) 
+                or ReplicatedStorage:FindFirstChild("Purchase", true) 
+        end
+    end)
 
-        local lbl = Instance.new("TextLabel")
-        lbl.Size = UDim2.fromScale(1, 1)
-        lbl.BackgroundTransparency = 1
-        lbl.Text = text
-        lbl.TextColor3 = C.Text
-        lbl.Font = Enum.Font.GothamMedium
-        lbl.TextSize = 11
-        lbl.ZIndex = 1001
-        lbl.Parent = toast
+    pcall(function()
+        local dEngine = ReplicatedStorage:FindFirstChild("Death_Engine")
+        if dEngine then
+            local remotes = dEngine:FindFirstChild("Remotes")
+            if remotes then
+                ResetRequestedRemote = remotes:FindFirstChild("ResetRequested")
+            end
+        end
+        if not ResetRequestedRemote then ResetRequestedRemote = ReplicatedStorage:FindFirstChild("ResetRequested", true) end
+    end)
 
-        tw(toast, {Position = UDim2.new(0.5, -95, 0.86, 0)}, 0.2)
-        task.wait(2)
-        tw(toast, {Position = UDim2.new(0.5, -95, 0.9, 0), BackgroundTransparency = 1}, 0.25)
-        tw(lbl, {TextTransparency = 1}, 0.25)
-        task.wait(0.25)
-        toast:Destroy()
+    pcall(function()
+        local invEngine = ReplicatedStorage:FindFirstChild("Inventory_Engine")
+        if invEngine then
+            local remotes = invEngine:FindFirstChild("Remotes")
+            if remotes then
+                EquipRequestRemote = remotes:FindFirstChild("EquipRequest")
+            end
+        end
+        if not EquipRequestRemote then
+            EquipRequestRemote = ReplicatedStorage:FindFirstChild("EquipRequest", true)
+        end
     end)
 end
+task.spawn(resolveRemotes)
 
--- // 5. STATS MONITOR OVERLAY //
+-- 5. ANTI-AFK & NOCLIP ENGINE
+local AntiAFKActive = true
+task.spawn(function()
+    local VirtualUser = nil
+    pcall(function() VirtualUser = game:GetService("VirtualUser") end)
+
+    LocalPlayer.Idled:Connect(function()
+        if AntiAFKActive then
+            pcall(function()
+                if VirtualUser then
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0, 0))
+                else
+                    local char = LocalPlayer.Character
+                    local hum = char and char:FindFirstChildOfClass("Humanoid")
+                    if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+                end
+            end)
+        end
+    end)
+end)
+
+local NoclipActive = false
+RunService.Stepped:Connect(function()
+    if NoclipActive then
+        local char = LocalPlayer.Character
+        if char then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- 6. STATS & TELEMETRY OVERLAYS
+local MonitorFPS = false
+local MonitorPing = false
+local MonitorUptime = false
+local MonitorGhostCount = false
+
+local GhostCaptures = 0
+local StartEpoch = os.time()
+
+local function formatUptime(seconds)
+    local hrs = math.floor(seconds / 3600)
+    local mins = math.floor((seconds % 3600) / 60)
+    local secs = seconds % 60
+    return string.format("%02d:%02d:%02d", hrs, mins, secs)
+end
+
 local MonitorUI = Instance.new("Frame")
-MonitorUI.Size = UDim2.new(0, 95, 0, 0)
-MonitorUI.Position = UDim2.new(1, -105, 0, 12)
+MonitorUI.Size = UDim2.new(0, 118, 0, 0)
+MonitorUI.Position = UDim2.new(1, -128, 0, 14)
 MonitorUI.BackgroundColor3 = C.Surface
 MonitorUI.BackgroundTransparency = 0.15
 MonitorUI.Visible = false
 MonitorUI.ZIndex = 900
 MonitorUI.Parent = ScreenGui
 
-Instance.new("UICorner", MonitorUI).CornerRadius = UDim.new(0, 6)
-local mStroke = Instance.new("UIStroke"); mStroke.Color = C.Border; mStroke.Thickness = 1; mStroke.Parent = MonitorUI
+Instance.new("UICorner", MonitorUI).CornerRadius = UDim.new(0, 8)
+local mStroke = Instance.new("UIStroke")
+mStroke.Color = C.Border
+mStroke.Thickness = 1
+mStroke.Parent = MonitorUI
 
 local mLayout = Instance.new("UIListLayout")
 mLayout.Padding = UDim.new(0, 2)
@@ -170,10 +219,10 @@ mLayout.Parent = MonitorUI
 
 local function createMonitorRow()
     local lbl = Instance.new("TextLabel")
-    lbl.Size = UDim2.new(1, -8, 0, 16)
+    lbl.Size = UDim2.new(1, -12, 0, 16)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Text
-    lbl.Font = Enum.Font.Gotham
+    lbl.Font = Enum.Font.GothamMedium
     lbl.TextSize = 10
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.Visible = false
@@ -182,368 +231,1422 @@ local function createMonitorRow()
     return lbl
 end
 
+local ghostRow = createMonitorRow()
 local fpsRow = createMonitorRow()
 local pingRow = createMonitorRow()
-local memRow = createMonitorRow()
-local remoteRow = createMonitorRow()
+local upRow = createMonitorRow()
 
-local monitorConn
-monitorConn = RunService.RenderStepped:Connect(function(dt)
-    local active = (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorMem and 1 or 0) + (MonitorRemotes and 1 or 0)
+local monitorConn = RunService.RenderStepped:Connect(function(dt)
+    local active = (MonitorGhostCount and 1 or 0) + (MonitorFPS and 1 or 0) + (MonitorPing and 1 or 0) + (MonitorUptime and 1 or 0)
     if active == 0 then
         MonitorUI.Visible = false
     else
         MonitorUI.Visible = true
-        MonitorUI.Size = UDim2.new(0, 95, 0, (active * 18) + 6)
-
+        MonitorUI.Size = UDim2.new(0, 118, 0, (active * 18) + 8)
+        
+        ghostRow.Visible = MonitorGhostCount
+        if MonitorGhostCount then 
+            ghostRow.Text = "Ghosts: " .. tostring(GhostCaptures)
+            ghostRow.TextColor3 = C.AccentGlow
+        end
+        
         fpsRow.Visible = MonitorFPS
-        if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / dt) end
-
+        if MonitorFPS then fpsRow.Text = "FPS: " .. math.floor(1 / math.max(dt, 0.001)) end
+        
         pingRow.Visible = MonitorPing
-        if MonitorPing then
-            local p = math.floor(LocalPlayer:GetNetworkPing() * 1000)
-            pingRow.Text = "Ping: " .. p .. "ms"
-        end
-
-        memRow.Visible = MonitorMem
-        if MonitorMem then
-            memRow.Text = "Mem: " .. math.floor(Stats:GetTotalMemoryUsageMb()) .. "MB"
-        end
-
-        remoteRow.Visible = MonitorRemotes
-        if MonitorRemotes then
-            remoteRow.Text = RemotesActive and "Remotes: OK" or "Remotes: N/A"
-            remoteRow.TextColor3 = RemotesActive and C.Green or C.Red
-        end
+        if MonitorPing then pingRow.Text = "Ping: " .. math.floor(LocalPlayer:GetNetworkPing() * 1000) .. "ms" end
+        
+        upRow.Visible = MonitorUptime
+        if MonitorUptime then upRow.Text = "Time: " .. formatUptime(os.time() - StartEpoch) end
     end
 end)
 
--- // 6. MAIN WINDOW //
-local Frame = Instance.new("Frame")
-Frame.Name = "MainFrame"
-Frame.Size = UDim2.new(0, 275, 0, 315)
-Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-Frame.AnchorPoint = Vector2.new(0.5, 0.5)
-Frame.BackgroundColor3 = C.Bg
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.ClipsDescendants = true
-Frame.Visible = true
-Frame.Parent = ScreenGui
+-- 7. BACKDROP & PILL WIREFRAME BEAM
+local Backdrop = Instance.new("TextButton")
+Backdrop.Name = "Backdrop"
+Backdrop.Size = UDim2.fromScale(1, 1)
+Backdrop.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Backdrop.BackgroundTransparency = 1
+Backdrop.AutoButtonColor = false
+Backdrop.Text = ""
+Backdrop.Visible = false
+Backdrop.Parent = ScreenGui
 
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
-local fStroke = Instance.new("UIStroke")
-fStroke.Color = C.Border
-fStroke.Thickness = 1.2
-fStroke.Parent = Frame
+local WireframeBeam = Instance.new("Frame")
+WireframeBeam.Name = "WireframeBeam"
+WireframeBeam.Size = UDim2.new(0, 0, 0, 4)
+WireframeBeam.Position = UDim2.new(0.5, 0, 0.5, 0)
+WireframeBeam.AnchorPoint = Vector2.new(0.5, 0.5)
+WireframeBeam.BackgroundColor3 = C.Accent
+WireframeBeam.BorderSizePixel = 0
+WireframeBeam.Visible = false
+WireframeBeam.ZIndex = 6000
+WireframeBeam.Parent = ScreenGui
+Instance.new("UICorner", WireframeBeam).CornerRadius = UDim.new(1, 0)
 
-local TopGrad = Instance.new("UIGradient")
-TopGrad.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 34, 28)),
-    ColorSequenceKeypoint.new(0.25, C.Bg),
-    ColorSequenceKeypoint.new(1, C.Bg)
-}
-TopGrad.Rotation = 90
-TopGrad.Parent = Frame
+local BeamGlow = Instance.new("UIStroke")
+BeamGlow.Color = C.AccentGlow
+BeamGlow.Thickness = 2
+BeamGlow.Parent = WireframeBeam
 
--- // 7. HEADER //
+-- 8. MAIN CARD (ROUNDED CHASSIS)
+local Card = Instance.new("Frame")
+Card.Name = "ProfileCard"
+Card.Size = UDim2.new(0, 580, 0, 345)
+Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+Card.AnchorPoint = Vector2.new(0.5, 0.5)
+Card.BackgroundColor3 = C.Bg
+Card.BorderSizePixel = 0
+Card.ClipsDescendants = true
+Card.Active = true
+Card.Visible = false
+Card.Parent = ScreenGui
+
+Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 16)
+local cStroke = Instance.new("UIStroke")
+cStroke.Color = C.Border
+cStroke.Thickness = 1.3
+cStroke.Parent = Card
+
+local AssemblyVeil = Instance.new("Frame")
+AssemblyVeil.Name = "AssemblyVeil"
+AssemblyVeil.Size = UDim2.fromScale(1, 1)
+AssemblyVeil.BackgroundColor3 = C.Bg
+AssemblyVeil.BorderSizePixel = 0
+AssemblyVeil.ZIndex = 800
+AssemblyVeil.Visible = false
+AssemblyVeil.Parent = Card
+Instance.new("UICorner", AssemblyVeil).CornerRadius = UDim.new(0, 16)
+
+-- HEADER BAR
 local Header = Instance.new("TextButton")
 Header.Name = "Header"
-Header.Size = UDim2.new(1, 0, 0, 40)
+Header.Size = UDim2.new(1, 0, 0, 48)
 Header.BackgroundTransparency = 1
 Header.Text = ""
 Header.AutoButtonColor = false
-Header.Parent = Frame
+Header.Parent = Card
 
 local TitleDot = Instance.new("Frame")
-TitleDot.Size = UDim2.new(0, 6, 0, 6)
-TitleDot.Position = UDim2.new(0, 14, 0.5, -3)
+TitleDot.Size = UDim2.new(0, 8, 0, 8)
+TitleDot.Position = UDim2.new(0, 18, 0.5, -4)
 TitleDot.BackgroundColor3 = C.Accent
 Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
 TitleDot.Parent = Header
 
 local Title = Instance.new("TextLabel")
-Title.Text = "Loot Hero [Alpha]"
+Title.Text = "POLY LOOT"
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 13
+Title.TextSize = 14
 Title.TextColor3 = C.Text
 Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.Size = UDim2.new(1, -60, 1, 0)
-Title.Position = UDim2.new(0, 28, 0, 0)
+Title.Position = UDim2.new(0, 34, 0, 9)
+Title.Size = UDim2.new(0, 180, 0, 16)
 Title.BackgroundTransparency = 1
 Title.Parent = Header
 
+local SubTitle = Instance.new("TextLabel")
+SubTitle.Text = "Credit: Lumacore"
+SubTitle.Font = Enum.Font.GothamMedium
+SubTitle.TextSize = 10
+SubTitle.TextColor3 = C.AccentGlow
+SubTitle.TextXAlignment = Enum.TextXAlignment.Left
+SubTitle.Position = UDim2.new(0, 34, 0, 26)
+SubTitle.Size = UDim2.new(0, 180, 0, 14)
+SubTitle.BackgroundTransparency = 1
+SubTitle.Parent = Header
+
+-- NOTIFICATION BANNER
+local NotificationsEnabled = true
+local NotificationBanner = Instance.new("Frame")
+NotificationBanner.Name = "InUINotifier"
+NotificationBanner.Size = UDim2.new(0, 230, 0, 34)
+NotificationBanner.Position = UDim2.new(0.5, 0, 0, 7)
+NotificationBanner.AnchorPoint = Vector2.new(0.5, 0)
+NotificationBanner.BackgroundColor3 = Color3.fromRGB(10, 8, 8)
+NotificationBanner.BorderSizePixel = 0
+NotificationBanner.ClipsDescendants = true
+NotificationBanner.Visible = false
+NotificationBanner.ZIndex = 120
+NotificationBanner.Parent = Header
+
+Instance.new("UICorner", NotificationBanner).CornerRadius = UDim.new(0, 8)
+local nbStroke = Instance.new("UIStroke")
+nbStroke.Color = C.Accent
+nbStroke.Thickness = 1.4
+nbStroke.Parent = NotificationBanner
+
+local nbBar = Instance.new("Frame")
+nbBar.Size = UDim2.new(0, 4, 0.75, 0)
+nbBar.Position = UDim2.new(0, 8, 0.125, 0)
+nbBar.BackgroundColor3 = C.Accent
+nbBar.BorderSizePixel = 0
+nbBar.ZIndex = 121
+nbBar.Parent = NotificationBanner
+Instance.new("UICorner", nbBar).CornerRadius = UDim.new(1, 0)
+
+local nbTitle = Instance.new("TextLabel")
+nbTitle.Size = UDim2.new(1, -24, 0, 14)
+nbTitle.Position = UDim2.new(0, 18, 0, 4)
+nbTitle.BackgroundTransparency = 1
+nbTitle.Text = ""
+nbTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+nbTitle.Font = Enum.Font.GothamBold
+nbTitle.TextSize = 10
+nbTitle.TextXAlignment = Enum.TextXAlignment.Left
+nbTitle.ZIndex = 122
+nbTitle.Parent = NotificationBanner
+
+local nbSub = Instance.new("TextLabel")
+nbSub.Size = UDim2.new(1, -24, 0, 12)
+nbSub.Position = UDim2.new(0, 18, 0, 17)
+nbSub.BackgroundTransparency = 1
+nbSub.Text = ""
+nbSub.TextColor3 = Color3.fromRGB(220, 215, 210)
+nbSub.Font = Enum.Font.GothamMedium
+nbSub.TextSize = 9
+nbSub.TextXAlignment = Enum.TextXAlignment.Left
+nbSub.ZIndex = 122
+nbSub.Parent = NotificationBanner
+
+local NotifyQueue = {}
+local isDisplayingNotify = false
+
+local function processNextNotification()
+    if #NotifyQueue == 0 or isDisplayingNotify or not NotificationsEnabled then return end
+    isDisplayingNotify = true
+    local item = table.remove(NotifyQueue, 1)
+
+    nbTitle.Text = item.title
+    nbSub.Text = item.sub or "System update"
+    nbStroke.Color = item.color or C.Accent
+    nbBar.BackgroundColor3 = item.color or C.Accent
+
+    NotificationBanner.Visible = true
+    NotificationBanner.Position = UDim2.new(0.5, 0, 0, -42)
+    NotificationBanner.BackgroundTransparency = 1
+    nbTitle.TextTransparency = 1
+    nbSub.TextTransparency = 1
+    nbStroke.Transparency = 1
+    nbBar.BackgroundTransparency = 1
+
+    tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, 7), BackgroundTransparency = 0}, 0.22, Enum.EasingStyle.Back)
+    tw(nbTitle, {TextTransparency = 0}, 0.2)
+    tw(nbSub, {TextTransparency = 0}, 0.2)
+    tw(nbStroke, {Transparency = 0}, 0.2)
+    tw(nbBar, {BackgroundTransparency = 0}, 0.2)
+
+    task.wait(2.2)
+
+    local exit = tw(NotificationBanner, {Position = UDim2.new(0.5, 0, 0, -42), BackgroundTransparency = 1}, 0.22, Enum.EasingStyle.Quart)
+    tw(nbTitle, {TextTransparency = 1}, 0.2)
+    tw(nbSub, {TextTransparency = 1}, 0.2)
+    tw(nbStroke, {Transparency = 1}, 0.2)
+    tw(nbBar, {BackgroundTransparency = 1}, 0.2)
+    exit.Completed:Wait()
+
+    NotificationBanner.Visible = false
+    isDisplayingNotify = false
+
+    if #NotifyQueue > 0 then
+        processNextNotification()
+    end
+end
+
+local function Notify(titleText, subText, color)
+    if not NotificationsEnabled then return end
+    table.insert(NotifyQueue, {title = titleText, sub = subText, color = color})
+    if not isDisplayingNotify then
+        task.spawn(processNextNotification)
+    end
+end
+
+-- HEADER NAVIGATION BUTTONS
+local HeaderBtns = Instance.new("Frame")
+HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
+HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
+HeaderBtns.AnchorPoint = Vector2.new(1, 0.5)
+HeaderBtns.BackgroundTransparency = 1
+HeaderBtns.Parent = Header
+
+local CreditsBtn = Instance.new("TextButton")
+CreditsBtn.Name = "CreditsBtn"
+CreditsBtn.Size = UDim2.new(0, 28, 0, 28)
+CreditsBtn.Position = UDim2.new(0, 0, 0, 0)
+CreditsBtn.BackgroundColor3 = C.CardBg
+CreditsBtn.Text = "★"
+CreditsBtn.TextColor3 = C.AccentGlow
+CreditsBtn.Font = Enum.Font.GothamBold
+CreditsBtn.TextSize = 14
+CreditsBtn.AutoButtonColor = false
+CreditsBtn.ZIndex = 70
+CreditsBtn.Parent = HeaderBtns
+Instance.new("UICorner", CreditsBtn).CornerRadius = UDim.new(0, 8)
+local crBtnStroke = Instance.new("UIStroke")
+crBtnStroke.Color = C.Border
+crBtnStroke.Thickness = 1
+crBtnStroke.Parent = CreditsBtn
+
 local SettingsBtn = Instance.new("TextButton")
 SettingsBtn.Name = "SettingsBtn"
-SettingsBtn.Size = UDim2.new(0, 26, 0, 26)
-SettingsBtn.Position = UDim2.new(1, -12, 0.5, 0)
-SettingsBtn.AnchorPoint = Vector2.new(1, 0.5)
-SettingsBtn.BackgroundColor3 = C.Surface
+SettingsBtn.Size = UDim2.new(0, 28, 0, 28)
+SettingsBtn.Position = UDim2.new(0, 36, 0, 0)
+SettingsBtn.BackgroundColor3 = C.CardBg
 SettingsBtn.Text = "⚙"
 SettingsBtn.TextColor3 = C.Muted
 SettingsBtn.Font = Enum.Font.GothamBold
 SettingsBtn.TextSize = 13
 SettingsBtn.AutoButtonColor = false
-SettingsBtn.ZIndex = 6
-SettingsBtn.Parent = Header
+SettingsBtn.ZIndex = 70
+SettingsBtn.Parent = HeaderBtns
+Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 8)
+local sBtnStroke = Instance.new("UIStroke")
+sBtnStroke.Color = C.Border
+sBtnStroke.Thickness = 1
+sBtnStroke.Parent = SettingsBtn
 
-Instance.new("UICorner", SettingsBtn).CornerRadius = UDim.new(0, 6)
-local sStroke = Instance.new("UIStroke")
-sStroke.Color = C.Border
-sStroke.Thickness = 1
-sStroke.Parent = SettingsBtn
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Size = UDim2.new(0, 28, 0, 28)
+CloseBtn.Position = UDim2.new(0, 72, 0, 0)
+CloseBtn.BackgroundColor3 = C.RedDark
+CloseBtn.Text = "✕"
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 12
+CloseBtn.AutoButtonColor = false
+CloseBtn.ZIndex = 70
+CloseBtn.Parent = HeaderBtns
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 8)
+local clBtnStroke = Instance.new("UIStroke")
+clBtnStroke.Color = C.Red
+clBtnStroke.Thickness = 1
+clBtnStroke.Parent = CloseBtn
 
-SettingsBtn.MouseEnter:Connect(function()
-    tw(SettingsBtn, {BackgroundColor3 = C.Hover, TextColor3 = C.Text}, 0.15)
-    tw(sStroke, {Color = C.Accent}, 0.15)
+-- 9. BODY CONTAINER
+local Body = Instance.new("Frame")
+Body.Size = UDim2.new(1, -32, 1, -60)
+Body.Position = UDim2.new(0, 16, 0, 48)
+Body.BackgroundTransparency = 1
+Body.Visible = true
+Body.Parent = Card
+
+local LeftCol = Instance.new("ScrollingFrame")
+LeftCol.Size = UDim2.new(0.58, -8, 1, 0)
+LeftCol.Position = UDim2.new(0, 0, 0, 0)
+LeftCol.BackgroundTransparency = 1
+LeftCol.BorderSizePixel = 0
+LeftCol.ScrollBarThickness = 2
+LeftCol.ScrollBarImageColor3 = C.Border
+LeftCol.AutomaticCanvasSize = Enum.AutomaticSize.Y
+LeftCol.CanvasSize = UDim2.new(0, 0, 0, 0)
+LeftCol.Parent = Body
+
+local leftLayout = Instance.new("UIListLayout")
+leftLayout.Padding = UDim.new(0, 7)
+leftLayout.SortOrder = Enum.SortOrder.LayoutOrder
+leftLayout.Parent = LeftCol
+
+local RightCol = Instance.new("Frame")
+RightCol.Size = UDim2.new(0.42, -4, 1, 0)
+RightCol.Position = UDim2.new(0.58, 8, 0, 0)
+RightCol.BackgroundColor3 = C.CardBg
+RightCol.BorderSizePixel = 0
+RightCol.Parent = Body
+
+Instance.new("UICorner", RightCol).CornerRadius = UDim.new(0, 10)
+local rStroke = Instance.new("UIStroke")
+rStroke.Color = C.Border
+rStroke.Thickness = 1
+rStroke.Parent = RightCol
+
+local AvatarHolder = Instance.new("Frame")
+AvatarHolder.Size = UDim2.new(0, 74, 0, 74)
+AvatarHolder.Position = UDim2.new(0.5, 0, 0, 10)
+AvatarHolder.AnchorPoint = Vector2.new(0.5, 0)
+AvatarHolder.BackgroundColor3 = C.Surface
+AvatarHolder.ClipsDescendants = true
+AvatarHolder.Parent = RightCol
+
+Instance.new("UICorner", AvatarHolder).CornerRadius = UDim.new(1, 0)
+local avStroke = Instance.new("UIStroke")
+avStroke.Color = C.Accent
+avStroke.Thickness = 2
+avStroke.Parent = AvatarHolder
+
+local AvatarImage = Instance.new("ImageLabel")
+AvatarImage.Size = UDim2.fromScale(1, 1)
+AvatarImage.BackgroundTransparency = 1
+AvatarImage.ScaleType = Enum.ScaleType.Fit
+AvatarImage.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LocalPlayer.UserId) .. "&w=150&h=150"
+AvatarImage.Parent = AvatarHolder
+Instance.new("UICorner", AvatarImage).CornerRadius = UDim.new(1, 0)
+
+task.spawn(function()
+    local ok, thumb = pcall(function()
+        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.AvatarHeadShot, Enum.ThumbnailSize.Size150x150)
+    end)
+    if ok and thumb and thumb ~= "" then
+        AvatarImage.Image = thumb
+    end
 end)
-SettingsBtn.MouseLeave:Connect(function()
-    tw(SettingsBtn, {BackgroundColor3 = C.Surface, TextColor3 = C.Muted}, 0.15)
-    tw(sStroke, {Color = C.Border}, 0.15)
+
+local BlurStack = Instance.new("Frame")
+BlurStack.Size = UDim2.fromScale(1, 1)
+BlurStack.BackgroundTransparency = 1
+BlurStack.Visible = false
+BlurStack.ZIndex = 5
+BlurStack.Parent = AvatarHolder
+Instance.new("UICorner", BlurStack).CornerRadius = UDim.new(1, 0)
+
+local blurTint = Instance.new("Frame")
+blurTint.Size = UDim2.fromScale(1, 1)
+blurTint.BackgroundColor3 = Color3.fromRGB(18, 16, 15)
+blurTint.BackgroundTransparency = 0.25
+blurTint.BorderSizePixel = 0
+blurTint.ZIndex = 6
+blurTint.Parent = BlurStack
+Instance.new("UICorner", blurTint).CornerRadius = UDim.new(1, 0)
+
+local SensorInfoActive = false
+
+local TelemetryFrame = Instance.new("Frame")
+TelemetryFrame.Size = UDim2.new(1, -12, 1, -96)
+TelemetryFrame.Position = UDim2.new(0, 6, 0, 90)
+TelemetryFrame.BackgroundColor3 = C.Surface
+TelemetryFrame.Parent = RightCol
+Instance.new("UICorner", TelemetryFrame).CornerRadius = UDim.new(0, 8)
+local tfStroke = Instance.new("UIStroke")
+tfStroke.Color = C.Border
+tfStroke.Thickness = 1
+tfStroke.Parent = TelemetryFrame
+
+local tLayout = Instance.new("UIListLayout")
+tLayout.Padding = UDim.new(0, 1)
+tLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+tLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+tLayout.Parent = TelemetryFrame
+
+local function createInfoLabel()
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -14, 0, 16)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = C.Muted
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 9.5
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Parent = TelemetryFrame
+    return lbl
+end
+
+local userRow = createInfoLabel()
+local placeRow = createInfoLabel()
+local jobRow = createInfoLabel()
+local uptimeRow = createInfoLabel()
+
+local tDiv = Instance.new("Frame")
+tDiv.Size = UDim2.new(1, -16, 0, 1)
+tDiv.BackgroundColor3 = C.Border
+tDiv.BorderSizePixel = 0
+tDiv.Parent = TelemetryFrame
+
+local keybindRow = createInfoLabel()
+keybindRow.Text = "Toggle Menu: [RightCtrl]"
+keybindRow.TextColor3 = C.AccentGlow
+keybindRow.Font = Enum.Font.GothamMedium
+
+local function setCensorState(censor)
+    SensorInfoActive = censor
+    if censor then
+        BlurStack.Visible = true
+        tw(AvatarImage, {ImageTransparency = 0.85}, 0.2)
+    else
+        BlurStack.Visible = false
+        tw(AvatarImage, {ImageTransparency = 0}, 0.2)
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if SensorInfoActive then
+        userRow.Text = "Account: [SECURE]"
+        placeRow.Text = "Place ID: [HIDDEN]"
+        jobRow.Text = "Job ID: [HIDDEN]"
+    else
+        userRow.Text = "Account: @" .. LocalPlayer.Name
+        placeRow.Text = "Place: " .. tostring(game.PlaceId)
+        jobRow.Text = "Job: " .. string.sub(game.JobId, 1, 10) .. "..."
+    end
+    uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- // 8. COMPONENT BUILDERS //
+-- 10. SECTION COMPONENT WITH ANIMATED ACCORDION COLLAPSE
+local ActionCardRegistry = {}
+local CollapsibleSections = {}
+local DropdownFeatureEnabled = false
+
 local function AddSection(parent, text, order)
+    local headerFrame = Instance.new("Frame")
+    headerFrame.Size = UDim2.new(1, 0, 0, 24)
+    headerFrame.BackgroundTransparency = 1
+    headerFrame.LayoutOrder = order or 0
+    headerFrame.Parent = parent
+
+    local headerBtn = Instance.new("TextButton")
+    headerBtn.Size = UDim2.fromScale(1, 1)
+    headerBtn.BackgroundTransparency = 1
+    headerBtn.AutoButtonColor = false
+    headerBtn.Text = ""
+    headerBtn.Parent = headerFrame
+
+    local accentPill = Instance.new("Frame")
+    accentPill.Size = UDim2.new(0, 3, 0, 12)
+    accentPill.Position = UDim2.new(0, 0, 0.5, -6)
+    accentPill.BackgroundColor3 = C.Accent
+    accentPill.BorderSizePixel = 0
+    accentPill.Parent = headerBtn
+    Instance.new("UICorner", accentPill).CornerRadius = UDim.new(1, 0)
+
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
-    lbl.Size = UDim2.new(1, 0, 0, 16)
+    lbl.Size = UDim2.new(1, -36, 1, 0)
+    lbl.Position = UDim2.new(0, 9, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Accent
     lbl.Font = Enum.Font.GothamBold
     lbl.TextSize = 10
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.LayoutOrder = order or 0
-    lbl.ZIndex = parent.ZIndex + 1
-    lbl.Parent = parent
-    return lbl
-end
-
-local function AddToggle(parent, title, sub, defaultState, layoutOrder, cb)
-    local state = defaultState or false
-
-    local card = Instance.new("TextButton")
-    card.Size = UDim2.new(1, 0, 0, 42)
-    card.BackgroundColor3 = C.Surface
-    card.AutoButtonColor = false
-    card.Text = ""
-    card.LayoutOrder = layoutOrder or 0
-    card.ZIndex = parent.ZIndex
-    card.Parent = parent
-
-    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
-    local s = Instance.new("UIStroke")
-    s.Color = C.Border
-    s.Thickness = 1
-    s.Parent = card
-
-    local tLbl = Instance.new("TextLabel")
-    tLbl.Text = title
-    tLbl.Font = Enum.Font.GothamMedium
-    tLbl.TextSize = 12
-    tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 10, 0, 6)
-    tLbl.Size = UDim2.new(1, -55, 0, 15)
-    tLbl.TextXAlignment = Enum.TextXAlignment.Left
-    tLbl.BackgroundTransparency = 1
-    tLbl.ZIndex = card.ZIndex + 1
-    tLbl.Parent = card
-
-    local sLbl = Instance.new("TextLabel")
-    sLbl.Text = sub or ""
-    sLbl.Font = Enum.Font.Gotham
-    sLbl.TextSize = 10
-    sLbl.TextColor3 = C.Dim
-    sLbl.Position = UDim2.new(0, 10, 0, 21)
-    sLbl.Size = UDim2.new(1, -55, 0, 14)
-    sLbl.TextXAlignment = Enum.TextXAlignment.Left
-    sLbl.BackgroundTransparency = 1
-    sLbl.ZIndex = card.ZIndex + 1
-    sLbl.Parent = card
-
-    local track = Instance.new("Frame")
-    track.Size = UDim2.new(0, 32, 0, 18)
-    track.Position = UDim2.new(1, -42, 0.5, -9)
-    track.BackgroundColor3 = state and C.Accent or C.Border
-    track.BorderSizePixel = 0
-    track.ZIndex = card.ZIndex + 1
-    track.Parent = card
-    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.new(0, 14, 0, 14)
-    knob.Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    knob.BorderSizePixel = 0
-    knob.ZIndex = card.ZIndex + 2
-    knob.Parent = track
-    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
-    card.MouseEnter:Connect(function()
-        tw(card, {BackgroundColor3 = C.Hover}, 0.15)
-        tw(s, {Color = C.AccentGlow}, 0.15)
-    end)
-    card.MouseLeave:Connect(function()
-        tw(card, {BackgroundColor3 = C.Surface}, 0.15)
-        tw(s, {Color = C.Border}, 0.15)
-    end)
-
-    card.MouseButton1Click:Connect(function()
-        state = not state
-        tw(track, {BackgroundColor3 = state and C.Accent or C.Border}, 0.2)
-        tw(knob, {
-            Position = state and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
-        }, 0.15, Enum.EasingStyle.Back)
-        cb(state)
-    end)
-end
-
-local function AddButton(parent, title, sub, layoutOrder, cb)
-    local card = Instance.new("TextButton")
-    card.Size = UDim2.new(1, 0, 0, 42)
-    card.BackgroundColor3 = C.Surface
-    card.AutoButtonColor = false
-    card.Text = ""
-    card.LayoutOrder = layoutOrder or 0
-    card.ZIndex = parent.ZIndex
-    card.Parent = parent
-
-    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 7)
-    local s = Instance.new("UIStroke")
-    s.Color = C.Border
-    s.Thickness = 1
-    s.Parent = card
-
-    local tLbl = Instance.new("TextLabel")
-    tLbl.Text = title
-    tLbl.Font = Enum.Font.GothamMedium
-    tLbl.TextSize = 12
-    tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 10, 0, 6)
-    tLbl.Size = UDim2.new(1, -20, 0, 15)
-    tLbl.TextXAlignment = Enum.TextXAlignment.Left
-    tLbl.BackgroundTransparency = 1
-    tLbl.ZIndex = card.ZIndex + 1
-    tLbl.Parent = card
-
-    local sLbl = Instance.new("TextLabel")
-    sLbl.Text = sub or ""
-    sLbl.Font = Enum.Font.Gotham
-    sLbl.TextSize = 10
-    sLbl.TextColor3 = C.Dim
-    sLbl.Position = UDim2.new(0, 10, 0, 21)
-    sLbl.Size = UDim2.new(1, -20, 0, 14)
-    sLbl.TextXAlignment = Enum.TextXAlignment.Left
-    sLbl.BackgroundTransparency = 1
-    sLbl.ZIndex = card.ZIndex + 1
-    sLbl.Parent = card
-
-    card.MouseEnter:Connect(function()
-        tw(card, {BackgroundColor3 = C.Hover}, 0.12)
-        tw(s, {Color = C.AccentGlow}, 0.12)
-    end)
-    card.MouseLeave:Connect(function()
-        tw(card, {BackgroundColor3 = C.Surface}, 0.12)
-        tw(s, {Color = C.Border}, 0.12)
-    end)
-
-    card.MouseButton1Click:Connect(function()
-        tw(card, {Size = UDim2.new(1, -4, 0, 39)}, 0.06, Enum.EasingStyle.Quart)
-        task.delay(0.06, function()
-            tw(card, {Size = UDim2.new(1, 0, 0, 42)}, 0.14, Enum.EasingStyle.Back)
-        end)
-        cb(tLbl)
-    end)
-end
-
-local function AddDropdown(parent, title, options, layoutOrder, callback)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 0, 42)
-    frame.BackgroundColor3 = C.Surface
-    frame.ClipsDescendants = true
-    frame.LayoutOrder = layoutOrder or 0
-    frame.Parent = parent
-
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 7)
-    local s = Instance.new("UIStroke"); s.Color = C.Border; s.Thickness = 1; s.Parent = frame
-
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, 0, 0, 42)
-    btn.BackgroundTransparency = 1
-    btn.Text = ""
-    btn.Parent = frame
-
-    local tLbl = Instance.new("TextLabel")
-    tLbl.Text = title
-    tLbl.Font = Enum.Font.GothamMedium
-    tLbl.TextSize = 12
-    tLbl.TextColor3 = C.Text
-    tLbl.Position = UDim2.new(0, 10, 0, 0)
-    tLbl.Size = UDim2.new(1, -40, 0, 42)
-    tLbl.TextXAlignment = Enum.TextXAlignment.Left
-    tLbl.BackgroundTransparency = 1
-    tLbl.Parent = btn
+    lbl.Parent = headerBtn
 
     local arrow = Instance.new("TextLabel")
     arrow.Text = "▼"
-    arrow.Font = Enum.Font.GothamBold
-    arrow.TextSize = 10
-    arrow.TextColor3 = C.Dim
-    arrow.Position = UDim2.new(1, -24, 0, 0)
-    arrow.Size = UDim2.new(0, 14, 0, 42)
+    arrow.Size = UDim2.new(0, 20, 1, 0)
+    arrow.Position = UDim2.new(1, -20, 0, 0)
     arrow.BackgroundTransparency = 1
-    arrow.Parent = btn
+    arrow.TextColor3 = C.Dim
+    arrow.Font = Enum.Font.GothamBold
+    arrow.TextSize = 9
+    arrow.Visible = false
+    arrow.Parent = headerBtn
 
-    local optContainer = Instance.new("Frame")
-    optContainer.Size = UDim2.new(1, -12, 0, 0)
-    optContainer.Position = UDim2.new(0, 6, 0, 44)
-    optContainer.BackgroundTransparency = 1
-    optContainer.Parent = frame
+    local secData = {
+        Frame = headerFrame,
+        Button = headerBtn,
+        Arrow = arrow,
+        Title = text,
+        Collapsed = false,
+        Items = {}
+    }
+    table.insert(CollapsibleSections, secData)
 
-    local optList = Instance.new("UIListLayout")
-    optList.Padding = UDim.new(0, 4)
-    optList.Parent = optContainer
+    headerBtn.MouseButton1Click:Connect(function()
+        if not DropdownFeatureEnabled then return end
+        secData.Collapsed = not secData.Collapsed
+        arrow.Text = secData.Collapsed and "►" or "▼"
+        arrow.TextColor3 = secData.Collapsed and C.AccentGlow or C.Dim
 
-    local isOpen = false
-    local function setOpen(open)
-        isOpen = open
-        tw(arrow, {Rotation = isOpen and 180 or 0}, 0.2)
-        local totalH = isOpen and (48 + (#options * 28)) or 42
-        tw(frame, {Size = UDim2.new(1, 0, 0, totalH)}, 0.22, Enum.EasingStyle.Quart)
+        for _, card in ipairs(secData.Items) do
+            if AnimationsEnabled then
+                if secData.Collapsed then
+                    local t = tw(card, {Size = UDim2.new(1, 0, 0, 0)}, 0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+                    t.Completed:Connect(function()
+                        if secData.Collapsed then card.Visible = false end
+                    end)
+                else
+                    card.Visible = true
+                    card.Size = UDim2.new(1, 0, 0, 0)
+                    tw(card, {Size = UDim2.new(1, 0, 0, 44)}, 0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                end
+            else
+                card.Visible = not secData.Collapsed
+                card.Size = UDim2.new(1, 0, 0, secData.Collapsed and 0 or 44)
+            end
+        end
+    end)
+
+    return secData
+end
+
+local function CreateActionCard(parent, sectionData, title, defaultSub, initialBadgeText, initialActive, order, callback)
+    local row = Instance.new("TextButton")
+    row.Size = UDim2.new(1, 0, 0, 44)
+    row.BackgroundColor3 = initialActive and C.Hover or C.CardBg
+    row.AutoButtonColor = false
+    row.Text = ""
+    row.LayoutOrder = order or 0
+    row.ZIndex = parent.ZIndex
+    row.ClipsDescendants = true
+    row.Parent = parent
+
+    if sectionData then
+        table.insert(sectionData.Items, row)
     end
 
-    btn.MouseButton1Click:Connect(function() setOpen(not isOpen) end)
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke")
+    s.Color = initialActive and C.Accent or C.Border
+    s.Thickness = initialActive and 1.4 or 1
+    s.Parent = row
 
-    for _, opt in ipairs(options) do
-        local optBtn = Instance.new("TextButton")
-        optBtn.Size = UDim2.new(1, 0, 0, 24)
-        optBtn.BackgroundColor3 = C.Hover
-        optBtn.Text = opt
-        optBtn.TextColor3 = C.Muted
-        optBtn.Font = Enum.Font.Gotham
-        optBtn.TextSize = 11
-        optBtn.AutoButtonColor = false
-        Instance.new("UICorner", optBtn).CornerRadius = UDim.new(0, 5)
-        optBtn.Parent = optContainer
+    local tLbl = Instance.new("TextLabel")
+    tLbl.Text = title
+    tLbl.Font = Enum.Font.GothamBold
+    tLbl.TextSize = 10.5
+    tLbl.TextColor3 = C.Text
+    tLbl.Position = UDim2.new(0, 10, 0, 7)
+    tLbl.Size = UDim2.new(1, -94, 0, 14)
+    tLbl.TextXAlignment = Enum.TextXAlignment.Left
+    tLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    tLbl.BackgroundTransparency = 1
+    tLbl.ZIndex = row.ZIndex + 1
+    tLbl.Parent = row
 
-        optBtn.MouseButton1Click:Connect(function()
-            tLbl.Text = title .. ": " .. opt
-            setOpen(false)
-            callback(opt)
-        end)
+    local sLbl = Instance.new("TextLabel")
+    sLbl.Text = defaultSub
+    sLbl.Font = Enum.Font.Gotham
+    sLbl.TextSize = 8.5
+    sLbl.TextColor3 = C.Dim
+    sLbl.Position = UDim2.new(0, 10, 0, 22)
+    sLbl.Size = UDim2.new(1, -94, 0, 13)
+    sLbl.TextXAlignment = Enum.TextXAlignment.Left
+    sLbl.TextTruncate = Enum.TextTruncate.AtEnd
+    sLbl.BackgroundTransparency = 1
+    sLbl.ZIndex = row.ZIndex + 1
+    sLbl.Parent = row
+
+    local badge = Instance.new("Frame")
+    badge.Size = UDim2.new(0, 72, 0, 22)
+    badge.Position = UDim2.new(1, -8, 0.5, 0)
+    badge.AnchorPoint = Vector2.new(1, 0.5)
+    badge.BackgroundColor3 = C.Surface
+    badge.ZIndex = row.ZIndex + 1
+    badge.Parent = row
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 6)
+
+    local bStroke = Instance.new("UIStroke")
+    bStroke.Color = initialActive and C.Green or C.Border
+    bStroke.Thickness = 1
+    bStroke.Parent = badge
+
+    local bText = Instance.new("TextLabel")
+    bText.Size = UDim2.fromScale(1, 1)
+    bText.BackgroundTransparency = 1
+    bText.Text = initialBadgeText
+    bText.Font = Enum.Font.GothamBold
+    bText.TextSize = 9.5
+    bText.TextColor3 = initialActive and C.Green or C.Muted
+    bText.ZIndex = row.ZIndex + 2
+    bText.Parent = badge
+
+    local isCardActive = initialActive or false
+    local function setCardActiveState(active, accentOverride)
+        isCardActive = active
+        local activeColor = accentOverride or C.Accent
+        if isCardActive then
+            tw(s, {Color = activeColor, Thickness = 1.4}, 0.15)
+            tw(row, {BackgroundColor3 = C.Hover}, 0.15)
+            tw(bStroke, {Color = activeColor}, 0.15)
+        else
+            tw(s, {Color = C.Border, Thickness = 1}, 0.15)
+            tw(row, {BackgroundColor3 = C.CardBg}, 0.15)
+            tw(bStroke, {Color = C.Border}, 0.15)
+        end
+    end
+
+    local controller = {
+        row = row,
+        stroke = s,
+        titleLabel = tLbl,
+        subLabel = sLbl,
+        badgeText = bText,
+        badgeStroke = bStroke,
+        setActive = setCardActiveState
+    }
+
+    if parent == LeftCol then
+        table.insert(ActionCardRegistry, row)
+    end
+
+    row.MouseEnter:Connect(function()
+        if not isCardActive then
+            tw(row, {BackgroundColor3 = C.Hover}, 0.14)
+            tw(s, {Color = C.BorderHot}, 0.14)
+        end
+    end)
+    row.MouseLeave:Connect(function()
+        if not isCardActive then
+            tw(row, {BackgroundColor3 = C.CardBg}, 0.14)
+            tw(s, {Color = C.Border}, 0.14)
+        end
+    end)
+
+    row.MouseButton1Click:Connect(function()
+        if AnimationsEnabled then
+            tw(row, {Size = UDim2.new(1, -4, 0, 42)}, 0.06)
+            task.delay(0.06, function()
+                tw(row, {Size = UDim2.new(1, 0, 0, 44)}, 0.12, Enum.EasingStyle.Back)
+            end)
+        end
+        callback(bText, bStroke, sLbl, setCardActiveState, controller)
+    end)
+
+    return controller
+end
+
+-- 11. GHOST DISCOVERY ENGINE
+local function locateGhostFolder()
+    local folder = Workspace:FindFirstChild("Halloween_Ghosts") or ReplicatedStorage:FindFirstChild("Halloween_Ghosts")
+    if folder then return folder end
+    for _, child in ipairs(Workspace:GetChildren()) do
+        if string.find(string.lower(child.Name), "ghost") and (child:IsA("Folder") or child:IsA("Model")) then
+            return child
+        end
+    end
+    return nil
+end
+
+local function getNearestGhost()
+    local folder = locateGhostFolder()
+    if not folder then return nil, nil end
+
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local myPos = hrp and hrp.Position or Vector3.new(0, 0, 0)
+
+    local nearestGhost, nearestPart = nil, nil
+    local minDistance = math.huge
+
+    for _, ghost in ipairs(folder:GetChildren()) do
+        local hum = ghost:FindFirstChildOfClass("Humanoid")
+        local isDead = hum and hum.Health <= 0
+        if not isDead then
+            local part = ghost:IsA("BasePart") and ghost
+                or ghost.PrimaryPart
+                or ghost:FindFirstChildWhichIsA("BasePart", true)
+
+            if part then
+                local dist = (part.Position - myPos).Magnitude
+                if dist < minDistance then
+                    minDistance = dist
+                    nearestGhost = ghost
+                    nearestPart = part
+                end
+            end
+        end
+    end
+    return nearestGhost, nearestPart
+end
+
+-- 12. GHOST NET EQUIP & UNEQUIP ENGINES
+local hasEquippedNetOnce = false
+
+local function ensureGhostNetEquipped()
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local function isNet(item)
+        if not item or not item:IsA("Tool") then return false end
+        local name = string.lower(item.Name)
+        return string.find(name, "net") or item:GetAttribute("NET_ITEM") ~= nil
+    end
+
+    if isNet(char:FindFirstChildWhichIsA("Tool")) then
+        hasEquippedNetOnce = true
+        return
+    end
+
+    if not hasEquippedNetOnce then
+        resolveRemotes()
+        if EquipRequestRemote then
+            pcall(function() EquipRequestRemote:FireServer("s_1600e36b_4") end)
+        end
+        for _, item in ipairs(LocalPlayer.Backpack:GetChildren()) do
+            if isNet(item) then
+                item.Parent = char
+                hasEquippedNetOnce = true
+                break
+            end
+        end
     end
 end
 
--- // 9. SETTINGS DRAWER (ORIGINAL SUITE RESTORED) //
+local function unequipGhostNet()
+    hasEquippedNetOnce = false
+    local char = LocalPlayer.Character
+    if not char then return end
+    for _, item in ipairs(char:GetChildren()) do
+        if item:IsA("Tool") and (string.find(string.lower(item.Name), "net") or item:GetAttribute("NET_ITEM")) then
+            item.Parent = LocalPlayer.Backpack
+        end
+    end
+end
+
+-- 13. AUTOMATION STATE & SPEED MODULATION
+local autoCandyFarm = false
+local farmStance = "Underground"
+local aiChaseActive = false
+local isUnderground = false
+local currentTargetGhost = nil
+local waitingForModeChoice = false
+
+-- GLIDE SPEED PREFERENCE (Normal: 1.6 step divisor | Slow: 1.0 step divisor)
+local speedMode = "Normal"
+local stepDivisor = 1.6
+
+-- NEXT GHOST PAUSE PREFERENCE (Instant: 0.0s | 2.5s Wait)
+local nextGhostDelayMode = "Instant"
+local nextGhostDelaySecs = 0.0
+
+local autoCandyCard = nil
+local farmStanceCard = nil
+local aiChaseCard = nil
+local speedCard = nil
+local nextDelayCard = nil
+
+local lastAttackedGhost = nil
+local lastAttackTick = 0
+
+local function hookGhostDestruction(ghost)
+    if not ghost or ghost:GetAttribute("Lumacore_Hooked") then return end
+    ghost:SetAttribute("Lumacore_Hooked", true)
+
+    local function onRemoved()
+        if ghost == lastAttackedGhost or (tick() - lastAttackTick < 1.4 and ghost == currentTargetGhost) then
+            GhostCaptures = GhostCaptures + 1
+            lastAttackedGhost = nil
+            currentTargetGhost = nil
+        end
+    end
+
+    ghost.AncestryChanged:Connect(function(_, parent)
+        if parent == nil then onRemoved() end
+    end)
+    ghost.Destroying:Connect(onRemoved)
+end
+
+task.spawn(function()
+    while true do
+        local folder = locateGhostFolder()
+        if folder then
+            for _, g in ipairs(folder:GetChildren()) do
+                hookGhostDestruction(g)
+            end
+            folder.ChildAdded:Connect(function(g)
+                task.wait(0.05)
+                hookGhostDestruction(g)
+            end)
+            break
+        end
+        task.wait(1)
+    end
+end)
+
+task.spawn(function()
+    pcall(function()
+        local rewardEngine = ReplicatedStorage:WaitForChild("Reward_Engine", 5)
+        if rewardEngine then
+            local remotes = rewardEngine:WaitForChild("Remotes", 5)
+            local popup = remotes and remotes:FindFirstChild("ShowRewardPopup")
+            if popup and popup:IsA("RemoteEvent") then
+                popup.OnClientEvent:Connect(function()
+                    if tick() - lastAttackTick < 1.6 then
+                        GhostCaptures = GhostCaptures + 1
+                    end
+                end)
+            end
+        end
+    end)
+end)
+
+local function restoreSurface()
+    if not isUnderground then return end
+    isUnderground = false
+    local char = LocalPlayer.Character
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp and humanoid then
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        hrp.CFrame = hrp.CFrame + Vector3.new(0, 8, 0)
+        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+    end
+end
+
+local function executeGhostSwing(ghost)
+    resolveRemotes()
+    lastAttackedGhost = ghost
+    lastAttackTick = tick()
+
+    if GhostSwingRemote and ghost and ghost.Parent then
+        pcall(function() GhostSwingRemote:FireServer(ghost.Name) end)
+        pcall(function() GhostSwingRemote:FireServer(ghost) end)
+    end
+    local char = LocalPlayer.Character
+    local tool = char and char:FindFirstChildWhichIsA("Tool")
+    if tool then
+        pcall(function() tool:Activate() end)
+    end
+end
+
+RunService.Stepped:Connect(function()
+    local char = LocalPlayer.Character
+    if not char or not autoCandyFarm then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+
+    if not aiChaseActive then
+        if farmStance == "Underground" and isUnderground then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+            if hrp and hum then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hum:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+        elseif farmStance == "Above Ground" then
+            for _, part in ipairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+            if hrp and hum then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hum:ChangeState(Enum.HumanoidStateType.Hover)
+            end
+        end
+    end
+end)
+
+-- SMOOTH CANDY CORN WORKER
+task.spawn(function()
+    while true do
+        if autoCandyFarm and not waitingForModeChoice then
+            ensureGhostNetEquipped()
+            local ghost, ghostPart = getNearestGhost()
+            currentTargetGhost = ghost
+
+            local char = LocalPlayer.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+
+            if ghost and ghostPart and ghost.Parent and hrp and hum then
+                if aiChaseActive then
+                    restoreSurface()
+                    local myPos = hrp.Position
+                    local targetPos = ghostPart.Position
+                    local dist = (Vector2.new(targetPos.X, targetPos.Z) - Vector2.new(myPos.X, myPos.Z)).Magnitude
+
+                    hum:MoveTo(targetPos)
+
+                    local rayParams = RaycastParams.new()
+                    rayParams.FilterDescendantsInstances = {char}
+                    local rayHit = Workspace:Raycast(myPos, (targetPos - myPos).Unit * 4.5, rayParams)
+                    if (rayHit and rayHit.Instance and rayHit.Instance.CanCollide) or (targetPos.Y > myPos.Y + 2.5) then
+                        hum.Jump = true
+                    end
+
+                    if dist <= 9.0 then
+                        executeGhostSwing(ghost)
+                    end
+                    task.wait(0.05)
+                else
+                    local targetGoalCF
+                    if farmStance == "Underground" then
+                        isUnderground = true
+                        targetGoalCF = ghostPart.CFrame * CFrame.new(0, -6.5, 0)
+                    else
+                        if isUnderground then restoreSurface() end
+                        
+                        local ghostPos = ghostPart.Position
+                        local floorRayParams = RaycastParams.new()
+                        floorRayParams.FilterDescendantsInstances = {char, ghost, locateGhostFolder()}
+                        local floorHit = Workspace:Raycast(ghostPos + Vector3.new(0, 4, 0), Vector3.new(0, -18, 0), floorRayParams)
+                        
+                        local safeCenterPos = ghostPos
+                        if floorHit then
+                            local groundMinY = floorHit.Position.Y + 3.0
+                            if safeCenterPos.Y < groundMinY then
+                                safeCenterPos = Vector3.new(safeCenterPos.X, groundMinY, safeCenterPos.Z)
+                            end
+                        end
+                        
+                        targetGoalCF = CFrame.new(safeCenterPos) * (ghostPart.CFrame - ghostPart.Position)
+                    end
+
+                    local startCF = hrp.CFrame
+                    local distanceToGoal = (startCF.Position - targetGoalCF.Position).Magnitude
+                    
+                    if distanceToGoal > 45 then
+                        hrp.CFrame = targetGoalCF
+                        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                        hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                    else
+                        local steps = math.clamp(math.floor(distanceToGoal / stepDivisor), 8, 28)
+                        for i = 1, steps do
+                            if not autoCandyFarm or not ghost.Parent then break end
+                            local t = i / steps
+                            local smoothAlpha = t * t * (3 - 2 * t)
+                            hrp.CFrame = startCF:Lerp(targetGoalCF, smoothAlpha)
+                            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                            RunService.Heartbeat:Wait()
+                        end
+                    end
+
+                    if ghost.Parent then
+                        executeGhostSwing(ghost)
+                    end
+                    
+                    if nextGhostDelaySecs > 0 then
+                        task.wait(nextGhostDelaySecs)
+                    else
+                        task.wait(0.06)
+                    end
+                end
+            else
+                restoreSurface()
+                task.wait(0.18)
+            end
+        else
+            restoreSurface()
+            task.wait(0.25)
+        end
+    end
+end)
+
+-- 14. LIVE OUTLINE CHAMS ESP ENGINES
+local GhostESPActive = false
+local GhostESPStorage = {}
+local ghostFolderConn = nil
+
+local function clearGhostESP()
+    for _, item in pairs(GhostESPStorage) do
+        if item.Highlight then item.Highlight:Destroy() end
+        if item.Billboard then item.Billboard:Destroy() end
+    end
+    table.clear(GhostESPStorage)
+end
+
+local function applyGhostESP(ghost)
+    if GhostESPStorage[ghost] then return end
+    local part = ghost:IsA("BasePart") and ghost
+        or ghost.PrimaryPart
+        or ghost:FindFirstChildWhichIsA("BasePart", true)
+    if not part then return end
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "Lumacore_GhostHighlight"
+    hl.Adornee = ghost
+    hl.FillColor = C.Purple
+    hl.FillTransparency = 0.8
+    hl.OutlineColor = Color3.fromRGB(240, 190, 255)
+    hl.OutlineTransparency = 0
+    hl.Parent = ScreenGui
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "Lumacore_GhostESP"
+    bb.Adornee = part
+    bb.Size = UDim2.new(0, 140, 0, 18)
+    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = ScreenGui
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.fromScale(1, 1)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(240, 200, 255)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 10
+    lbl.TextStrokeTransparency = 0.4
+    lbl.TextStrokeColor3 = Color3.fromRGB(15, 10, 20)
+    lbl.Parent = bb
+
+    GhostESPStorage[ghost] = {Highlight = hl, Billboard = bb, Label = lbl, Part = part}
+end
+
+local function toggleGhostESP(state)
+    GhostESPActive = state
+    if GhostESPActive then
+        local folder = locateGhostFolder()
+        if folder then
+            for _, g in ipairs(folder:GetChildren()) do
+                applyGhostESP(g)
+            end
+            if ghostFolderConn then ghostFolderConn:Disconnect() end
+            ghostFolderConn = folder.ChildAdded:Connect(function(g)
+                if GhostESPActive then 
+                    task.wait(0.05)
+                    applyGhostESP(g) 
+                end
+            end)
+        end
+    else
+        if ghostFolderConn then ghostFolderConn:Disconnect() end
+        clearGhostESP()
+    end
+end
+
+task.spawn(function()
+    while true do
+        if GhostESPActive then
+            local folder = locateGhostFolder()
+            if folder then
+                for _, g in ipairs(folder:GetChildren()) do
+                    if not GhostESPStorage[g] then
+                        applyGhostESP(g)
+                    end
+                end
+            end
+        end
+        task.wait(1.2)
+    end
+end)
+
+local ESPActive = false
+local ESPStorage = {}
+
+local function removeESP(player)
+    if ESPStorage[player] then
+        if ESPStorage[player].Highlight then ESPStorage[player].Highlight:Destroy() end
+        if ESPStorage[player].Billboard then ESPStorage[player].Billboard:Destroy() end
+        ESPStorage[player] = nil
+    end
+end
+
+local function applyESP(player)
+    if player == LocalPlayer then return end
+    removeESP(player)
+
+    local char = player.Character
+    if not (char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid")) then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+
+    local hl = Instance.new("Highlight")
+    hl.Name = "Lumacore_Highlight"
+    hl.Adornee = char
+    hl.FillColor = C.Accent
+    hl.FillTransparency = 0.78
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.OutlineTransparency = 0
+    hl.Parent = ScreenGui
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "Lumacore_ESP"
+    bb.Adornee = root
+    bb.Size = UDim2.new(0, 160, 0, 20)
+    bb.StudsOffset = Vector3.new(0, 3.2, 0)
+    bb.AlwaysOnTop = true
+    bb.Parent = ScreenGui
+
+    local infoLbl = Instance.new("TextLabel")
+    infoLbl.Size = UDim2.fromScale(1, 1)
+    infoLbl.BackgroundTransparency = 1
+    infoLbl.TextColor3 = C.Text
+    infoLbl.Font = Enum.Font.GothamBold
+    infoLbl.TextSize = 10
+    infoLbl.TextStrokeTransparency = 0.4
+    infoLbl.TextStrokeColor3 = Color3.fromRGB(15, 10, 10)
+    infoLbl.Parent = bb
+
+    ESPStorage[player] = {Highlight = hl, Billboard = bb, Label = infoLbl, Hum = hum, Root = root}
+end
+
+local function toggleESP(state)
+    ESPActive = state
+    if ESPActive then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then applyESP(p) end
+            p.CharacterAdded:Connect(function()
+                if ESPActive then task.wait(0.3); applyESP(p) end
+            end)
+        end
+        Players.PlayerAdded:Connect(function(p)
+            p.CharacterAdded:Connect(function()
+                if ESPActive then task.wait(0.3); applyESP(p) end
+            end)
+        end)
+    else
+        for p, data in pairs(ESPStorage) do
+            if data.Highlight then data.Highlight:Destroy() end
+            if data.Billboard then data.Billboard:Destroy() end
+        end
+        table.clear(ESPStorage)
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+    if GhostESPActive and myRoot then
+        for ghost, item in pairs(GhostESPStorage) do
+            if ghost.Parent and item.Part then
+                local dist = math.floor((item.Part.Position - myRoot.Position).Magnitude)
+                item.Label.Text = string.format("👻 %s • %dm", ghost.Name, dist)
+            else
+                if item.Highlight then item.Highlight:Destroy() end
+                if item.Billboard then item.Billboard:Destroy() end
+                GhostESPStorage[ghost] = nil
+            end
+        end
+    end
+
+    if ESPActive and myRoot then
+        for player, data in pairs(ESPStorage) do
+            if data.Root and data.Hum and player.Parent and data.Root.Parent then
+                local dist = math.floor((data.Root.Position - myRoot.Position).Magnitude)
+                local hpPercent = math.clamp(math.floor((data.Hum.Health / math.max(data.Hum.MaxHealth, 1)) * 100), 0, 100)
+                data.Label.Text = string.format("%s • %dm • %d%%", player.DisplayName, dist, hpPercent)
+            else
+                if data.Highlight then data.Highlight:Destroy() end
+                if data.Billboard then data.Billboard:Destroy() end
+                ESPStorage[player] = nil
+            end
+        end
+    end
+end)
+
+-- 15. MAIN TAB (POLISHED SECTIONS)
+local secAuto = AddSection(LeftCol, "AUTOMATION", 1)
+
+autoCandyCard = CreateActionCard(LeftCol, secAuto, "AUTO CANDY CORN", "Auto net handling & harvest loop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+    if not autoCandyFarm then
+        autoCandyFarm = true
+        waitingForModeChoice = true
+        hasEquippedNetOnce = false
+        ensureGhostNetEquipped()
+        bText.Text = "SELECT"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Select Stance or AI Chase to begin"
+        setActive(true, C.AccentGlow)
+        Notify("Farm Setup", "Select Farm Stance or AI Chase", C.AccentGlow)
+    else
+        autoCandyFarm = false
+        waitingForModeChoice = false
+        aiChaseActive = false
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        sLbl.Text = "Auto net handling & harvest loop"
+        setActive(false)
+
+        if aiChaseCard then
+            aiChaseCard.badgeText.Text = "OFF"
+            aiChaseCard.badgeText.TextColor3 = C.Muted
+            aiChaseCard.badgeStroke.Color = C.Border
+            aiChaseCard.subLabel.Text = "Ground navigation with jump assist"
+            aiChaseCard.setActive(false)
+        end
+
+        if farmStanceCard then
+            farmStanceCard.badgeText.Text = farmStance == "Above Ground" and "ABOVE" or "UNDER"
+            farmStanceCard.badgeText.TextColor3 = farmStance == "Above Ground" and C.Cyan or C.Muted
+            farmStanceCard.badgeStroke.Color = C.Border
+            farmStanceCard.subLabel.Text = "Positioning inside or under ghost"
+            farmStanceCard.setActive(false)
+        end
+
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp then hum:MoveTo(hrp.Position) end
+
+        restoreSurface()
+        unequipGhostNet()
+        Notify("Candy Corn Farm", "Farm Stopped • Net Unequipped", C.Red)
+    end
+end)
+
+farmStanceCard = CreateActionCard(LeftCol, secAuto, "FARM STANCE", "Positioning inside or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+    if aiChaseActive then
+        Notify("Stance Locked", "Disable AI Chase before changing stance", C.Red)
+        return
+    end
+
+    if waitingForModeChoice then
+        waitingForModeChoice = false
+        autoCandyCard.badgeText.Text = "RUNNING"
+        autoCandyCard.badgeText.TextColor3 = C.Green
+        autoCandyCard.subLabel.Text = "Active • Sweeping nearest ghosts"
+        autoCandyCard.setActive(true, C.Green)
+    end
+
+    if farmStance == "Underground" then
+        farmStance = "Above Ground"
+        bText.Text = "ABOVE"
+        bText.TextColor3 = C.Cyan
+        sLbl.Text = "Inside ghost with anti-clip ground check"
+        setActive(true, C.Cyan)
+        restoreSurface()
+    else
+        farmStance = "Underground"
+        bText.Text = "UNDER"
+        bText.TextColor3 = C.Accent
+        sLbl.Text = "Positioning beneath ghosts (-6.5s)"
+        setActive(false)
+    end
+    Notify("Farm Stance", "Stance set to: " .. farmStance, C.Accent)
+end)
+
+aiChaseCard = CreateActionCard(LeftCol, secAuto, "AI CHASE MODE", "Ground navigation with jump assist", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+    aiChaseActive = not aiChaseActive
+
+    if aiChaseActive then
+        if waitingForModeChoice then
+            waitingForModeChoice = false
+            autoCandyCard.badgeText.Text = "RUNNING"
+            autoCandyCard.badgeText.TextColor3 = C.Green
+            autoCandyCard.subLabel.Text = "Active • Ground pathing & jumping"
+            autoCandyCard.setActive(true, C.Green)
+        end
+
+        bText.Text = "ON"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Active • Ground pathing & jumping"
+        setActive(true, C.Green)
+
+        farmStanceCard.badgeText.Text = "LOCKED"
+        farmStanceCard.badgeText.TextColor3 = C.Red
+        farmStanceCard.badgeStroke.Color = C.Red
+        farmStanceCard.subLabel.Text = "Locked (AI Chase is running)"
+        farmStanceCard.setActive(false)
+
+        restoreSurface()
+        Notify("AI Chase", "AI Chase Active • Stance Locked", C.Green)
+    else
+        bText.Text = "OFF"
+        bText.TextColor3 = C.Muted
+        sLbl.Text = "Ground navigation with jump assist"
+        setActive(false)
+
+        local isAbove = farmStance == "Above Ground"
+        farmStanceCard.badgeText.Text = isAbove and "ABOVE" or "UNDER"
+        farmStanceCard.badgeText.TextColor3 = isAbove and C.Cyan or C.Muted
+        farmStanceCard.badgeStroke.Color = isAbove and C.Cyan or C.Border
+        farmStanceCard.subLabel.Text = isAbove and "Inside ghost with anti-clip ground check" or "Positioning beneath ghosts (-6.5s)"
+        farmStanceCard.setActive(isAbove, isAbove and C.Cyan or nil)
+
+        local char = LocalPlayer.Character
+        local hum = char and char:FindFirstChildOfClass("Humanoid")
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hum and hrp then hum:MoveTo(hrp.Position) end
+
+        Notify("AI Chase", "AI Chase Disabled • Stance Unlocked", C.Red)
+    end
+end)
+
+speedCard = CreateActionCard(LeftCol, secAuto, "GLIDE SPEED", "Interpolation movement pace", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
+    if speedMode == "Normal" then
+        speedMode = "Slow"
+        stepDivisor = 1.0
+        bText.Text = "SLOW"
+        bText.TextColor3 = C.Purple
+        sLbl.Text = "Gentle glide • Smoothly paces towards ghosts"
+        setActive(true, C.Purple)
+        Notify("Glide Speed", "Speed set to: Slow", C.Purple)
+    else
+        speedMode = "Normal"
+        stepDivisor = 1.6
+        bText.Text = "NORMAL"
+        bText.TextColor3 = C.Cyan
+        sLbl.Text = "Balanced glide • Steady natural pathing"
+        setActive(true, C.Cyan)
+        Notify("Glide Speed", "Speed set to: Normal", C.Cyan)
+    end
+end)
+
+nextDelayCard = CreateActionCard(LeftCol, secAuto, "NEXT GHOST DELAY", "Pause duration between catches", "INSTANT", false, 6, function(bText, bStroke, sLbl, setActive)
+    if nextGhostDelayMode == "Instant" then
+        nextGhostDelayMode = "2.5s DELAY"
+        nextGhostDelaySecs = 2.5
+        bText.Text = "2.5s WAIT"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Waits 2.5 seconds before catching next ghost"
+        setActive(true, C.AccentGlow)
+        Notify("Catch Delay", "Pause set to: 2.5 Seconds", C.AccentGlow)
+    else
+        nextGhostDelayMode = "Instant"
+        nextGhostDelaySecs = 0.0
+        bText.Text = "INSTANT"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Catches nearest ghosts continuously"
+        setActive(false)
+        Notify("Catch Delay", "Pause set to: Instant", C.Green)
+    end
+end)
+
+CreateActionCard(LeftCol, secAuto, "NOCLIP ENGINE", "Passes through barriers & geometry", "OFF", false, 7, function(bText, bStroke, sLbl, setActive)
+    NoclipActive = not NoclipActive
+    bText.Text = NoclipActive and "ACTIVE" or "OFF"
+    bText.TextColor3 = NoclipActive and C.Green or C.Muted
+    sLbl.Text = NoclipActive and "Collision disabled on character parts" or "Passes through barriers & geometry"
+    setActive(NoclipActive)
+    Notify("Noclip", NoclipActive and "Noclip Enabled" or "Noclip Disabled", NoclipActive and C.Green or C.Red)
+end)
+
+local secShop = AddSection(LeftCol, "EVENT SHOP", 8)
+
+CreateActionCard(LeftCol, secShop, "LIGHT FLAME (DAILY)", "Claim Halloween daily reward", "CLAIM", false, 9, function()
+    resolveRemotes()
+    if DailyCheckInRemote then
+        pcall(function() DailyCheckInRemote:FireServer() end)
+        Notify("Daily Check-In", "Triggered daily flame check-in", C.Green)
+    else
+        Notify("Daily Check-In", "Daily remote not found", C.Red)
+    end
+end)
+
+CreateActionCard(LeftCol, secShop, "BUY PUMPKIN CHEST", "5,000 Candy • Event chest purchase", "BUY", false, 10, function()
+    resolveRemotes()
+    if ShopBuyRemote then
+        pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
+        Notify("Event Shop", "Purchase sent: Pumpkin Chest (5K)", C.Accent)
+    else
+        Notify("Event Shop", "Shop remote unavailable", C.Red)
+    end
+end)
+
+CreateActionCard(LeftCol, secShop, "BUY HALLOWEEN DUNGEON", "500 Candy • Dungeon ticket purchase", "BUY", false, 11, function()
+    resolveRemotes()
+    if ShopBuyRemote then
+        pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
+        Notify("Event Shop", "Purchase sent: Halloween Dungeon (500)", C.Accent)
+    else
+        Notify("Event Shop", "Shop remote unavailable", C.Red)
+    end
+end)
+
+local secVis = AddSection(LeftCol, "VISUALS", 12)
+
+CreateActionCard(LeftCol, secVis, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
+    toggleESP(not ESPActive)
+    bText.Text = ESPActive and "ACTIVE" or "OFF"
+    bText.TextColor3 = ESPActive and C.Green or C.Muted
+    sLbl.Text = ESPActive and "Tracking active players" or "Outline chams, distance & HP %"
+    setActive(ESPActive)
+    Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
+end)
+
+CreateActionCard(LeftCol, secVis, "GHOST ESP", "Outline chams & distance tags", "OFF", false, 14, function(bText, bStroke, sLbl, setActive)
+    toggleGhostESP(not GhostESPActive)
+    bText.Text = GhostESPActive and "ACTIVE" or "OFF"
+    bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
+    sLbl.Text = GhostESPActive and "Tracking spawned ghosts" or "Outline chams & distance tags"
+    setActive(GhostESPActive, C.Purple)
+    Notify("Ghost Visuals", GhostESPActive and "Ghost Chams Active" or "Ghost ESP Disabled", GhostESPActive and C.Purple or C.Red)
+end)
+
+-- 16. MUTUAL-EXCLUSION DRAWERS
 local MobileToggle
-local setFloatingIconVisible
 
 local Drawer = Instance.new("Frame")
-Drawer.Size = UDim2.new(1, 0, 1, -40)
+Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
 Drawer.BackgroundColor3 = C.Bg
-Drawer.ZIndex = 30
+Drawer.ZIndex = 50
 Drawer.BorderSizePixel = 0
-Drawer.Parent = Frame
+Drawer.ClipsDescendants = true
+Drawer.Parent = Card
+Instance.new("UICorner", Drawer).CornerRadius = UDim.new(0, 16)
 
 local DrawerScroll = Instance.new("ScrollingFrame")
 DrawerScroll.Size = UDim2.fromScale(1, 1)
@@ -553,105 +1656,482 @@ DrawerScroll.ScrollBarThickness = 2
 DrawerScroll.ScrollBarImageColor3 = C.Border
 DrawerScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
 DrawerScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-DrawerScroll.ZIndex = 31
+DrawerScroll.ZIndex = 51
 DrawerScroll.Parent = Drawer
 
 local dPad = Instance.new("UIPadding")
-dPad.PaddingTop = UDim.new(0, 12)
-dPad.PaddingLeft = UDim.new(0, 12)
-dPad.PaddingRight = UDim.new(0, 12)
-dPad.PaddingBottom = UDim.new(0, 14)
+dPad.PaddingTop = UDim.new(0, 10); dPad.PaddingLeft = UDim.new(0, 14); dPad.PaddingRight = UDim.new(0, 14); dPad.PaddingBottom = UDim.new(0, 14)
 dPad.Parent = DrawerScroll
 
 local dList = Instance.new("UIListLayout")
-dList.Padding = UDim.new(0, 6)
+dList.Padding = UDim.new(0, 8)
 dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
--- 1. MONITORING
-AddSection(DrawerScroll, "MONITORING", 1)
+local function createSettingsToggleTile(parent, title, subText, initialVal, activeColor, onToggle)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.5, -4, 0, 42)
+    btn.BackgroundColor3 = initialVal and C.Hover or C.CardBg
+    btn.AutoButtonColor = false
+    btn.Text = ""
+    btn.ZIndex = 52
+    btn.Parent = parent
 
-AddToggle(DrawerScroll, "Show FPS", "Toggles FPS counter in overlay", false, 2, function(active)
-    MonitorFPS = active
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    local s = Instance.new("UIStroke")
+    s.Color = initialVal and (activeColor or C.Accent) or C.Border
+    s.Thickness = 1
+    s.Parent = btn
+
+    local t = Instance.new("TextLabel")
+    t.Text = title
+    t.Font = Enum.Font.GothamBold
+    t.TextSize = 9.5
+    t.TextColor3 = C.Text
+    t.Position = UDim2.new(0, 10, 0, 6)
+    t.Size = UDim2.new(1, -56, 0, 14)
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.BackgroundTransparency = 1
+    t.ZIndex = 53
+    t.Parent = btn
+
+    local sub = Instance.new("TextLabel")
+    sub.Text = subText
+    sub.Font = Enum.Font.Gotham
+    sub.TextSize = 8
+    sub.TextColor3 = C.Dim
+    sub.Position = UDim2.new(0, 10, 0, 20)
+    sub.Size = UDim2.new(1, -56, 0, 14)
+    sub.TextXAlignment = Enum.TextXAlignment.Left
+    sub.BackgroundTransparency = 1
+    sub.ZIndex = 53
+    sub.Parent = btn
+
+    local badge = Instance.new("Frame")
+    badge.Size = UDim2.new(0, 38, 0, 20)
+    badge.Position = UDim2.new(1, -8, 0.5, 0)
+    badge.AnchorPoint = Vector2.new(1, 0.5)
+    badge.BackgroundColor3 = C.Surface
+    badge.ZIndex = 53
+    badge.Parent = btn
+    Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 5)
+
+    local bs = Instance.new("UIStroke")
+    bs.Color = initialVal and (activeColor or C.Accent) or C.Border
+    bs.Thickness = 1
+    bs.Parent = badge
+
+    local bt = Instance.new("TextLabel")
+    bt.Size = UDim2.fromScale(1, 1)
+    bt.BackgroundTransparency = 1
+    bt.Text = initialVal and "ON" or "OFF"
+    bt.Font = Enum.Font.GothamBold
+    bt.TextSize = 8.5
+    bt.TextColor3 = initialVal and (activeColor or C.Accent) or C.Muted
+    bt.ZIndex = 54
+    bt.Parent = badge
+
+    local isToggled = initialVal
+    btn.MouseButton1Click:Connect(function()
+        isToggled = not isToggled
+        local color = activeColor or C.Accent
+        if isToggled then
+            tw(btn, {BackgroundColor3 = C.Hover}, 0.15)
+            tw(s, {Color = color}, 0.15)
+            tw(bs, {Color = color}, 0.15)
+            bt.Text = "ON"
+            bt.TextColor3 = color
+        else
+            tw(btn, {BackgroundColor3 = C.CardBg}, 0.15)
+            tw(s, {Color = C.Border}, 0.15)
+            tw(bs, {Color = C.Border}, 0.15)
+            bt.Text = "OFF"
+            bt.TextColor3 = C.Muted
+        end
+        onToggle(isToggled)
+    end)
+
+    return btn
+end
+
+AddSection(DrawerScroll, "SYSTEM & PROTECTION", 1)
+local SysGrid = Instance.new("Frame")
+SysGrid.Size = UDim2.new(1, 0, 0, 42)
+SysGrid.BackgroundTransparency = 1
+SysGrid.LayoutOrder = 2
+SysGrid.ZIndex = 51
+SysGrid.Parent = DrawerScroll
+local sgLayout = Instance.new("UIListLayout")
+sgLayout.FillDirection = Enum.FillDirection.Horizontal
+sgLayout.Padding = UDim.new(0, 8)
+sgLayout.Parent = SysGrid
+
+createSettingsToggleTile(SysGrid, "Anti-AFK Shield", "Block 20m idle kick", true, C.Green, function(state)
+    AntiAFKActive = state
+    Notify("Anti-AFK", state and "Idle Protection Active" or "Idle Protection Disabled", C.Accent)
 end)
 
-AddToggle(DrawerScroll, "Show Ping", "Toggles Ping counter in overlay", false, 3, function(active)
-    MonitorPing = active
+createSettingsToggleTile(SysGrid, "Sensor Privacy", "Censor accounts & IDs", false, C.Green, function(state)
+    setCensorState(state)
+    Notify("Privacy Mode", state and "Avatar & IDs Hidden" or "Censorship Off", C.Accent)
 end)
 
-AddToggle(DrawerScroll, "Show Memory", "Displays client MB usage", false, 4, function(active)
-    MonitorMem = active
+AddSection(DrawerScroll, "HUD STAT OVERLAYS", 3)
+local HudGrid1 = Instance.new("Frame")
+HudGrid1.Size = UDim2.new(1, 0, 0, 42)
+HudGrid1.BackgroundTransparency = 1
+HudGrid1.LayoutOrder = 4
+HudGrid1.ZIndex = 51
+HudGrid1.Parent = DrawerScroll
+local hgLayout1 = Instance.new("UIListLayout")
+hgLayout1.FillDirection = Enum.FillDirection.Horizontal
+hgLayout1.Padding = UDim.new(0, 8)
+hgLayout1.Parent = HudGrid1
+
+createSettingsToggleTile(HudGrid1, "FPS Counter", "Live frame render rate", false, C.Green, function(state) MonitorFPS = state end)
+createSettingsToggleTile(HudGrid1, "Ping Monitor", "Client server latency", false, C.Green, function(state) MonitorPing = state end)
+
+local HudGrid2 = Instance.new("Frame")
+HudGrid2.Size = UDim2.new(1, 0, 0, 42)
+HudGrid2.BackgroundTransparency = 1
+HudGrid2.LayoutOrder = 5
+HudGrid2.ZIndex = 51
+HudGrid2.Parent = DrawerScroll
+local hgLayout2 = Instance.new("UIListLayout")
+hgLayout2.FillDirection = Enum.FillDirection.Horizontal
+hgLayout2.Padding = UDim.new(0, 8)
+hgLayout2.Parent = HudGrid2
+
+createSettingsToggleTile(HudGrid2, "Ghost Count", "Captured ghost tracker", false, C.Green, function(state) MonitorGhostCount = state end)
+createSettingsToggleTile(HudGrid2, "Uptime Clock", "Session duration timer", false, C.Green, function(state) MonitorUptime = state end)
+
+AddSection(DrawerScroll, "GRAPHICS & INTERFACE", 6)
+local DispGrid1 = Instance.new("Frame")
+DispGrid1.Size = UDim2.new(1, 0, 0, 42)
+DispGrid1.BackgroundTransparency = 1
+DispGrid1.LayoutOrder = 7
+DispGrid1.ZIndex = 51
+DispGrid1.Parent = DrawerScroll
+local dgLayout1 = Instance.new("UIListLayout")
+dgLayout1.FillDirection = Enum.FillDirection.Horizontal
+dgLayout1.Padding = UDim.new(0, 8)
+dgLayout1.Parent = DispGrid1
+
+createSettingsToggleTile(DispGrid1, "Spring Motion", "Toggle UI motion tweens", true, C.Green, function(state)
+    AnimationsEnabled = state
+    Notify("Animations", state and "Easing Active" or "Snapping Active", C.Accent)
 end)
 
-AddToggle(DrawerScroll, "Remote Status", "Monitors game connection health", false, 5, function(active)
-    MonitorRemotes = active
+createSettingsToggleTile(DispGrid1, "Floating Button", "Mobile maple leaf icon", true, C.Green, function(state)
+    if setFloatingIconVisible then setFloatingIconVisible(state) end
+    Notify("Toggle Button", state and "Floating Icon On" or "Floating Icon Hidden", C.Accent)
 end)
 
--- 2. PERFORMANCE
-AddSection(DrawerScroll, "PERFORMANCE", 6)
+local DispGrid2 = Instance.new("Frame")
+DispGrid2.Size = UDim2.new(1, 0, 0, 42)
+DispGrid2.BackgroundTransparency = 1
+DispGrid2.LayoutOrder = 8
+DispGrid2.ZIndex = 51
+DispGrid2.Parent = DrawerScroll
+local dgLayout2 = Instance.new("UIListLayout")
+dgLayout2.FillDirection = Enum.FillDirection.Horizontal
+dgLayout2.Padding = UDim.new(0, 8)
+dgLayout2.Parent = DispGrid2
 
-AddToggle(DrawerScroll, "Low Performance", "Disables global shadows", false, 7, function(active)
-    Lighting.GlobalShadows = not active
-    Notify(active and "Low Performance: ON" or "Low Performance: OFF", C.Accent)
+createSettingsToggleTile(DispGrid2, "Section Collapse", "Click headers to minimize", false, C.Cyan, function(state)
+    DropdownFeatureEnabled = state
+    for _, sec in ipairs(CollapsibleSections) do
+        sec.Arrow.Visible = state
+        if not state then
+            sec.Collapsed = false
+            sec.Arrow.Text = "▼"
+            for _, card in ipairs(sec.Items) do
+                card.Visible = true
+                card.Size = UDim2.new(1, 0, 0, 44)
+            end
+        end
+    end
+    Notify("Dropdowns", state and "Section Collapse Enabled" or "All Sections Expanded", C.Cyan)
 end)
 
--- 3. INTERFACE
-AddSection(DrawerScroll, "INTERFACE", 8)
-
-AddToggle(DrawerScroll, "Notifications", "Shows bottom toast banners", true, 9, function(active)
-    NotificationsEnabled = active
+createSettingsToggleTile(DispGrid2, "In-UI Alerts", "Banner notifications", true, C.Green, function(state)
+    NotificationsEnabled = state
 end)
 
-AddToggle(DrawerScroll, "Show Floating Icon", "Shows 🍁 button (or RightCtrl)", false, 10, function(active)
-    if setFloatingIconVisible then setFloatingIconVisible(active) end
+-- Potato Mode System
+local deepPerformanceActive = false
+local originalLighting = {}
+local modifiedParts = {}
+local culledEffects = {}
+
+local function setPartLowDetail(part)
+    if not part:IsA("BasePart") and not part:IsA("MeshPart") then return end
+    if not modifiedParts[part] then
+        modifiedParts[part] = {
+            Material = part.Material,
+            CastShadow = part.CastShadow,
+            Reflectance = part.Reflectance
+        }
+    end
+    part.Material = Enum.Material.SmoothPlastic
+    part.CastShadow = false
+    part.Reflectance = 0
+end
+
+local function applyAggressiveOptimization(enable)
+    local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+    if enable then
+        originalLighting.GlobalShadows = Lighting.GlobalShadows
+        originalLighting.FogEnd = Lighting.FogEnd
+        originalLighting.Brightness = Lighting.Brightness
+        
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
+
+        for _, item in ipairs(Lighting:GetChildren()) do
+            if item:IsA("PostEffect") or item:IsA("Atmosphere") or item:IsA("Clouds") or item:IsA("Sky") then
+                if not culledEffects[item] then culledEffects[item] = item.Enabled end
+                item.Enabled = false
+            end
+        end
+
+        if Terrain then
+            pcall(function()
+                Terrain.Decoration = false
+                Terrain.WaterWaveSize = 0
+                Terrain.WaterWaveSpeed = 0
+                Terrain.WaterReflectance = 0
+            end)
+        end
+
+        for _, desc in ipairs(Workspace:GetDescendants()) do
+            if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Smoke") or desc:IsA("Fire") or desc:IsA("Sparkles") then
+                if desc.Enabled then
+                    culledEffects[desc] = true
+                    desc.Enabled = false
+                end
+            elseif desc:IsA("Decal") or desc:IsA("Texture") then
+                if desc.Transparency < 1 then
+                    culledEffects[desc] = desc.Transparency
+                    desc.Transparency = 1
+                end
+            elseif desc:IsA("BasePart") then
+                setPartLowDetail(desc)
+            end
+        end
+    else
+        Lighting.GlobalShadows = originalLighting.GlobalShadows ~= nil and originalLighting.GlobalShadows or true
+        Lighting.FogEnd = originalLighting.FogEnd or 100000
+        Lighting.Brightness = originalLighting.Brightness or 2
+
+        for item, state in pairs(culledEffects) do
+            if item and item.Parent then
+                if item:IsA("Decal") or item:IsA("Texture") then
+                    item.Transparency = state
+                else
+                    pcall(function() item.Enabled = state end)
+                end
+            end
+        end
+        table.clear(culledEffects)
+
+        if Terrain then
+            pcall(function()
+                Terrain.Decoration = true
+                Terrain.WaterWaveSize = 0.15
+                Terrain.WaterWaveSpeed = 10
+            end)
+        end
+
+        for part, data in pairs(modifiedParts) do
+            if part and part.Parent then
+                pcall(function()
+                    part.Material = data.Material
+                    part.CastShadow = data.CastShadow
+                    part.Reflectance = data.Reflectance
+                end)
+            end
+        end
+        table.clear(modifiedParts)
+    end
+end
+
+local PerfGrid = Instance.new("Frame")
+PerfGrid.Size = UDim2.new(1, 0, 0, 42)
+PerfGrid.BackgroundTransparency = 1
+PerfGrid.LayoutOrder = 9
+PerfGrid.ZIndex = 51
+PerfGrid.Parent = DrawerScroll
+local pgLayout = Instance.new("UIListLayout")
+pgLayout.FillDirection = Enum.FillDirection.Horizontal
+pgLayout.Padding = UDim.new(0, 8)
+pgLayout.Parent = PerfGrid
+
+createSettingsToggleTile(PerfGrid, "Potato Visuals", "Strip textures & VFX", false, C.AccentGlow, function(state)
+    deepPerformanceActive = state
+    applyAggressiveOptimization(state)
+    Notify("Performance", state and "Potato Mode Active" or "Visuals Restored", C.Accent)
 end)
 
-AddButton(DrawerScroll, "Quit Game", "Closes and exits the game", 11, function()
-    game:Shutdown()
+AddSection(DrawerScroll, "EMERGENCY ACTIONS", 10)
+local DangerGrid = Instance.new("Frame")
+DangerGrid.Size = UDim2.new(1, 0, 0, 44)
+DangerGrid.BackgroundTransparency = 1
+DangerGrid.LayoutOrder = 11
+DangerGrid.ZIndex = 51
+DangerGrid.Parent = DrawerScroll
+local dgActionsLayout = Instance.new("UIListLayout")
+dgActionsLayout.FillDirection = Enum.FillDirection.Horizontal
+dgActionsLayout.Padding = UDim.new(0, 8)
+dgActionsLayout.Parent = DangerGrid
+
+local RespawnCard = Instance.new("TextButton")
+RespawnCard.Size = UDim2.new(0.5, -4, 1, 0)
+RespawnCard.BackgroundColor3 = C.CardBg
+RespawnCard.AutoButtonColor = false
+RespawnCard.Text = ""
+RespawnCard.ClipsDescendants = true
+RespawnCard.ZIndex = 52
+RespawnCard.Parent = DangerGrid
+Instance.new("UICorner", RespawnCard).CornerRadius = UDim.new(0, 8)
+local rCardStroke = Instance.new("UIStroke")
+rCardStroke.Color = C.Border
+rCardStroke.Thickness = 1
+rCardStroke.Parent = RespawnCard
+
+local RespawnFillBar = Instance.new("Frame")
+RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+RespawnFillBar.BackgroundColor3 = C.RedDark
+RespawnFillBar.BorderSizePixel = 0
+RespawnFillBar.ZIndex = 53
+RespawnFillBar.Parent = RespawnCard
+
+local RespawnLbl = Instance.new("TextLabel")
+RespawnLbl.Text = "Clean Respawn"
+RespawnLbl.Font = Enum.Font.GothamBold
+RespawnLbl.TextSize = 10
+RespawnLbl.TextColor3 = C.Red
+RespawnLbl.Size = UDim2.fromScale(1, 1)
+RespawnLbl.BackgroundTransparency = 1
+RespawnLbl.ZIndex = 54
+RespawnLbl.Parent = RespawnCard
+
+local respawnConfirmState = false
+local respawnTimerThread = nil
+
+RespawnCard.MouseButton1Click:Connect(function()
+    if not respawnConfirmState then
+        respawnConfirmState = true
+        RespawnLbl.Text = "Confirm Respawn"
+        RespawnLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tw(rCardStroke, {Color = C.Red}, 0.2)
+        RespawnFillBar.Size = UDim2.new(1, 0, 1, 0)
+        tw(RespawnFillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
+
+        respawnTimerThread = task.delay(3, function()
+            if respawnConfirmState and ScreenGui.Parent then
+                respawnConfirmState = false
+                RespawnLbl.Text = "Clean Respawn"
+                RespawnLbl.TextColor3 = C.Red
+                tw(rCardStroke, {Color = C.Border}, 0.2)
+                RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+            end
+        end)
+    else
+        if respawnTimerThread then task.cancel(respawnTimerThread) end
+        respawnConfirmState = false
+        RespawnLbl.Text = "Clean Respawn"
+        RespawnLbl.TextColor3 = C.Red
+        tw(rCardStroke, {Color = C.Border}, 0.2)
+        RespawnFillBar.Size = UDim2.new(0, 0, 1, 0)
+
+        resolveRemotes()
+        if ResetRequestedRemote then
+            pcall(function() ResetRequestedRemote:FireServer() end)
+        else
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Health = 0 end
+        end
+        Notify("Character", "Clean Respawn Executed", C.Red)
+    end
 end)
 
--- 4. DANGER ZONE
-AddSection(DrawerScroll, "DANGER ZONE", 12)
+local function executePurgeDestroy()
+    autoCandyFarm = false
+    aiChaseActive = false
+    NoclipActive = false
+    toggleESP(false)
+    toggleGhostESP(false)
+    restoreSurface()
+    unequipGhostNet()
+    if monitorConn then monitorConn:Disconnect() end
 
-local DestroyBtn = Instance.new("TextButton")
-DestroyBtn.Size = UDim2.new(1, 0, 0, 42)
-DestroyBtn.BackgroundColor3 = C.Surface
-DestroyBtn.AutoButtonColor = false
-DestroyBtn.Text = ""
-DestroyBtn.ClipsDescendants = true
-DestroyBtn.ZIndex = 32
-DestroyBtn.LayoutOrder = 13
-DestroyBtn.Parent = DrawerScroll
+    local DissolveVeil = Instance.new("Frame")
+    DissolveVeil.Size = UDim2.fromScale(1, 1)
+    DissolveVeil.BackgroundColor3 = C.RedDark
+    DissolveVeil.BackgroundTransparency = 1
+    DissolveVeil.ZIndex = 1500
+    DissolveVeil.Parent = Card
+    Instance.new("UICorner", DissolveVeil).CornerRadius = UDim.new(0, 16)
 
-Instance.new("UICorner", DestroyBtn).CornerRadius = UDim.new(0, 8)
-local dBtnStroke = Instance.new("UIStroke"); dBtnStroke.Color = C.Border; dBtnStroke.Thickness = 1; dBtnStroke.Parent = DestroyBtn
+    tw(DissolveVeil, {BackgroundTransparency = 0.25}, 0.2)
+    tw(cStroke, {Color = C.Red, Thickness = 2.5}, 0.2)
+    task.wait(0.2)
+
+    local dissolve = tw(Card, {
+        Size = UDim2.new(0, 580, 0, 2),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    }, 0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    tw(Backdrop, {BackgroundTransparency = 1}, 0.3)
+
+    dissolve.Completed:Connect(function()
+        ScreenGui:Destroy()
+    end)
+end
+
+local DestroyCard = Instance.new("TextButton")
+DestroyCard.Size = UDim2.new(0.5, -4, 1, 0)
+DestroyCard.BackgroundColor3 = C.CardBg
+DestroyCard.AutoButtonColor = false
+DestroyCard.Text = ""
+DestroyCard.ClipsDescendants = true
+DestroyCard.ZIndex = 52
+DestroyCard.Parent = DangerGrid
+Instance.new("UICorner", DestroyCard).CornerRadius = UDim.new(0, 8)
+local dCardStroke = Instance.new("UIStroke")
+dCardStroke.Color = C.Border
+dCardStroke.Thickness = 1
+dCardStroke.Parent = DestroyCard
 
 local FillBar = Instance.new("Frame")
 FillBar.Size = UDim2.new(0, 0, 1, 0)
 FillBar.BackgroundColor3 = C.RedDark
 FillBar.BorderSizePixel = 0
-FillBar.ZIndex = 33
-FillBar.Parent = DestroyBtn
+FillBar.ZIndex = 53
+FillBar.Parent = DestroyCard
 
 local DestroyLbl = Instance.new("TextLabel")
 DestroyLbl.Text = "Destroy Interface"
 DestroyLbl.Font = Enum.Font.GothamBold
-DestroyLbl.TextSize = 12
+DestroyLbl.TextSize = 10
 DestroyLbl.TextColor3 = C.Red
 DestroyLbl.Size = UDim2.fromScale(1, 1)
 DestroyLbl.BackgroundTransparency = 1
-DestroyLbl.ZIndex = 34
-DestroyLbl.Parent = DestroyBtn
+DestroyLbl.ZIndex = 54
+DestroyLbl.Parent = DestroyCard
 
 local confirmState = false
 local timerThread = nil
 
-DestroyBtn.MouseButton1Click:Connect(function()
+DestroyCard.MouseButton1Click:Connect(function()
     if not confirmState then
         confirmState = true
-        DestroyLbl.Text = "Tap Again to Confirm"
+        DestroyLbl.Text = "Confirm Destroy"
         DestroyLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tw(dBtnStroke, {Color = C.Red}, 0.2)
+        tw(dCardStroke, {Color = C.Red}, 0.2)
         FillBar.Size = UDim2.new(1, 0, 1, 0)
         tw(FillBar, {Size = UDim2.new(0, 0, 1, 0)}, 3.0, Enum.EasingStyle.Linear)
 
@@ -660,136 +2140,353 @@ DestroyBtn.MouseButton1Click:Connect(function()
                 confirmState = false
                 DestroyLbl.Text = "Destroy Interface"
                 DestroyLbl.TextColor3 = C.Red
-                tw(dBtnStroke, {Color = C.Border}, 0.2)
+                tw(dCardStroke, {Color = C.Border}, 0.2)
                 FillBar.Size = UDim2.new(0, 0, 1, 0)
             end
         end)
     else
         if timerThread then task.cancel(timerThread) end
-        GodModeEnabled = false
-        AutoCollectEnabled = false
-        AutoPickEnabled = false
-        InfDamageEnabled = false
-        InfRangeEnabled = false
-        InfSpeedEnabled = false
-        MaxHpEnabled = false
-        if godConnection then godConnection:Disconnect() end
-        if monitorConn then monitorConn:Disconnect() end
-        if EspConnection then EspConnection:Disconnect() end
-        for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
-        ScreenGui:Destroy()
+        executePurgeDestroy()
     end
 end)
 
-local drawerOpen = false
-local function toggleDrawer()
-    drawerOpen = not drawerOpen
-    tw(SettingsBtn, {Rotation = drawerOpen and 90 or 0}, 0.25, Enum.EasingStyle.Back)
-    tw(Drawer, {Position = drawerOpen and UDim2.new(0, 0, 0, 40) or UDim2.new(0, 0, 1, 0)}, 0.25, Enum.EasingStyle.Quart)
+-- B. CREDITS DRAWER
+local CreditsDrawer = Instance.new("Frame")
+CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
+CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
+CreditsDrawer.BackgroundColor3 = C.Bg
+CreditsDrawer.ZIndex = 50
+CreditsDrawer.BorderSizePixel = 0
+CreditsDrawer.ClipsDescendants = true
+CreditsDrawer.Parent = Card
+Instance.new("UICorner", CreditsDrawer).CornerRadius = UDim.new(0, 16)
+
+local CreditsScroll = Instance.new("ScrollingFrame")
+CreditsScroll.Size = UDim2.fromScale(1, 1)
+CreditsScroll.BackgroundTransparency = 1
+CreditsScroll.BorderSizePixel = 0
+CreditsScroll.ScrollBarThickness = 2
+CreditsScroll.ScrollBarImageColor3 = C.Border
+CreditsScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+CreditsScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+CreditsScroll.ZIndex = 51
+CreditsScroll.Parent = CreditsDrawer
+
+local cPad = Instance.new("UIPadding")
+cPad.PaddingTop = UDim.new(0, 10); cPad.PaddingLeft = UDim.new(0, 14); cPad.PaddingRight = UDim.new(0, 14); cPad.PaddingBottom = UDim.new(0, 14)
+cPad.Parent = CreditsScroll
+
+local cList = Instance.new("UIListLayout")
+cList.Padding = UDim.new(0, 8)
+cList.SortOrder = Enum.SortOrder.LayoutOrder
+cList.Parent = CreditsScroll
+
+local HeroCard = Instance.new("Frame")
+HeroCard.Size = UDim2.new(1, 0, 0, 56)
+HeroCard.BackgroundColor3 = C.Surface
+HeroCard.LayoutOrder = 1
+HeroCard.ZIndex = 52
+HeroCard.Parent = CreditsScroll
+Instance.new("UICorner", HeroCard).CornerRadius = UDim.new(0, 9)
+local heroStroke = Instance.new("UIStroke")
+heroStroke.Color = C.Accent
+heroStroke.Thickness = 1.2
+heroStroke.Parent = HeroCard
+
+local HeroBadge = Instance.new("Frame")
+HeroBadge.Size = UDim2.new(0, 38, 0, 38)
+HeroBadge.Position = UDim2.new(0, 10, 0.5, 0)
+HeroBadge.AnchorPoint = Vector2.new(0, 0.5)
+HeroBadge.BackgroundColor3 = C.CardBg
+HeroBadge.ZIndex = 53
+HeroBadge.Parent = HeroCard
+Instance.new("UICorner", HeroBadge).CornerRadius = UDim.new(0, 7)
+local hbStroke = Instance.new("UIStroke")
+hbStroke.Color = C.Border
+hbStroke.Thickness = 1
+hbStroke.Parent = HeroBadge
+
+local HeroIcon = Instance.new("TextLabel")
+HeroIcon.Size = UDim2.fromScale(1, 1)
+HeroIcon.BackgroundTransparency = 1
+HeroIcon.Text = "🍁"
+HeroIcon.TextSize = 18
+HeroIcon.ZIndex = 54
+HeroIcon.Parent = HeroBadge
+
+local HeroName = Instance.new("TextLabel")
+HeroName.Text = "LUMACORE"
+HeroName.Font = Enum.Font.GothamBold
+HeroName.TextSize = 12
+HeroName.TextColor3 = C.Text
+HeroName.Position = UDim2.new(0, 56, 0, 10)
+HeroName.Size = UDim2.new(1, -160, 0, 16)
+HeroName.TextXAlignment = Enum.TextXAlignment.Left
+HeroName.BackgroundTransparency = 1
+HeroName.ZIndex = 53
+HeroName.Parent = HeroCard
+
+local HeroSub = Instance.new("TextLabel")
+HeroSub.Text = "Interface Framework & Core Modules"
+HeroSub.Font = Enum.Font.Gotham
+HeroSub.TextSize = 8.5
+HeroSub.TextColor3 = C.Dim
+HeroSub.Position = UDim2.new(0, 56, 0, 28)
+HeroSub.Size = UDim2.new(1, -160, 0, 14)
+HeroSub.TextXAlignment = Enum.TextXAlignment.Left
+HeroSub.BackgroundTransparency = 1
+HeroSub.ZIndex = 53
+HeroSub.Parent = HeroCard
+
+local HeroPill = Instance.new("Frame")
+HeroPill.Size = UDim2.new(0, 76, 0, 22)
+HeroPill.Position = UDim2.new(1, -10, 0.5, 0)
+HeroPill.AnchorPoint = Vector2.new(1, 0.5)
+HeroPill.BackgroundColor3 = C.CardBg
+HeroPill.ZIndex = 53
+HeroPill.Parent = HeroCard
+Instance.new("UICorner", HeroPill).CornerRadius = UDim.new(0, 5)
+local hpStroke = Instance.new("UIStroke")
+hpStroke.Color = C.Green
+hpStroke.Thickness = 1
+hpStroke.Parent = HeroPill
+
+local HeroPillTxt = Instance.new("TextLabel")
+HeroPillTxt.Size = UDim2.fromScale(1, 1)
+HeroPillTxt.BackgroundTransparency = 1
+HeroPillTxt.Text = "v2.9"
+HeroPillTxt.Font = Enum.Font.GothamBold
+HeroPillTxt.TextSize = 9
+HeroPillTxt.TextColor3 = C.Green
+HeroPillTxt.ZIndex = 54
+HeroPillTxt.Parent = HeroPill
+
+local StatsGrid = Instance.new("Frame")
+StatsGrid.Size = UDim2.new(1, 0, 0, 46)
+StatsGrid.BackgroundTransparency = 1
+StatsGrid.LayoutOrder = 2
+StatsGrid.ZIndex = 52
+StatsGrid.Parent = CreditsScroll
+
+local function createStatBox(parent, posX, widthScale, label, val, valColor)
+    local box = Instance.new("Frame")
+    box.Size = UDim2.new(widthScale, -3, 1, 0)
+    box.Position = UDim2.new(posX, 0, 0, 0)
+    box.BackgroundColor3 = C.CardBg
+    box.ZIndex = 53
+    box.Parent = parent
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 7)
+    local bs = Instance.new("UIStroke")
+    bs.Color = C.Border
+    bs.Thickness = 1
+    bs.Parent = box
+
+    local l = Instance.new("TextLabel")
+    l.Text = label
+    l.Font = Enum.Font.GothamMedium
+    l.TextSize = 8.5
+    l.TextColor3 = C.Dim
+    l.Position = UDim2.new(0, 10, 0, 6)
+    l.Size = UDim2.new(1, -20, 0, 12)
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    l.BackgroundTransparency = 1
+    l.ZIndex = 54
+    l.Parent = box
+
+    local v = Instance.new("TextLabel")
+    v.Text = val
+    v.Font = Enum.Font.GothamBold
+    v.TextSize = 12
+    v.TextColor3 = valColor or C.Text
+    v.Position = UDim2.new(0, 10, 0, 20)
+    v.Size = UDim2.new(1, -20, 0, 18)
+    v.TextXAlignment = Enum.TextXAlignment.Left
+    v.BackgroundTransparency = 1
+    v.ZIndex = 54
+    v.Parent = box
+    return box
 end
 
-SettingsBtn.MouseButton1Click:Connect(function()
-    tw(SettingsBtn, {Size = UDim2.new(0, 23, 0, 23)}, 0.08, Enum.EasingStyle.Quart)
-    task.delay(0.08, function()
-        tw(SettingsBtn, {Size = UDim2.new(0, 26, 0, 26)}, 0.12, Enum.EasingStyle.Back)
-    end)
-    toggleDrawer()
-end)
+createStatBox(StatsGrid, 0, 0.5, "ACTIVE SCRIPT", "POLY LOOT", C.AccentGlow)
+createStatBox(StatsGrid, 0.5, 0.5, "CORE PIPELINE", "VERIFIED", C.Cyan)
 
--- // 10. TABS & PAGES //
-local TabBar = Instance.new("Frame")
-TabBar.Size = UDim2.new(1, -24, 0, 28)
-TabBar.Position = UDim2.new(0, 12, 0, 44)
-TabBar.BackgroundColor3 = C.Surface
-TabBar.Parent = Frame
-Instance.new("UICorner", TabBar).CornerRadius = UDim.new(0, 7)
-local tbStroke = Instance.new("UIStroke"); tbStroke.Color = C.Border; tbStroke.Thickness = 1; tbStroke.Parent = TabBar
+AddSection(CreditsScroll, "REVISION LOG", 3)
 
-local ActivePill = Instance.new("Frame")
-ActivePill.Size = UDim2.new(0.5, -4, 1, -4)
-ActivePill.Position = UDim2.new(0, 2, 0, 2)
-ActivePill.BackgroundColor3 = C.PillActive
-ActivePill.ZIndex = 2
-ActivePill.Parent = TabBar
-Instance.new("UICorner", ActivePill).CornerRadius = UDim.new(0, 5)
+local function createRevisionTile(parent, tag, tagColor, title, desc, order)
+    local tile = Instance.new("Frame")
+    tile.Size = UDim2.new(1, 0, 0, 38)
+    tile.BackgroundColor3 = C.CardBg
+    tile.LayoutOrder = order
+    tile.ZIndex = 52
+    tile.Parent = parent
+    Instance.new("UICorner", tile).CornerRadius = UDim.new(0, 7)
+    local ts = Instance.new("UIStroke")
+    ts.Color = C.Border
+    ts.Thickness = 1
+    ts.Parent = tile
 
-local PageContainer = Instance.new("Frame")
-PageContainer.Size = UDim2.new(1, -24, 1, -84)
-PageContainer.Position = UDim2.new(0, 12, 0, 78)
-PageContainer.BackgroundTransparency = 1
-PageContainer.Parent = Frame
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.new(0, 62, 0, 18)
+    pill.Position = UDim2.new(0, 8, 0.5, 0)
+    pill.AnchorPoint = Vector2.new(0, 0.5)
+    pill.BackgroundColor3 = C.Surface
+    pill.ZIndex = 53
+    pill.Parent = tile
+    Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 4)
+    local ps = Instance.new("UIStroke")
+    ps.Color = tagColor
+    ps.Thickness = 1
+    ps.Parent = pill
 
-local function createPage()
-    local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.fromScale(1, 1)
-    page.BackgroundTransparency = 1
-    page.BorderSizePixel = 0
-    page.ScrollBarThickness = 2
-    page.ScrollBarImageColor3 = C.Border
-    page.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    page.Parent = PageContainer
+    local pt = Instance.new("TextLabel")
+    pt.Size = UDim2.fromScale(1, 1)
+    pt.BackgroundTransparency = 1
+    pt.Text = tag
+    pt.Font = Enum.Font.GothamBold
+    pt.TextSize = 7.5
+    pt.TextColor3 = tagColor
+    pt.ZIndex = 54
+    pt.Parent = pill
 
-    local l = Instance.new("UIListLayout")
-    l.Padding = UDim.new(0, 6)
-    l.SortOrder = Enum.SortOrder.LayoutOrder
-    l.Parent = page
-    return page
+    local t = Instance.new("TextLabel")
+    t.Text = title
+    t.Font = Enum.Font.GothamBold
+    t.TextSize = 9.5
+    t.TextColor3 = C.Text
+    t.Position = UDim2.new(0, 78, 0, 5)
+    t.Size = UDim2.new(1, -86, 0, 13)
+    t.TextXAlignment = Enum.TextXAlignment.Left
+    t.BackgroundTransparency = 1
+    t.ZIndex = 53
+    t.Parent = tile
+
+    local d = Instance.new("TextLabel")
+    d.Text = desc
+    d.Font = Enum.Font.Gotham
+    d.TextSize = 8
+    d.TextColor3 = C.Dim
+    d.Position = UDim2.new(0, 78, 0, 19)
+    d.Size = UDim2.new(1, -86, 0, 13)
+    d.TextXAlignment = Enum.TextXAlignment.Left
+    d.BackgroundTransparency = 1
+    d.ZIndex = 53
+    d.Parent = tile
 end
 
-local MainPage = createPage()
-local ExtraPage = createPage()
-ExtraPage.Visible = false
+createRevisionTile(CreditsScroll, "MECHANIC", C.Accent, "Rounded Assembly Motion", "Symmetrical rounded beam extrusion & deconstruct", 4)
+createRevisionTile(CreditsScroll, "PACING", C.Purple, "Dual Glide & Next Delay", "Glide step speeds + 2.5s next ghost wait buffer", 5)
+createRevisionTile(CreditsScroll, "LAYOUT", C.Cyan, "Collapsible Section Headers", "Click to minimize sections for faster navigation", 6)
+createRevisionTile(CreditsScroll, "PURGE", C.Red, "Side-by-Side Emergency Actions", "Sliding confirmation bars with laser dissolution", 7)
 
-local function createTabBtn(label, targetPos)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.5, 0, 1, 0)
-    btn.Position = targetPos
-    btn.BackgroundTransparency = 1
-    btn.Text = label
-    btn.TextColor3 = C.Muted
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 11
-    btn.AutoButtonColor = false
-    btn.ZIndex = 3
-    btn.Parent = TabBar
-    return btn
+-- ACTIVE DRAWER CONTROLLER
+local activeDrawer = nil
+
+closeActiveDrawer = function(onDone)
+    if activeDrawer == "Settings" then
+        if AnimationsEnabled then
+            tw(SettingsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
+            local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
+            anim.Completed:Connect(function()
+                if activeDrawer == nil then Body.Visible = true end
+                if onDone then onDone() end
+            end)
+        else
+            SettingsBtn.Rotation = 0
+            Drawer.Position = UDim2.new(0, 0, 1, 0)
+            Body.Visible = true
+            if onDone then onDone() end
+        end
+    elseif activeDrawer == "Credits" then
+        if AnimationsEnabled then
+            tw(CreditsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
+            local anim = tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
+            anim.Completed:Connect(function()
+                if activeDrawer == nil then Body.Visible = true end
+                if onDone then onDone() end
+            end)
+        else
+            CreditsBtn.Rotation = 0
+            CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
+            Body.Visible = true
+            if onDone then onDone() end
+        end
+    else
+        Body.Visible = true
+        if onDone then onDone() end
+    end
+    activeDrawer = nil
 end
 
-local mainTabBtn = createTabBtn("Main", UDim2.new(0, 0, 0, 0))
-local extraTabBtn = createTabBtn("Multi & Misc", UDim2.new(0.5, 0, 0, 0))
-mainTabBtn.TextColor3 = C.Text
-
-local function switchTab(toMain)
-    MainPage.Visible = toMain
-    ExtraPage.Visible = not toMain
-    tw(ActivePill, {Position = toMain and UDim2.new(0, 2, 0, 2) or UDim2.new(0.5, 2, 0, 2)}, 0.22, Enum.EasingStyle.Quart)
-    tw(mainTabBtn, {TextColor3 = toMain and C.Text or C.Muted}, 0.15)
-    tw(extraTabBtn, {TextColor3 = not toMain and C.Text or C.Muted}, 0.15)
+local function toggleSettingsDrawer()
+    if activeDrawer == "Settings" then
+        closeActiveDrawer()
+    else
+        Body.Visible = false
+        if activeDrawer == "Credits" then
+            if AnimationsEnabled then
+                tw(CreditsBtn, {Rotation = 0}, 0.15)
+                tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+            else
+                CreditsBtn.Rotation = 0
+                CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
+            end
+        end
+        activeDrawer = "Settings"
+        if AnimationsEnabled then
+            tw(SettingsBtn, {Rotation = 90}, 0.25, Enum.EasingStyle.Back)
+            tw(Drawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+        else
+            SettingsBtn.Rotation = 90
+            Drawer.Position = UDim2.new(0, 0, 0, 48)
+        end
+    end
 end
 
-mainTabBtn.MouseButton1Click:Connect(function() switchTab(true) end)
-extraTabBtn.MouseButton1Click:Connect(function() switchTab(false) end)
+local function toggleCreditsDrawer()
+    if activeDrawer == "Credits" then
+        closeActiveDrawer()
+    else
+        Body.Visible = false
+        if activeDrawer == "Settings" then
+            if AnimationsEnabled then
+                tw(SettingsBtn, {Rotation = 0}, 0.15)
+                tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+            else
+                SettingsBtn.Rotation = 0
+                Drawer.Position = UDim2.new(0, 0, 1, 0)
+            end
+        end
+        activeDrawer = "Credits"
+        if AnimationsEnabled then
+            tw(CreditsBtn, {Rotation = 72}, 0.25, Enum.EasingStyle.Back)
+            tw(CreditsDrawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+        else
+            CreditsBtn.Rotation = 72
+            CreditsDrawer.Position = UDim2.new(0, 0, 0, 48)
+        end
+    end
+end
 
--- // 11. CLAMPING & DRAGGING //
-local function clampPosition(posUDim, obj)
-    local view = (Camera and Camera.ViewportSize) or Vector2.new(800, 600)
-    if view.X <= 20 or view.Y <= 20 then return posUDim end
+SettingsBtn.MouseButton1Click:Connect(toggleSettingsDrawer)
+CreditsBtn.MouseButton1Click:Connect(toggleCreditsDrawer)
 
-    local absX = (posUDim.X.Scale * view.X) + posUDim.X.Offset
-    local absY = (posUDim.Y.Scale * view.Y) + posUDim.Y.Offset
+-- 17. SAFE CLAMPING & DRAGGING
+local function clampPosition(rawPos, obj)
+    local cam = Workspace.CurrentCamera
+    local vSize = (cam and cam.ViewportSize) or Vector2.new(800, 600)
+    if vSize.X <= 50 or vSize.Y <= 50 then return rawPos end
 
-    local w = obj.AbsoluteSize.X > 0 and obj.AbsoluteSize.X or 275
-    local h = obj.AbsoluteSize.Y > 0 and obj.AbsoluteSize.Y or 315
-
-    local halfW = w / 2
-    local halfH = h / 2
+    local oWidth = (obj.AbsoluteSize.X > 0 and obj.AbsoluteSize.X) or 580
+    local oHeight = (obj.AbsoluteSize.Y > 0 and obj.AbsoluteSize.Y) or 345
     local pad = 6
 
-    local minX = halfW + pad
-    local maxX = math.max(minX, view.X - halfW - pad)
-    local minY = halfH + pad
-    local maxY = math.max(minY, view.Y - halfH - pad)
+    local absX = (rawPos.X.Scale * vSize.X) + rawPos.X.Offset
+    local absY = (rawPos.Y.Scale * vSize.Y) + rawPos.Y.Offset
+
+    local minX = (obj.AnchorPoint.X * oWidth) + pad
+    local maxX = vSize.X - ((1 - obj.AnchorPoint.X) * oWidth) - pad
+    local minY = (obj.AnchorPoint.Y * oHeight) + pad
+    local maxY = vSize.Y - ((1 - obj.AnchorPoint.Y) * oHeight) - pad
 
     return UDim2.new(0, math.clamp(absX, minX, maxX), 0, math.clamp(absY, minY, maxY))
 end
@@ -802,21 +2499,14 @@ Header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
-        startPos = Frame.Position
+        startPos = Card.Position
 
-        local moveConn
-        local endConn
-
+        local moveConn, endConn
         moveConn = UserInputService.InputChanged:Connect(function(moveInput)
             if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and dragging then
                 local delta = moveInput.Position - dragStart
-                local rawPos = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
-                Frame.Position = clampPosition(rawPos, Frame)
+                local raw = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                Card.Position = clampPosition(raw, Card)
             end
         end)
 
@@ -830,46 +2520,171 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- // 12. FLOATING TOGGLE ICON //
+-- 18. SYMMETRICAL ROUNDED ASSEMBLY SEQUENCE (CLEANED EDGES)
+local isTransitioning = false
+local isOpen = false
+
+local function playMechanicalBuildSequence()
+    WireframeBeam.Visible = true
+    WireframeBeam.Position = UDim2.new(0.5, 0, 0.5, 0)
+    WireframeBeam.Size = UDim2.new(0, 0, 0, 4)
+    WireframeBeam.BackgroundTransparency = 0
+    BeamGlow.Transparency = 0
+
+    local laserSweep = tw(WireframeBeam, {Size = UDim2.new(0, 580, 0, 4)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    laserSweep.Completed:Wait()
+    task.wait(0.04)
+
+    Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Card.Size = UDim2.new(0, 580, 0, 6)
+    Card.Rotation = 0
+    Card.BackgroundTransparency = 0
+    Card.Visible = true
+
+    AssemblyVeil.Visible = true
+    AssemblyVeil.Position = UDim2.new(0, 0, 0, 0)
+    AssemblyVeil.BackgroundTransparency = 0
+
+    tw(WireframeBeam, {BackgroundTransparency = 1}, 0.12)
+    tw(BeamGlow, {Transparency = 1}, 0.12)
+    task.delay(0.12, function() WireframeBeam.Visible = false end)
+
+    local cardExtrude = tw(Card, {Size = UDim2.new(0, 580, 0, 345)}, 0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+    cardExtrude.Completed:Wait()
+    task.wait(0.05)
+
+    local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    veilDrop.Completed:Wait()
+    AssemblyVeil.Visible = false
+
+    for _, row in ipairs(ActionCardRegistry) do
+        row.Position = UDim2.new(0, -22, 0, 0)
+        row.BackgroundTransparency = 0.7
+        tw(row, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}, 0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        task.wait(0.03)
+    end
+end
+
+local function playMechanicalDeconstructSequence()
+    AssemblyVeil.Visible = true
+    AssemblyVeil.Position = UDim2.new(0, 0, 1, 0)
+    local shieldUp = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 0, 0)}, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    shieldUp.Completed:Wait()
+
+    local cardCompress = tw(Card, {Size = UDim2.new(0, 580, 0, 4)}, 0.26, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    cardCompress.Completed:Wait()
+
+    WireframeBeam.Size = UDim2.new(0, 580, 0, 4)
+    WireframeBeam.BackgroundTransparency = 0
+    BeamGlow.Transparency = 0
+    WireframeBeam.Visible = true
+    Card.Visible = false
+
+    local beamRetract = tw(WireframeBeam, {Size = UDim2.new(0, 0, 0, 4), BackgroundTransparency = 1}, 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    tw(BeamGlow, {Transparency = 1}, 0.2)
+    beamRetract.Completed:Wait()
+    WireframeBeam.Visible = false
+end
+
+openMenu = function()
+    if isTransitioning or isOpen then return end
+    isTransitioning = true
+
+    if MobileToggle and MobileToggle.Visible and AnimationsEnabled then
+        tw(MobileToggle, {Size = UDim2.new(0, 32, 0, 32), Rotation = 20}, 0.1, Enum.EasingStyle.Quart)
+        task.delay(0.1, function()
+            tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.18, Enum.EasingStyle.Back)
+        end)
+    end
+
+    Backdrop.Visible = true
+    if AnimationsEnabled then
+        Backdrop.BackgroundTransparency = 1
+        tw(Backdrop, {BackgroundTransparency = 0.5}, 0.25)
+        isOpen = true
+        playMechanicalBuildSequence()
+    else
+        Backdrop.BackgroundTransparency = 0.5
+        isOpen = true
+        Card.Position = UDim2.new(0.5, 0, 0.5, 0)
+        Card.Size = UDim2.new(0, 580, 0, 345)
+        Card.Rotation = 0
+        Card.BackgroundTransparency = 0
+        Card.Visible = true
+        Body.Visible = true
+    end
+
+    isTransitioning = false
+end
+
+closeMenu = function()
+    if isTransitioning or not isOpen then return end
+    isTransitioning = true
+    isOpen = false
+
+    closeActiveDrawer()
+
+    if AnimationsEnabled then
+        tw(Backdrop, {BackgroundTransparency = 1}, 0.3)
+        playMechanicalDeconstructSequence()
+        Backdrop.Visible = false
+    else
+        Backdrop.Visible = false
+        Card.Visible = false
+    end
+
+    isTransitioning = false
+end
+
+CloseBtn.MouseButton1Click:Connect(closeMenu)
+Backdrop.MouseButton1Click:Connect(closeMenu)
+
+-- 19. MOBILE TOGGLE
 MobileToggle = Instance.new("TextButton")
-MobileToggle.Name = "Autumn_MobileToggle"
-MobileToggle.Size = UDim2.new(0, 0, 0, 0)
+MobileToggle.Name = "Lumacore_MobileToggle"
+MobileToggle.Size = UDim2.new(0, 38, 0, 38)
 MobileToggle.Position = UDim2.new(0, 30, 0.5, 0)
 MobileToggle.AnchorPoint = Vector2.new(0.5, 0.5)
 MobileToggle.BackgroundColor3 = C.Surface
 MobileToggle.Text = "🍁"
 MobileToggle.TextSize = 18
 MobileToggle.AutoButtonColor = false
-MobileToggle.Visible = false
-MobileToggle.ZIndex = 500
+MobileToggle.Visible = true
+MobileToggle.ZIndex = 1500
 MobileToggle.ClipsDescendants = true
 MobileToggle.Parent = ScreenGui
 
 Instance.new("UICorner", MobileToggle).CornerRadius = UDim.new(0, 10)
-local mtStroke = Instance.new("UIStroke"); mtStroke.Color = C.Border; mtStroke.Thickness = 1.2; mtStroke.Parent = MobileToggle
+local mtStroke = Instance.new("UIStroke")
+mtStroke.Color = C.Border
+mtStroke.Thickness = 1.2
+mtStroke.Parent = MobileToggle
 
 setFloatingIconVisible = function(visible)
     if visible then
         MobileToggle.Visible = true
-        MobileToggle.Size = UDim2.new(0, 0, 0, 0)
-        tw(MobileToggle, {Size = UDim2.new(0, 36, 0, 36), Rotation = 0}, 0.25, Enum.EasingStyle.Back)
+        if AnimationsEnabled then
+            tw(MobileToggle, {Size = UDim2.new(0, 38, 0, 38), Rotation = 0}, 0.25, Enum.EasingStyle.Back)
+        else
+            MobileToggle.Size = UDim2.new(0, 38, 0, 38)
+            MobileToggle.Rotation = 0
+        end
     else
-        local t = tw(MobileToggle, {Size = UDim2.new(0, 0, 0, 0), Rotation = -90}, 0.2, Enum.EasingStyle.Quart)
-        t.Completed:Connect(function()
-            if not MobileToggle.Visible or MobileToggle.Size.X.Offset == 0 then
-                MobileToggle.Visible = false
-            end
-        end)
+        if AnimationsEnabled then
+            local t = tw(MobileToggle, {Size = UDim2.new(0, 0, 0, 0), Rotation = -90}, 0.2, Enum.EasingStyle.Quart)
+            t.Completed:Connect(function()
+                if not MobileToggle.Visible or MobileToggle.Size.X.Offset == 0 then
+                    MobileToggle.Visible = false
+                end
+            end)
+        else
+            MobileToggle.Visible = false
+        end
     end
 end
 
-local isMenuVisible = true
-local function toggleMenu()
-    isMenuVisible = not isMenuVisible
-    Frame.Visible = isMenuVisible
-    if MobileToggle.Visible then
-        tw(MobileToggle, {Rotation = isMenuVisible and 0 or -45}, 0.2)
-    end
+toggleMenu = function()
+    if isOpen then closeMenu() else openMenu() end
 end
 
 local iconDragging = false
@@ -882,21 +2697,14 @@ MobileToggle.InputBegan:Connect(function(input)
         iconDragStart = input.Position
         iconStartPos = MobileToggle.Position
 
-        local moveConn
-        local endConn
-
+        local moveConn, endConn
         moveConn = UserInputService.InputChanged:Connect(function(moveInput)
             if (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) and iconDragStart then
                 local delta = moveInput.Position - iconDragStart
                 if delta.Magnitude > 6 then
                     iconDragging = true
-                    local rawPos = UDim2.new(
-                        iconStartPos.X.Scale,
-                        iconStartPos.X.Offset + delta.X,
-                        iconStartPos.Y.Scale,
-                        iconStartPos.Y.Offset + delta.Y
-                    )
-                    MobileToggle.Position = clampPosition(rawPos, MobileToggle)
+                    local raw = UDim2.new(iconStartPos.X.Scale, iconStartPos.X.Offset + delta.X, iconStartPos.Y.Scale, iconStartPos.Y.Offset + delta.Y)
+                    MobileToggle.Position = clampPosition(raw, MobileToggle)
                 end
             end
         end)
@@ -905,10 +2713,7 @@ MobileToggle.InputBegan:Connect(function(input)
             if endInput.UserInputType == Enum.UserInputType.MouseButton1 or endInput.UserInputType == Enum.UserInputType.Touch then
                 if moveConn then moveConn:Disconnect() end
                 if endConn then endConn:Disconnect() end
-
-                if not iconDragging then
-                    toggleMenu()
-                end
+                if not iconDragging then toggleMenu() end
                 iconDragging = false
                 iconDragStart = nil
             end
@@ -922,210 +2727,6 @@ UserInputService.InputBegan:Connect(function(inp, gpe)
     end
 end)
 
--- // 13. REGISTER LOOT HERO FEATURES //
-
--- TAB 1: MAIN GAME LOOP & COMBAT
-AddSection(MainPage, "GAME LOOP", 1)
-
-AddButton(MainPage, "Start Game", "Begins the match instantly", 2, function()
-    if StartRemote then
-        StartRemote:FireServer()
-        Notify("Game Started!", C.Green)
-    else
-        Notify("Error: Start remote missing", C.Red)
-    end
-end)
-
-AddToggle(MainPage, "Auto Collect", "Collects Sapphire, Gold & Amethyst", false, 3, function(active)
-    AutoCollectEnabled = active
-    if active then
-        Notify("Auto Collect: ON", C.Green)
-        task.spawn(function()
-            while AutoCollectEnabled do
-                if MoneyRemote then
-                    MoneyRemote:FireServer("Sapphire")
-                    MoneyRemote:FireServer("Gold")
-                    MoneyRemote:FireServer("Amethyst")
-                end
-                task.wait(0.25)
-            end
-        end)
-    else
-        Notify("Auto Collect: OFF", C.Red)
-    end
-end)
-
-AddToggle(MainPage, "Auto Pick", "Picks cards automatically", false, 4, function(active)
-    AutoPickEnabled = active
-    if active then
-        Notify("Auto Pick: ON", C.Green)
-        task.spawn(function()
-            while AutoPickEnabled do
-                if ChoiceRemote then
-                    ChoiceRemote:FireServer("")
-                end
-                task.wait(1)
-            end
-        end)
-    else
-        Notify("Auto Pick: OFF", C.Red)
-    end
-end)
-
-AddToggle(MainPage, "God Mode", "Rapid loop heal", false, 5, function(active)
-    GodModeEnabled = active
-    Notify(active and "God Mode: ON" or "God Mode: OFF", active and C.Green or C.Red)
-end)
-
-AddSection(MainPage, "STATS (LVL 2+)", 6)
-
-AddToggle(MainPage, "Inf Damage", "Loops Skull & Toxin", false, 7, function(active)
-    InfDamageEnabled = active
-    if active then
-        task.spawn(function()
-            while InfDamageEnabled do
-                if ChoiceRemote then
-                    ChoiceRemote:FireServer("Skull")
-                    ChoiceRemote:FireServer("Toxin")
-                end
-                task.wait(0.1)
-            end
-        end)
-    end
-end)
-
-AddToggle(MainPage, "Inf Range", "Loops Trident", false, 8, function(active)
-    InfRangeEnabled = active
-    if active then
-        task.spawn(function()
-            while InfRangeEnabled do
-                if ChoiceRemote then ChoiceRemote:FireServer("Trident") end
-                task.wait(0.1)
-            end
-        end)
-    end
-end)
-
-AddToggle(MainPage, "Attack Speed", "Loops Firework", false, 9, function(active)
-    InfSpeedEnabled = active
-    if active then
-        task.spawn(function()
-            while InfSpeedEnabled do
-                if ChoiceRemote then ChoiceRemote:FireServer("Firework") end
-                task.wait(0.1)
-            end
-        end)
-    end
-end)
-
-AddToggle(MainPage, "Max Health Boost", "Loops Apple", false, 10, function(active)
-    MaxHpEnabled = active
-    if active then
-        task.spawn(function()
-            while MaxHpEnabled do
-                if ChoiceRemote then ChoiceRemote:FireServer("Apple") end
-                task.wait(0.1)
-            end
-        end)
-    end
-end)
-
-AddButton(MainPage, "Inf Projectiles (+)", "Adds 100 Ammo", 11, function()
-    if ChoiceRemote then
-        for i = 1, 100 do ChoiceRemote:FireServer("Ammo") end
-        Notify("Added 100 Ammo!", C.Green)
-    end
-end)
-
-AddButton(MainPage, "Inf Luck", "Spams Spades 100x", 12, function()
-    if ChoiceRemote then
-        for i = 1, 100 do ChoiceRemote:FireServer("Spades") end
-        Notify("Added 100 Luck!", C.Green)
-    end
-end)
-
--- TAB 2: MULTI & MISC
-AddSection(ExtraPage, "MULTIPLAYER & STORE", 1)
-
-local function getOnlinePlayerNames()
-    local names = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then table.insert(names, p.Name) end
-    end
-    if #names == 0 then table.insert(names, "No other players") end
-    return names
-end
-
-AddDropdown(ExtraPage, "Target Player", getOnlinePlayerNames(), 2, function(selected)
-    SelectedPlayer = selected
-end)
-
-AddButton(ExtraPage, "Join Party", "Joins selected player", 3, function()
-    if not SelectedPlayer or SelectedPlayer == "No other players" then
-        Notify("Select a player first!", C.Red)
-        return
-    end
-    if JoinRemote then
-        JoinRemote:InvokeServer(SelectedPlayer)
-        Notify("Joining: " .. SelectedPlayer, C.Green)
-    else
-        Notify("Error: Join Remote missing", C.Red)
-    end
-end)
-
-AddDropdown(ExtraPage, "Select Chest", {"BasicChest", "GoldenChest", "MagicChest", "DivineChest"}, 4, function(chest)
-    SelectedChest = chest
-end)
-
-local buyCooldown = false
-AddButton(ExtraPage, "Buy Chest", "Rejoin after purchase", 5, function(lbl)
-    if buyCooldown then return end
-    buyCooldown = true
-
-    if PurchaseRemote then
-        PurchaseRemote:InvokeServer(SelectedChest, 2.133333444595337)
-        Notify("Purchased " .. SelectedChest, C.Green)
-        local orig = lbl.Text
-        lbl.Text = "Cooldown (1s)..."
-        task.wait(1)
-        lbl.Text = orig
-    else
-        Notify("Error: Purchase remote missing", C.Red)
-    end
-    buyCooldown = false
-end)
-
-AddSection(ExtraPage, "VISUALS", 6)
-
-AddToggle(ExtraPage, "Player ESP", "Highlights entity outlines", false, 7, function(active)
-    EspEnabled = active
-    if active then
-        Notify("ESP: ON", C.Green)
-        local function highlight(v)
-            if v:IsA("Model") and v:FindFirstChild("Humanoid") and v ~= LocalPlayer.Character then
-                if not v:FindFirstChild("LootESP") then
-                    local hl = Instance.new("Highlight")
-                    hl.Name = "LootESP"
-                    hl.FillTransparency = 0.5
-                    hl.OutlineTransparency = 0
-                    hl.FillColor = C.Accent
-                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    hl.Parent = v
-                    table.insert(EspHighlights, hl)
-                end
-            end
-        end
-
-        for _, v in ipairs(Workspace:GetDescendants()) do highlight(v) end
-        EspConnection = Workspace.DescendantAdded:Connect(function(v)
-            task.delay(0.5, function() highlight(v) end)
-        end)
-    else
-        Notify("ESP: OFF", C.Red)
-        if EspConnection then EspConnection:Disconnect() end
-        for _, hl in ipairs(EspHighlights) do if hl then hl:Destroy() end end
-        EspHighlights = {}
-    end
-end)
-
-print("[Loot Hero] Autumn Edition Loaded with Full Settings Suite.")
+openMenu()
+Notify("Lumacore", "Poly Loot Initialized", C.Accent)
+print("[Lumacore] Poly Loot loaded.")
