@@ -12,7 +12,7 @@ local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
 local ScreenName = "Lumacore_PolyLoot"
 
--- PRE-DECLARE ALL SCOPED ROUTINES
+-- PRE-DECLARE ROUTINES
 local closeActiveDrawer = function() end
 local closeMenu = function() end
 local openMenu = function() end
@@ -55,12 +55,22 @@ local C = {
 }
 
 local AnimationsEnabled = true
+
+-- BULLETPROOF TWEEN ENGINE (Guaranteed instant completion callbacks when disabled)
 local function tw(obj, props, dur, style, dir)
     if not AnimationsEnabled then
         for prop, val in pairs(props) do
             pcall(function() obj[prop] = val end)
         end
-        return {Completed = {Wait = function() end, Connect = function(_, fn) fn() end}}
+        return {
+            Completed = {
+                Wait = function() end,
+                Connect = function(_, fn)
+                    task.spawn(fn)
+                    return {Disconnect = function() end}
+                end
+            }
+        }
     end
     local t = TweenService:Create(
         obj,
@@ -309,11 +319,13 @@ AssemblyVeil.Visible = false
 AssemblyVeil.Parent = Card
 Instance.new("UICorner", AssemblyVeil).CornerRadius = UDim.new(0, 16)
 
+-- LASER LINE (Hidden during closure to prevent orange line glitch)
 local veilLaser = Instance.new("Frame")
 veilLaser.Size = UDim2.new(1, 0, 0, 2)
 veilLaser.Position = UDim2.new(0, 0, 1, -2)
 veilLaser.BackgroundColor3 = C.AccentGlow
 veilLaser.BorderSizePixel = 0
+veilLaser.Visible = false
 veilLaser.Parent = AssemblyVeil
 
 -- HEADER BAR
@@ -343,8 +355,9 @@ Title.Size = UDim2.new(0, 180, 0, 16)
 Title.BackgroundTransparency = 1
 Title.Parent = Header
 
+-- Subtitle with Credit
 local SubTitle = Instance.new("TextLabel")
-SubTitle.Text = "Lumacore Architecture"
+SubTitle.Text = "Credit: Lumacore"
 SubTitle.Font = Enum.Font.GothamMedium
 SubTitle.TextSize = 10
 SubTitle.TextColor3 = C.AccentGlow
@@ -459,7 +472,7 @@ local function Notify(titleText, subText, color)
     end
 end
 
--- HEADER NAVIGATION BUTTONS (★ CREDITS, ⚙ SETTINGS, ✕ CLOSE)
+-- HEADER NAVIGATION BUTTONS
 local HeaderBtns = Instance.new("Frame")
 HeaderBtns.Size = UDim2.new(0, 102, 0, 28)
 HeaderBtns.Position = UDim2.new(1, -16, 0.5, 0)
@@ -521,11 +534,12 @@ clBtnStroke.Color = C.Red
 clBtnStroke.Thickness = 1
 clBtnStroke.Parent = CloseBtn
 
--- 9. BODY CONTAINER (CLEAN SPACIOUS LAYOUT)
+-- 9. BODY CONTAINER
 local Body = Instance.new("Frame")
 Body.Size = UDim2.new(1, -32, 1, -60)
 Body.Position = UDim2.new(0, 16, 0, 48)
 Body.BackgroundTransparency = 1
+Body.Visible = true
 Body.Parent = Card
 
 local LeftCol = Instance.new("ScrollingFrame")
@@ -571,7 +585,6 @@ avStroke.Color = C.Accent
 avStroke.Thickness = 2
 avStroke.Parent = AvatarHolder
 
--- DUAL-METHOD GUARANTEED PROFILE PICTURE
 local AvatarImage = Instance.new("ImageLabel")
 AvatarImage.Size = UDim2.fromScale(1, 1)
 AvatarImage.BackgroundTransparency = 1
@@ -677,25 +690,73 @@ RunService.Heartbeat:Connect(function()
     uptimeRow.Text = "Session: " .. formatUptime(os.time() - StartEpoch)
 end)
 
--- 10. POLISHED ACTION CARDS
+-- 10. COLLAPSIBLE SECTION WITH BUBBLE BADGE
 local ActionCardRegistry = {}
+local CollapsibleSections = {}
+local DropdownFeatureEnabled = false
 
 local function AddSection(parent, text, order)
+    local secBtn = Instance.new("TextButton")
+    secBtn.Size = UDim2.new(1, 0, 0, 22)
+    secBtn.BackgroundColor3 = C.CardBg
+    secBtn.BackgroundTransparency = 0.4
+    secBtn.AutoButtonColor = false
+    secBtn.Text = ""
+    secBtn.LayoutOrder = order or 0
+    secBtn.Parent = parent
+    Instance.new("UICorner", secBtn).CornerRadius = UDim.new(0, 6)
+
+    local secStroke = Instance.new("UIStroke")
+    secStroke.Color = C.Border
+    secStroke.Thickness = 1
+    secStroke.Parent = secBtn
+
     local lbl = Instance.new("TextLabel")
     lbl.Text = text
-    lbl.Size = UDim2.new(1, 0, 0, 16)
+    lbl.Size = UDim2.new(1, -28, 1, 0)
+    lbl.Position = UDim2.new(0, 8, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.TextColor3 = C.Accent
     lbl.Font = Enum.Font.GothamBold
     lbl.TextSize = 9.5
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.LayoutOrder = order or 0
-    lbl.ZIndex = parent.ZIndex + 1
-    lbl.Parent = parent
-    return lbl
+    lbl.Parent = secBtn
+
+    local arrow = Instance.new("TextLabel")
+    arrow.Text = "▼"
+    arrow.Size = UDim2.new(0, 20, 1, 0)
+    arrow.Position = UDim2.new(1, -24, 0, 0)
+    arrow.BackgroundTransparency = 1
+    arrow.TextColor3 = C.Dim
+    arrow.Font = Enum.Font.GothamBold
+    arrow.TextSize = 9
+    arrow.Visible = false
+    arrow.Parent = secBtn
+
+    local secData = {
+        Button = secBtn,
+        Arrow = arrow,
+        Title = text,
+        Collapsed = false,
+        Items = {}
+    }
+    table.insert(CollapsibleSections, secData)
+
+    secBtn.MouseButton1Click:Connect(function()
+        if not DropdownFeatureEnabled then return end
+        secData.Collapsed = not secData.Collapsed
+        arrow.Text = secData.Collapsed and "►" or "▼"
+        arrow.TextColor3 = secData.Collapsed and C.AccentGlow or C.Dim
+        
+        for _, card in ipairs(secData.Items) do
+            card.Visible = not secData.Collapsed
+        end
+    end)
+
+    return secData
 end
 
-local function CreateActionCard(parent, title, defaultSub, initialBadgeText, initialActive, order, callback)
+local function CreateActionCard(parent, sectionData, title, defaultSub, initialBadgeText, initialActive, order, callback)
     local row = Instance.new("TextButton")
     row.Size = UDim2.new(1, 0, 0, 44)
     row.BackgroundColor3 = initialActive and C.Hover or C.CardBg
@@ -705,6 +766,10 @@ local function CreateActionCard(parent, title, defaultSub, initialBadgeText, ini
     row.ZIndex = parent.ZIndex
     row.ClipsDescendants = true
     row.Parent = parent
+
+    if sectionData then
+        table.insert(sectionData.Items, row)
+    end
 
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
     local s = Instance.new("UIStroke")
@@ -913,15 +978,19 @@ local isUnderground = false
 local currentTargetGhost = nil
 local waitingForModeChoice = false
 
--- SPEED TUNING (Slow = 26 steps / 0.28s, Normal = 16 steps / 0.12s, Fast = 10 steps / 0.04s)
+-- EXACT SPEED PREFERENCES
 local speedMode = "Normal"
-local catchDelay = 0.12
 local stepDivisor = 1.6
+
+-- EXACT NEXT-GHOST DELAY PREFERENCES
+local nextGhostDelayMode = "Instant"
+local nextGhostDelaySecs = 0.0
 
 local autoCandyCard = nil
 local farmStanceCard = nil
 local aiChaseCard = nil
 local speedCard = nil
+local nextDelayCard = nil
 
 local lastAttackedGhost = nil
 local lastAttackTick = 0
@@ -1037,7 +1106,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- SMOOTH VELOCITY-SAFE HARVEST ENGINE
+-- SMOOTH CANDY CORN WORKER (STRICT GLIDE & PAUSE EXECUTION)
 task.spawn(function()
     while true do
         if autoCandyFarm and not waitingForModeChoice then
@@ -1066,7 +1135,6 @@ task.spawn(function()
                     end
 
                     if dist <= 9.0 then
-                        if catchDelay > 0 then task.wait(catchDelay) end
                         executeGhostSwing(ghost)
                     end
                     task.wait(0.05)
@@ -1102,7 +1170,7 @@ task.spawn(function()
                         hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                         hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                     else
-                        local steps = math.clamp(math.floor(distanceToGoal / stepDivisor), 8, 26)
+                        local steps = math.clamp(math.floor(distanceToGoal / stepDivisor), 8, 28)
                         for i = 1, steps do
                             if not autoCandyFarm or not ghost.Parent then break end
                             local t = i / steps
@@ -1114,14 +1182,16 @@ task.spawn(function()
                         end
                     end
 
-                    if catchDelay > 0 then
-                        task.wait(catchDelay)
-                    end
-
                     if ghost.Parent then
                         executeGhostSwing(ghost)
                     end
-                    task.wait(0.06)
+                    
+                    -- Next Ghost Delay enforcement
+                    if nextGhostDelaySecs > 0 then
+                        task.wait(nextGhostDelaySecs)
+                    else
+                        task.wait(0.06)
+                    end
                 end
             else
                 restoreSurface()
@@ -1327,10 +1397,10 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- 15. MAIN TAB MAKEOVER (STREAMLINED & POLISHED)
-AddSection(LeftCol, "AUTOMATION", 1)
+-- 15. MAIN TAB (ORGANIZED SECTIONS)
+local secAuto = AddSection(LeftCol, "AUTOMATION", 1)
 
-autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto net handling & harvest loop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
+autoCandyCard = CreateActionCard(LeftCol, secAuto, "AUTO CANDY CORN", "Auto net handling & harvest loop", "OFF", false, 2, function(bText, bStroke, sLbl, setActive)
     if not autoCandyFarm then
         autoCandyFarm = true
         waitingForModeChoice = true
@@ -1377,7 +1447,7 @@ autoCandyCard = CreateActionCard(LeftCol, "AUTO CANDY CORN", "Auto net handling 
     end
 end)
 
-farmStanceCard = CreateActionCard(LeftCol, "FARM STANCE", "Positioning inside or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
+farmStanceCard = CreateActionCard(LeftCol, secAuto, "FARM STANCE", "Positioning inside or under ghost", "UNDER", false, 3, function(bText, bStroke, sLbl, setActive)
     if aiChaseActive then
         Notify("Stance Locked", "Disable AI Chase before changing stance", C.Red)
         return
@@ -1408,7 +1478,7 @@ farmStanceCard = CreateActionCard(LeftCol, "FARM STANCE", "Positioning inside or
     Notify("Farm Stance", "Stance set to: " .. farmStance, C.Accent)
 end)
 
-aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with jump assist", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
+aiChaseCard = CreateActionCard(LeftCol, secAuto, "AI CHASE MODE", "Ground navigation with jump assist", "OFF", false, 4, function(bText, bStroke, sLbl, setActive)
     aiChaseActive = not aiChaseActive
 
     if aiChaseActive then
@@ -1455,39 +1525,49 @@ aiChaseCard = CreateActionCard(LeftCol, "AI CHASE MODE", "Ground navigation with
     end
 end)
 
--- 3-SPEED SWITCH: NORMAL -> FAST -> SLOW
-speedCard = CreateActionCard(LeftCol, "CATCH SPEED", "Interpolation glide pacing", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
+-- 2-OPTION SPEED: NORMAL vs SLOW
+speedCard = CreateActionCard(LeftCol, secAuto, "GLIDE SPEED", "Interpolation movement pace", "NORMAL", false, 5, function(bText, bStroke, sLbl, setActive)
     if speedMode == "Normal" then
-        speedMode = "Fast"
-        catchDelay = 0.04
-        stepDivisor = 2.0
-        bText.Text = "FAST"
-        bText.TextColor3 = C.AccentGlow
-        sLbl.Text = "Fast interpolation (0.04s) • Swift swings"
-        setActive(true, C.AccentGlow)
-        Notify("Speed Mode", "Pacing set to Fast", C.AccentGlow)
-    elseif speedMode == "Fast" then
         speedMode = "Slow"
-        catchDelay = 0.28
         stepDivisor = 1.0
         bText.Text = "SLOW"
         bText.TextColor3 = C.Purple
-        sLbl.Text = "Slow gradual glide (0.28s) • Lag & ping tolerant"
+        sLbl.Text = "Gentle glide • Smoothly paces towards ghosts"
         setActive(true, C.Purple)
-        Notify("Speed Mode", "Pacing set to Slow", C.Purple)
+        Notify("Glide Speed", "Speed set to: Slow", C.Purple)
     else
         speedMode = "Normal"
-        catchDelay = 0.12
         stepDivisor = 1.6
         bText.Text = "NORMAL"
         bText.TextColor3 = C.Cyan
-        sLbl.Text = "Natural balanced glide (0.12s) • Steady registration"
+        sLbl.Text = "Balanced glide • Steady natural pathing"
         setActive(true, C.Cyan)
-        Notify("Speed Mode", "Pacing set to Normal", C.Cyan)
+        Notify("Glide Speed", "Speed set to: Normal", C.Cyan)
     end
 end)
 
-CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through barriers & geometry", "OFF", false, 6, function(bText, bStroke, sLbl, setActive)
+-- 2-OPTION NEXT GHOST DELAY: INSTANT vs 2.5s DELAY
+nextDelayCard = CreateActionCard(LeftCol, secAuto, "NEXT GHOST DELAY", "Pause duration between catches", "INSTANT", false, 6, function(bText, bStroke, sLbl, setActive)
+    if nextGhostDelayMode == "Instant" then
+        nextGhostDelayMode = "2.5s DELAY"
+        nextGhostDelaySecs = 2.5
+        bText.Text = "2.5s WAIT"
+        bText.TextColor3 = C.AccentGlow
+        sLbl.Text = "Waits 2.5 seconds before catching next ghost"
+        setActive(true, C.AccentGlow)
+        Notify("Catch Delay", "Pause set to: 2.5 Seconds", C.AccentGlow)
+    else
+        nextGhostDelayMode = "Instant"
+        nextGhostDelaySecs = 0.0
+        bText.Text = "INSTANT"
+        bText.TextColor3 = C.Green
+        sLbl.Text = "Catches nearest ghosts continuously"
+        setActive(false)
+        Notify("Catch Delay", "Pause set to: Instant", C.Green)
+    end
+end)
+
+CreateActionCard(LeftCol, secAuto, "NOCLIP ENGINE", "Passes through barriers & geometry", "OFF", false, 7, function(bText, bStroke, sLbl, setActive)
     NoclipActive = not NoclipActive
     bText.Text = NoclipActive and "ACTIVE" or "OFF"
     bText.TextColor3 = NoclipActive and C.Green or C.Muted
@@ -1496,7 +1576,10 @@ CreateActionCard(LeftCol, "NOCLIP ENGINE", "Passes through barriers & geometry",
     Notify("Noclip", NoclipActive and "Noclip Enabled" or "Noclip Disabled", NoclipActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claim Halloween daily reward", "CLAIM", false, 7, function()
+-- EVENT SHOP (Includes Light Flame)
+local secShop = AddSection(LeftCol, "EVENT SHOP", 8)
+
+CreateActionCard(LeftCol, secShop, "LIGHT FLAME (DAILY)", "Claim Halloween daily reward", "CLAIM", false, 9, function()
     resolveRemotes()
     if DailyCheckInRemote then
         pcall(function() DailyCheckInRemote:FireServer() end)
@@ -1506,9 +1589,7 @@ CreateActionCard(LeftCol, "LIGHT FLAME (DAILY)", "Claim Halloween daily reward",
     end
 end)
 
-AddSection(LeftCol, "EVENT SHOP", 8)
-
-CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Event chest purchase", "BUY", false, 9, function()
+CreateActionCard(LeftCol, secShop, "BUY PUMPKIN CHEST", "5,000 Candy • Event chest purchase", "BUY", false, 10, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinChest") end)
@@ -1518,7 +1599,7 @@ CreateActionCard(LeftCol, "BUY PUMPKIN CHEST", "5,000 Candy • Event chest purc
     end
 end)
 
-CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Dungeon ticket purchase", "BUY", false, 10, function()
+CreateActionCard(LeftCol, secShop, "BUY HALLOWEEN DUNGEON", "500 Candy • Dungeon ticket purchase", "BUY", false, 11, function()
     resolveRemotes()
     if ShopBuyRemote then
         pcall(function() ShopBuyRemote:FireServer("PumpkinMaw") end)
@@ -1528,9 +1609,9 @@ CreateActionCard(LeftCol, "BUY HALLOWEEN DUNGEON", "500 Candy • Dungeon ticket
     end
 end)
 
-AddSection(LeftCol, "VISUALS", 11)
+local secVis = AddSection(LeftCol, "VISUALS", 12)
 
-CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 12, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, secVis, "PLAYER ESP", "Outline chams, distance & HP %", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
     toggleESP(not ESPActive)
     bText.Text = ESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = ESPActive and C.Green or C.Muted
@@ -1539,7 +1620,7 @@ CreateActionCard(LeftCol, "PLAYER ESP", "Outline chams, distance & HP %", "OFF",
     Notify("ESP Visuals", ESPActive and "Player Chams Active" or "Player ESP Disabled", ESPActive and C.Green or C.Red)
 end)
 
-CreateActionCard(LeftCol, "GHOST ESP", "Outline chams & distance tags", "OFF", false, 13, function(bText, bStroke, sLbl, setActive)
+CreateActionCard(LeftCol, secVis, "GHOST ESP", "Outline chams & distance tags", "OFF", false, 14, function(bText, bStroke, sLbl, setActive)
     toggleGhostESP(not GhostESPActive)
     bText.Text = GhostESPActive and "ACTIVE" or "OFF"
     bText.TextColor3 = GhostESPActive and C.Purple or C.Muted
@@ -1551,7 +1632,7 @@ end)
 -- 16. MUTUAL-EXCLUSION DRAWERS
 local MobileToggle
 
--- A. SETTINGS DRAWER (INCLUDES CLEAN SUB-DESCRIPTIONS & COMBINED DANGER BAR)
+-- A. SETTINGS DRAWER (WITH ZERO-ANIMATION PROTECTION)
 local Drawer = Instance.new("Frame")
 Drawer.Size = UDim2.new(1, 0, 1, -48)
 Drawer.Position = UDim2.new(0, 0, 1, 0)
@@ -1582,7 +1663,6 @@ dList.Padding = UDim.new(0, 8)
 dList.SortOrder = Enum.SortOrder.LayoutOrder
 dList.Parent = DrawerScroll
 
--- Compact Dual Toggle Tile with Sub-Descriptions
 local function createSettingsToggleTile(parent, title, subText, initialVal, activeColor, onToggle)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.5, -4, 0, 42)
@@ -1721,25 +1801,55 @@ createSettingsToggleTile(HudGrid2, "Ghost Count", "Captured ghost tracker", fals
 createSettingsToggleTile(HudGrid2, "Uptime Clock", "Session duration timer", false, C.Green, function(state) MonitorUptime = state end)
 
 AddSection(DrawerScroll, "GRAPHICS & INTERFACE", 6)
-local DispGrid = Instance.new("Frame")
-DispGrid.Size = UDim2.new(1, 0, 0, 42)
-DispGrid.BackgroundTransparency = 1
-DispGrid.LayoutOrder = 7
-DispGrid.ZIndex = 51
-DispGrid.Parent = DrawerScroll
-local dgLayout = Instance.new("UIListLayout")
-dgLayout.FillDirection = Enum.FillDirection.Horizontal
-dgLayout.Padding = UDim.new(0, 8)
-dgLayout.Parent = DispGrid
+local DispGrid1 = Instance.new("Frame")
+DispGrid1.Size = UDim2.new(1, 0, 0, 42)
+DispGrid1.BackgroundTransparency = 1
+DispGrid1.LayoutOrder = 7
+DispGrid1.ZIndex = 51
+DispGrid1.Parent = DrawerScroll
+local dgLayout1 = Instance.new("UIListLayout")
+dgLayout1.FillDirection = Enum.FillDirection.Horizontal
+dgLayout1.Padding = UDim.new(0, 8)
+dgLayout1.Parent = DispGrid1
 
-createSettingsToggleTile(DispGrid, "Spring Motion", "Menu glide animations", true, C.Green, function(state)
+createSettingsToggleTile(DispGrid1, "Spring Motion", "Toggle UI motion tweens", true, C.Green, function(state)
     AnimationsEnabled = state
     Notify("Animations", state and "Easing Active" or "Snapping Active", C.Accent)
 end)
 
-createSettingsToggleTile(DispGrid, "Floating Button", "Mobile maple leaf icon", true, C.Green, function(state)
+createSettingsToggleTile(DispGrid1, "Floating Button", "Mobile maple leaf icon", true, C.Green, function(state)
     if setFloatingIconVisible then setFloatingIconVisible(state) end
     Notify("Toggle Button", state and "Floating Icon On" or "Floating Icon Hidden", C.Accent)
+end)
+
+local DispGrid2 = Instance.new("Frame")
+DispGrid2.Size = UDim2.new(1, 0, 0, 42)
+DispGrid2.BackgroundTransparency = 1
+DispGrid2.LayoutOrder = 8
+DispGrid2.ZIndex = 51
+DispGrid2.Parent = DrawerScroll
+local dgLayout2 = Instance.new("UIListLayout")
+dgLayout2.FillDirection = Enum.FillDirection.Horizontal
+dgLayout2.Padding = UDim.new(0, 8)
+dgLayout2.Parent = DispGrid2
+
+createSettingsToggleTile(DispGrid2, "Section Collapse", "Click headers to minimize", false, C.Cyan, function(state)
+    DropdownFeatureEnabled = state
+    for _, sec in ipairs(CollapsibleSections) do
+        sec.Arrow.Visible = state
+        if not state then
+            sec.Collapsed = false
+            sec.Arrow.Text = "▼"
+            for _, card in ipairs(sec.Items) do
+                card.Visible = true
+            end
+        end
+    end
+    Notify("Dropdowns", state and "Section Collapse Enabled" or "All Sections Expanded", C.Cyan)
+end)
+
+createSettingsToggleTile(DispGrid2, "In-UI Alerts", "Banner notifications", true, C.Green, function(state)
+    NotificationsEnabled = state
 end)
 
 -- Potato Mode System
@@ -1844,7 +1954,7 @@ end
 local PerfGrid = Instance.new("Frame")
 PerfGrid.Size = UDim2.new(1, 0, 0, 42)
 PerfGrid.BackgroundTransparency = 1
-PerfGrid.LayoutOrder = 8
+PerfGrid.LayoutOrder = 9
 PerfGrid.ZIndex = 51
 PerfGrid.Parent = DrawerScroll
 local pgLayout = Instance.new("UIListLayout")
@@ -1858,16 +1968,12 @@ createSettingsToggleTile(PerfGrid, "Potato Visuals", "Strip textures & VFX", fal
     Notify("Performance", state and "Potato Mode Active" or "Visuals Restored", C.Accent)
 end)
 
-createSettingsToggleTile(PerfGrid, "In-UI Alerts", "Banner notifications", true, C.Green, function(state)
-    NotificationsEnabled = state
-end)
-
--- SIDE-BY-SIDE TACTILE SLIDING DANGER ACTIONS
-AddSection(DrawerScroll, "EMERGENCY ACTIONS", 9)
+-- EMERGENCY SLIDING ACTIONS
+AddSection(DrawerScroll, "EMERGENCY ACTIONS", 10)
 local DangerGrid = Instance.new("Frame")
 DangerGrid.Size = UDim2.new(1, 0, 0, 44)
 DangerGrid.BackgroundTransparency = 1
-DangerGrid.LayoutOrder = 10
+DangerGrid.LayoutOrder = 11
 DangerGrid.ZIndex = 51
 DangerGrid.Parent = DrawerScroll
 local dgActionsLayout = Instance.new("UIListLayout")
@@ -1875,7 +1981,6 @@ dgActionsLayout.FillDirection = Enum.FillDirection.Horizontal
 dgActionsLayout.Padding = UDim.new(0, 8)
 dgActionsLayout.Parent = DangerGrid
 
--- 1. Fast Respawn Sliding Card
 local RespawnCard = Instance.new("TextButton")
 RespawnCard.Size = UDim2.new(0.5, -4, 1, 0)
 RespawnCard.BackgroundColor3 = C.CardBg
@@ -1948,7 +2053,6 @@ RespawnCard.MouseButton1Click:Connect(function()
     end
 end)
 
--- 2. Destroy & Purge Sliding Card
 local function executePurgeDestroy()
     autoCandyFarm = false
     aiChaseActive = false
@@ -2041,7 +2145,7 @@ DestroyCard.MouseButton1Click:Connect(function()
     end
 end)
 
--- B. CREDITS DRAWER (HERO CARD WITH CLEAN VERSION PILL)
+-- B. CREDITS DRAWER (HERO CARD WITH VERSION BADGE)
 local CreditsDrawer = Instance.new("Frame")
 CreditsDrawer.Size = UDim2.new(1, 0, 1, -48)
 CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
@@ -2129,7 +2233,6 @@ HeroSub.BackgroundTransparency = 1
 HeroSub.ZIndex = 53
 HeroSub.Parent = HeroCard
 
--- Displays version instead of lead dev
 local HeroPill = Instance.new("Frame")
 HeroPill.Size = UDim2.new(0, 76, 0, 22)
 HeroPill.Position = UDim2.new(1, -10, 0.5, 0)
@@ -2146,7 +2249,7 @@ hpStroke.Parent = HeroPill
 local HeroPillTxt = Instance.new("TextLabel")
 HeroPillTxt.Size = UDim2.fromScale(1, 1)
 HeroPillTxt.BackgroundTransparency = 1
-HeroPillTxt.Text = "v2.8"
+HeroPillTxt.Text = "v2.9"
 HeroPillTxt.Font = Enum.Font.GothamBold
 HeroPillTxt.TextSize = 9
 HeroPillTxt.TextColor3 = C.Green
@@ -2266,29 +2369,44 @@ local function createRevisionTile(parent, tag, tagColor, title, desc, order)
 end
 
 createRevisionTile(CreditsScroll, "MECHANIC", C.Accent, "Rounded Assembly Motion", "Symmetrical rounded beam extrusion & deconstruct", 4)
-createRevisionTile(CreditsScroll, "STABILITY", C.Green, "Hermite Anti-Clip Farm", "Inside-ghost positioning with raycast ground clamping", 5)
-createRevisionTile(CreditsScroll, "PACING", C.Purple, "Tri-Speed Engine Switch", "True slow (0.28s) / normal (0.12s) / fast (0.04s) speeds", 6)
-createRevisionTile(CreditsScroll, "PURGE", C.Red, "Tactile Laser Deletion", "Side-by-side sliding confirm bars with red collapse", 7)
+createRevisionTile(CreditsScroll, "PACING", C.Purple, "Dual Glide & Next Delay", "Glide step speeds + 2.5s next ghost wait buffer", 5)
+createRevisionTile(CreditsScroll, "LAYOUT", C.Cyan, "Collapsible Section Headers", "Click to minimize sections for faster navigation", 6)
+createRevisionTile(CreditsScroll, "PURGE", C.Red, "Side-by-Side Emergency Actions", "Sliding confirmation bars with laser dissolution", 7)
 
 -- ACTIVE DRAWER CONTROLLER
 local activeDrawer = nil
 
 closeActiveDrawer = function(onDone)
     if activeDrawer == "Settings" then
-        tw(SettingsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
-        local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
-        anim.Completed:Connect(function()
-            if activeDrawer == nil then Body.Visible = true end
+        if AnimationsEnabled then
+            tw(SettingsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
+            local anim = tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
+            anim.Completed:Connect(function()
+                if activeDrawer == nil then Body.Visible = true end
+                if onDone then onDone() end
+            end)
+        else
+            SettingsBtn.Rotation = 0
+            Drawer.Position = UDim2.new(0, 0, 1, 0)
+            Body.Visible = true
             if onDone then onDone() end
-        end)
+        end
     elseif activeDrawer == "Credits" then
-        tw(CreditsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
-        local anim = tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
-        anim.Completed:Connect(function()
-            if activeDrawer == nil then Body.Visible = true end
+        if AnimationsEnabled then
+            tw(CreditsBtn, {Rotation = 0}, 0.22, Enum.EasingStyle.Quart)
+            local anim = tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.22, Enum.EasingStyle.Quart)
+            anim.Completed:Connect(function()
+                if activeDrawer == nil then Body.Visible = true end
+                if onDone then onDone() end
+            end)
+        else
+            CreditsBtn.Rotation = 0
+            CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
+            Body.Visible = true
             if onDone then onDone() end
-        end)
+        end
     else
+        Body.Visible = true
         if onDone then onDone() end
     end
     activeDrawer = nil
@@ -2300,12 +2418,22 @@ local function toggleSettingsDrawer()
     else
         Body.Visible = false
         if activeDrawer == "Credits" then
-            tw(CreditsBtn, {Rotation = 0}, 0.15)
-            tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+            if AnimationsEnabled then
+                tw(CreditsBtn, {Rotation = 0}, 0.15)
+                tw(CreditsDrawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+            else
+                CreditsBtn.Rotation = 0
+                CreditsDrawer.Position = UDim2.new(0, 0, 1, 0)
+            end
         end
         activeDrawer = "Settings"
-        tw(SettingsBtn, {Rotation = 90}, 0.25, Enum.EasingStyle.Back)
-        tw(Drawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+        if AnimationsEnabled then
+            tw(SettingsBtn, {Rotation = 90}, 0.25, Enum.EasingStyle.Back)
+            tw(Drawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+        else
+            SettingsBtn.Rotation = 90
+            Drawer.Position = UDim2.new(0, 0, 0, 48)
+        end
     end
 end
 
@@ -2315,12 +2443,22 @@ local function toggleCreditsDrawer()
     else
         Body.Visible = false
         if activeDrawer == "Settings" then
-            tw(SettingsBtn, {Rotation = 0}, 0.15)
-            tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+            if AnimationsEnabled then
+                tw(SettingsBtn, {Rotation = 0}, 0.15)
+                tw(Drawer, {Position = UDim2.new(0, 0, 1, 0)}, 0.18, Enum.EasingStyle.Quart)
+            else
+                SettingsBtn.Rotation = 0
+                Drawer.Position = UDim2.new(0, 0, 1, 0)
+            end
         end
         activeDrawer = "Credits"
-        tw(CreditsBtn, {Rotation = 72}, 0.25, Enum.EasingStyle.Back)
-        tw(CreditsDrawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+        if AnimationsEnabled then
+            tw(CreditsBtn, {Rotation = 72}, 0.25, Enum.EasingStyle.Back)
+            tw(CreditsDrawer, {Position = UDim2.new(0, 0, 0, 48)}, 0.25, Enum.EasingStyle.Quart)
+        else
+            CreditsBtn.Rotation = 72
+            CreditsDrawer.Position = UDim2.new(0, 0, 0, 48)
+        end
     end
 end
 
@@ -2377,7 +2515,7 @@ Header.InputBegan:Connect(function(input)
     end
 end)
 
--- 18. SYMMETRICAL ROUNDED ASSEMBLY SEQUENCE (BUILD & RETRACT)
+-- 18. SYMMETRICAL ROUNDED ASSEMBLY SEQUENCE (NO ORANGE LINE ARTIFACT)
 local isTransitioning = false
 local isOpen = false
 
@@ -2401,6 +2539,7 @@ local function playMechanicalBuildSequence()
     AssemblyVeil.Visible = true
     AssemblyVeil.Position = UDim2.new(0, 0, 0, 0)
     AssemblyVeil.BackgroundTransparency = 0
+    veilLaser.Visible = true
 
     tw(WireframeBeam, {BackgroundTransparency = 1}, 0.12)
     tw(BeamGlow, {Transparency = 1}, 0.12)
@@ -2413,6 +2552,7 @@ local function playMechanicalBuildSequence()
     local veilDrop = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 1, 0)}, 0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
     veilDrop.Completed:Wait()
     AssemblyVeil.Visible = false
+    veilLaser.Visible = false
 
     for _, row in ipairs(ActionCardRegistry) do
         row.Position = UDim2.new(0, -22, 0, 0)
@@ -2423,6 +2563,7 @@ local function playMechanicalBuildSequence()
 end
 
 local function playMechanicalDeconstructSequence()
+    veilLaser.Visible = false -- Prevents bottom laser artifact
     AssemblyVeil.Visible = true
     AssemblyVeil.Position = UDim2.new(0, 0, 1, 0)
     local shieldUp = tw(AssemblyVeil, {Position = UDim2.new(0, 0, 0, 0)}, 0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
@@ -2455,19 +2596,20 @@ openMenu = function()
     end
 
     Backdrop.Visible = true
-    Backdrop.BackgroundTransparency = 1
-    tw(Backdrop, {BackgroundTransparency = 0.5}, 0.25)
-
-    isOpen = true
-
     if AnimationsEnabled then
+        Backdrop.BackgroundTransparency = 1
+        tw(Backdrop, {BackgroundTransparency = 0.5}, 0.25)
+        isOpen = true
         playMechanicalBuildSequence()
     else
+        Backdrop.BackgroundTransparency = 0.5
+        isOpen = true
         Card.Position = UDim2.new(0.5, 0, 0.5, 0)
         Card.Size = UDim2.new(0, 580, 0, 345)
         Card.Rotation = 0
         Card.BackgroundTransparency = 0
         Card.Visible = true
+        Body.Visible = true
     end
 
     isTransitioning = false
